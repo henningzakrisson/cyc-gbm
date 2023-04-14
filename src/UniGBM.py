@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.tree import DecisionTreeRegressor
+from src.exceptions import UnknownDistribution
 
 
 class UniGBM:
@@ -13,26 +14,34 @@ class UniGBM:
         eps: float = 0.1,
         max_depth: int = 2,
         min_samples_leaf: int = 20,
+        dist: str = "normal",
     ):
         """
         :param kappa: Number of boosting steps.
         :param eps: Shrinkage factor, which scales the contribution of each tree.
         :param max_depth: Maximum depth of each decision tree.
         :param min_samples_leaf: Minimum number of samples required at a leaf node.
+        :param dist: distribution for losses and gradients
         """
         self.kappa = kappa
         self.eps = eps
         self.max_depth = max_depth
         self.min_samples_leaf = min_samples_leaf
+        self.dist = dist
 
         self.z0 = np.nan
         self.trees = [[]] * self.kappa
 
-        # Assume normal distribition
-        self.loss = lambda z, y: (y - z) ** 2
-
-        # Assume normal distribution
-        self.grad = lambda z, y: z - y
+        if self.dist == "normal":
+            # The normal distribution uses a mean-dispersion parametrization
+            self.loss = lambda z, y: (y - z) ** 2
+            self.grad = lambda z, y: z - y
+        elif self.dist == "gamma":
+            # The gamma distribution uses a mean-dispersion parametrization
+            self.loss = lambda z, y: y * np.exp(-z) + z
+            self.grad = lambda z, y: 1 - y * np.exp(-z)
+        else:
+            raise UnknownDistribution("Unknown distribution")
 
     def _initiate_param(self, y: np.ndarray) -> float:
         """
@@ -42,8 +51,11 @@ class UniGBM:
         :return: Initial prediction for the response variable.
         """
 
-        # Assume normal distribution
-        return y.mean()
+        if self.dist == "normal":
+            z0 = y.mean()
+        elif self.dist == "gamma":
+            z0 = np.log(y.mean())
+        return z0
 
     def _train_tree(self, X: np.ndarray, y: np.ndarray, z: np.ndarray):
         """
@@ -70,8 +82,10 @@ class UniGBM:
         :param z: Estimated parameters for the current iteration, of shape (n_samples,).
         :return: Optimal step size for updating the parameter estimates.
         """
-        # Assume normal distribution
-        gamma = np.mean(y - z)
+        if self.dist == "normal":
+            gamma = np.mean(y - z)
+        elif self.dist == "gamma":
+            gamma = np.log((y * np.exp(-z)).mean())
         return gamma
 
     def _adjust_node_values(
@@ -133,13 +147,17 @@ if __name__ == "__main__":
     X0 = np.arange(0, 100)
     X1 = np.arange(0, 100)
     rng.shuffle(X1)
-    mu = 10 * (X0 > 30) + 5 * (X1 > 50)
+    mu = 1 + 10 * (X0 > 30) + 5 * (X1 > 50)
+    phi = 1
+
+    alpha = 1 / (mu * phi)
+    beta = 1 / phi
 
     X = np.stack([X0, X1]).T
-    y = rng.normal(mu, 1.5)
+    y = rng.gamma(alpha, 1 / beta)
 
-    gbm = UniGBM()
+    gbm = UniGBM(dist="gamma")
     gbm.train(X, y)
     y_hat = gbm.predict(X)
 
-    print(sum(y - y_hat) ** 2)
+    print(sum(y - np.exp(y_hat)) ** 2)
