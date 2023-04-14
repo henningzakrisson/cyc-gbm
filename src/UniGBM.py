@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.model_selection import KFold
 from src.exceptions import UnknownDistribution
 
 
@@ -30,7 +31,7 @@ class UniGBM:
         self.dist = dist
 
         self.z0 = np.nan
-        self.trees = [[]] * self.kappa
+        self.trees = None
 
         if self.dist == "normal":
             # The normal distribution uses a mean-dispersion parametrization
@@ -109,11 +110,30 @@ class UniGBM:
         for g in gs:
             # Find optimal step size for this node
             index = g_hat == g
-            gamma = self._optimize_step_size(y[index], z[index])
+            gamma = self._optimize_step_size(y=y[index], z=z[index])
             # Manipulate tree
             tree.tree_.value[tree.tree_.value == g] = gamma
 
         return tree
+
+    def _train_trees(self, X: np.ndarray, y: np.ndarray, z: np.ndarray, kappa: int):
+        """
+        Trains kappa trees using the training data X and y and the current model's parameter estimates z as inputs.
+
+        Args:
+            X: The input training data, shape (n_samples, n_features).
+            y: The target values for the training data, shape (n_samples,).
+            z: The current model's parameter estimates
+            kappa: The number of trees to train.
+        """
+        trees = [[]] * kappa
+        for k in range(0, kappa):
+            tree = self._train_tree(X=X, y=y, z=z)
+            tree = self._adjust_node_values(tree=tree, X=X, y=y, z=z)
+            z += self.eps * tree.predict(X)
+            trees[k] = tree
+
+        return trees
 
     def train(self, X: np.ndarray, y: np.ndarray):
         """
@@ -125,11 +145,20 @@ class UniGBM:
         self.z0 = self._initiate_param(y)
         z = self.z0.repeat(len(y))
 
-        for k in range(0, self.kappa):
-            tree = self._train_tree(X=X, y=y, z=z)
-            tree = self._adjust_node_values(tree=tree, X=X, y=y, z=z)
-            z += self.eps * tree.predict(X)
-            self.trees[k] = tree
+        self.trees = self._train_trees(X=X, y=y, z=z, kappa=self.kappa)
+
+    def update(self, X: np.ndarray, y: np.ndarray, k_add: int = 100):
+        """
+        Updates the current boosting model with additional trees, trained on the specified training data X and y.
+
+        :param X: The training input data, shape (n_samples, n_features).
+        :param y: The target values for the training data, shape (n_samples,).
+        :param k_add: The number of trees to add to the model. Defaults to 100.
+        """
+        z = self.predict(X)
+
+        self.trees += self._train_trees(X=X, y=y, z=z, kappa=k_add)
+        self.kappa += k_add
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -140,6 +169,20 @@ class UniGBM:
         """
         z_hat = self.z0 + self.eps * sum([tree.predict(X) for tree in self.trees])
         return z_hat
+
+
+def tune_kappa(
+    X: np.ndarray,
+    y: np.ndarray,
+    max_depth: int = 2,
+    min_samples_leaf: int = 20,
+    n_splits: int = 4,
+    kappa_max: int = 1000,
+):
+    kf = KFold(n_splits=n_splits, shuffle=True)
+
+    for i, idx in enumerate(kf.split(X)):
+        train_idx, val_idx = idx
 
 
 if __name__ == "__main__":
@@ -155,9 +198,4 @@ if __name__ == "__main__":
 
     X = np.stack([X0, X1]).T
     y = rng.gamma(alpha, 1 / beta)
-
-    gbm = UniGBM(dist="gamma")
-    gbm.train(X, y)
-    y_hat = gbm.predict(X)
-
-    print(sum(y - np.exp(y_hat)) ** 2)
+    tune_kappa(X, y)
