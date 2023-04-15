@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.tree import DecisionTreeRegressor
 from typing import List
-from src.Distribution import Distribution
+from src.distribution import Distribution
 
 
 class CycGBM:

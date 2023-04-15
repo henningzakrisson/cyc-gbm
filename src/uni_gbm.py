@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.model_selection import KFold
-from src.Distribution import Distribution
+from src.distribution import Distribution
 
 
 class UniGBM:
