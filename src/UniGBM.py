@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.model_selection import KFold
-from src.exceptions import UnknownDistribution
+from src.Distribution import Distribution
 
 
 class UniGBM:
@@ -28,35 +28,10 @@ class UniGBM:
         self.eps = eps
         self.max_depth = max_depth
         self.min_samples_leaf = min_samples_leaf
-        self.dist = dist
+        self.dist = Distribution(dist, d=1)
 
         self.z0 = np.nan
         self.trees = None
-
-        if self.dist == "normal":
-            # The normal distribution uses a mean-dispersion parametrization
-            self.loss = lambda z, y: (y - z) ** 2
-            self.grad = lambda z, y: z - y
-        elif self.dist == "gamma":
-            # The gamma distribution uses a mean-dispersion parametrization
-            self.loss = lambda z, y: y * np.exp(-z) + z
-            self.grad = lambda z, y: 1 - y * np.exp(-z)
-        else:
-            raise UnknownDistribution("Unknown distribution")
-
-    def _initiate_param(self, y: np.ndarray) -> float:
-        """
-        Compute the initial parameter estimate
-
-        :param y: Training responses, of shape (n_samples,).
-        :return: Initial parameter estimate.
-        """
-
-        if self.dist == "normal":
-            z0 = y.mean()
-        elif self.dist == "gamma":
-            z0 = np.log(y.mean())
-        return z0
 
     def _train_tree(self, X: np.ndarray, y: np.ndarray, z: np.ndarray):
         """
@@ -70,24 +45,10 @@ class UniGBM:
         tree = DecisionTreeRegressor(
             max_depth=self.max_depth, min_samples_leaf=self.min_samples_leaf
         )
-        g = self.grad(z, y)
+        g = self.dist.grad(z, y)
         tree.fit(X, -g)
 
         return tree
-
-    def _optimize_step_size(self, y: np.ndarray, z: np.ndarray) -> float:
-        """
-        Compute the optimal step size (gamma) for updating the predictions.
-
-        :param y: True response values for the current iteration, of shape (n_samples,).
-        :param z: Estimated parameters for the current iteration, of shape (n_samples,).
-        :return: Optimal step size for updating the parameter estimates.
-        """
-        if self.dist == "normal":
-            gamma = np.mean(y - z)
-        elif self.dist == "gamma":
-            gamma = np.log((y * np.exp(-z)).mean())
-        return gamma
 
     def _adjust_node_values(
         self, tree: DecisionTreeRegressor, X: np.ndarray, y: np.ndarray, z: np.ndarray
@@ -110,7 +71,7 @@ class UniGBM:
         for g in gs:
             # Find optimal step size for this node
             index = g_hat == g
-            gamma = self._optimize_step_size(y=y[index], z=z[index])
+            gamma = self.dist.opt_step(z=z[index], y=y[index])
             # Manipulate tree
             tree.tree_.value[tree.tree_.value == g] = gamma
 
@@ -142,7 +103,7 @@ class UniGBM:
         :param X: Input data matrix of shape (n_samples, n_features).
         :param y: True response values for the input data, of shape (n_samples,).
         """
-        self.z0 = self._initiate_param(y)
+        self.z0 = self.dist.mle(y)
         z = self.z0.repeat(len(y))
 
         self.trees = self._train_trees(X=X, y=y, z=z, kappa=self.kappa)
@@ -215,7 +176,8 @@ def tune_kappa(
 
         for k in range(0, kappa_max):
             gbm.update(X_train, y_train, 1)
-            loss[i, k] = gbm.loss(gbm.predict(X_valid), y_valid).sum()
+            z_valid = gbm.predict(X_valid)
+            loss[i, k] = gbm.dist.loss(z_valid, y_valid).sum()
             if loss[i, k] > loss[i, k - 1]:
                 loss[i, k:] = loss[i, k]
                 break
@@ -227,14 +189,18 @@ def tune_kappa(
 
 if __name__ == "__main__":
     n = 1000
+    expected_sse = 893.2061449825943
     rng = np.random.default_rng(seed=10)
     X0 = np.arange(0, n)
     X1 = np.arange(0, n)
     rng.shuffle(X1)
-    mu = 10 * (X0 > 0.3 * n) + 5 * (X1 > 0.5 * n)
+    mu = 0.1 * (1 + 10 * (X0 > X0.mean()) + 5 * (X1 > X1.mean()))
 
     X = np.stack([X0, X1]).T
-    y = rng.normal(mu, 1.5)
+    y = rng.gamma(1, mu)
 
-    kappa = tune_kappa(X=X, y=y, random_state=5)
-    print(kappa)
+    gbm = UniGBM(dist="gamma", kappa=100, eps=0.1)
+    gbm.train(X, y)
+    mu_hat = np.exp(gbm.predict(X))
+
+    sse = sum((y - mu_hat) ** 2)

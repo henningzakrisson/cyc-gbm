@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.tree import DecisionTreeRegressor
 from typing import List
-from src.exceptions import UnknownDistribution
+from src.Distribution import Distribution
 
 
 class CycGBM:
@@ -29,32 +29,11 @@ class CycGBM:
         self.eps = eps
         self.max_depths = max_depths
         self.min_samples_leafs = min_samples_leafs
-        self.dist = dist
+        self.dist = Distribution(dist)
 
         # Assume 2 dimensions
         self.z0s = [np.nan, np.nan]
         self.trees = [None, None]
-
-        if self.dist == "normal":
-            self.loss = lambda z, y: z[1] + 0.5 * np.exp(-2 * z[1]) * (y - z[0]) ** 2
-            self.grads = [
-                lambda z, y: -np.exp(-2 * z[1]) * (y - z[0]),
-                lambda z, y: 1 - np.exp(-2 * z[1]) * (y - z[0]) ** 2,
-            ]
-        else:
-            raise UnknownDistribution("Unknown distribution")
-
-    def _initiate_param(self, y: np.ndarray) -> np.ndarray:
-        """
-        Compute the initial parameter estimate.
-
-        :param y: Training responses, of shape (n_samples,).
-        :return: Initial prediction for the response variable.
-        """
-
-        if self.dist == "normal":
-            z0 = np.array([y.mean(), y.std()])
-        return z0
 
     def _train_tree(self, X: np.ndarray, y: np.ndarray, z: np.ndarray, j: int):
         """
@@ -69,26 +48,10 @@ class CycGBM:
         tree = DecisionTreeRegressor(
             max_depth=self.max_depths[j], min_samples_leaf=self.min_samples_leafs[j]
         )
-        g = self.grads[j](z, y)
+        g = self.dist.grad(z, y, j)
         tree.fit(X, -g)
 
         return tree
-
-    def _optimize_step_size(self, y: np.ndarray, z: np.ndarray, j: int) -> float:
-        """
-        Compute the optimal step size (gamma) for updating the predictions.
-
-        :param y: True response values for the current iteration, of shape (n_samples,).
-        :param z: Estimated parameters for the current iteration, of shape (n_samples,).
-        :param j: Parameter dimension to update
-        :return: Optimal step size for updating the parameter estimates.
-        """
-        if self.dist == "normal":
-            if j == 0:
-                gamma = np.mean(y - z)
-            elif j == 1:
-                gamma = 0.5 * np.log(np.mean((np.exp(-2 * z[1]) * (y - z[0]) ** 2)))
-        return gamma
 
     def _adjust_node_values(
         self,
@@ -117,7 +80,7 @@ class CycGBM:
         for g in gs:
             # Find optimal step size for this node
             index = g_hat == g
-            gamma = self._optimize_step_size(y=y[index], z=z[:, index], j=j)
+            gamma = self.dist.opt_step(y=y[index], z=z[:, index], j=j)
             # Manipulate tree
             tree.tree_.value[tree.tree_.value == g] = gamma
 
@@ -130,7 +93,7 @@ class CycGBM:
         :param X: Input data matrix of shape (n_samples, n_features).
         :param y: True response values for the input data, of shape (n_samples,).
         """
-        self.z0 = self._initiate_param(y)
+        self.z0 = self.dist.mle(y)
 
         # Assume 2 dimensions
         z = self.z0.repeat(len(y)).reshape((2, len(y)))

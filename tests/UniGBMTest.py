@@ -29,9 +29,9 @@ class UniGBMTest(unittest.TestCase):
 
         gbm = UniGBM(dist="normal")
         gbm.train(X, y)
-        mu_hat = gbm.predict(X)
+        z_hat = gbm.predict(X)
 
-        loss = sum((y - mu_hat) ** 2)
+        loss = gbm.dist.loss(z_hat, y).sum()
 
         self.assertAlmostEqual(
             first=loss,
@@ -50,7 +50,7 @@ class UniGBMTest(unittest.TestCase):
         """
 
         n = 1000
-        expected_loss = 893.2061449825943
+        expected_sse = 893.2061449825943
         rng = np.random.default_rng(seed=10)
         X0 = np.arange(0, n)
         X1 = np.arange(0, n)
@@ -64,13 +64,13 @@ class UniGBMTest(unittest.TestCase):
         gbm.train(X, y)
         mu_hat = np.exp(gbm.predict(X))
 
-        loss = sum((y - mu_hat) ** 2)
+        sse = sum((y - mu_hat) ** 2)
 
         self.assertAlmostEqual(
-            first=loss,
-            second=expected_loss,
+            first=sse,
+            second=expected_sse,
             places=5,
-            msg="Gamma distribution loss not as expected",
+            msg="Gamma distribution sse not as expected",
         )
 
     def test_kappa_tuning(self):
