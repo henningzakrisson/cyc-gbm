@@ -49,7 +49,7 @@ class UniGBM:
         Compute the initial parameter estimate
 
         :param y: Training responses, of shape (n_samples,).
-        :return: Initial prediction for the response variable.
+        :return: Initial parameter estimate.
         """
 
         if self.dist == "normal":
@@ -62,9 +62,9 @@ class UniGBM:
         """
         Train a decision tree regressor to predict the residual of the current model.
 
-        :param z: Predicted values of the current model for the given input data X.
-        :param y: True values of the response variable for the given input data X.
         :param X: Input data matrix of shape (n_samples, n_features).
+        :param y: True values of the response variable for the given input data X.
+        :param z: Parameter estimates of the current model
         :return: Trained decision tree regressor.
         """
         tree = DecisionTreeRegressor(
@@ -165,7 +165,7 @@ class UniGBM:
         Predict response values for the input data using the trained model.
 
         :param X: Input data matrix of shape (n_samples, n_features).
-        :return: Predicted response values of shape (n_samples,).
+        :return: Predicted parameter estimates of shape (n_samples,).
         """
         z_hat = np.ones(len(X)) * self.z0 + self.eps * sum(
             [tree.predict(X) for tree in self.trees]
