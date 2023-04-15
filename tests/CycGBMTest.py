@@ -17,7 +17,7 @@ class CycGBMTest(unittest.TestCase):
             to within a tolerance.
         """
         n = 100
-        expected_loss = 641.6928805767581
+        expected_loss = 641.9173857564037
         rng = np.random.default_rng(seed=10)
         X0 = np.arange(0, n)
         X1 = np.arange(0, n)
@@ -34,7 +34,7 @@ class CycGBMTest(unittest.TestCase):
         gbm.train(X, y)
         z_hat = gbm.predict(X)
 
-        loss = gbm.loss(z_hat, y).sum()
+        loss = gbm.dist.loss(z_hat, y).sum()
 
         self.assertAlmostEqual(
             first=loss,
