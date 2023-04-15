@@ -117,7 +117,7 @@ class GBMTests(unittest.TestCase):
 
         kappas = [100, 10]
         eps = [0.1, 0.01]
-        gbm = CycGBM(kappas=kappas, eps=eps)
+        gbm = CycGBM(kappa=kappas, eps=eps)
         gbm.train(X, y)
         z_hat = gbm.predict(X)
 

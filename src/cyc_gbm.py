@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.tree import DecisionTreeRegressor
-from typing import List
+from typing import List, Union
 from src.distribution import Distribution
 
 
@@ -12,23 +12,28 @@ class CycGBM:
     def __init__(
         self,
         # Assume 2 dimensions
-        kappas: List[int] = [100, 100],
-        eps: List[float] = [0.1, 0.1],
-        max_depths: List[int] = [2, 2],
-        min_samples_leafs: List[int] = [20, 20],
+        kappa: Union[int, List[int]] = [100, 100],
+        eps: Union[float, List[float]] = [0.1, 0.1],
+        max_depth: Union[int, List[int]] = [2, 2],
+        min_samples_leaf: Union[int, List[int]] = [20, 20],
         dist="normal",
     ):
         """
-        :param kappas: Number of boosting steps.
-        :param eps: Shrinkage factors, which scales the contribution of each tree.
-        :param max_depths: Maximum depths of each decision tree.
-        :param min_samples_leafs: Minimum number of samples required at a leaf node.
+        :param kappa: Number of boosting steps. Dimension-wise or global for all parameter dimensions.
+        :param eps: Shrinkage factors, which scales the contribution of each tree. Dimension-wise or global for all parameter dimensions.
+        :param max_depth: Maximum depths of each decision tree. Dimension-wise or global for all parameter dimensions.
+        :param min_samples_leaf: Minimum number of samples required at a leaf node. Dimension-wise or global for all parameter dimensions.
         :param dist: distribution for losses and gradients
         """
-        self.kappas = kappas
-        self.eps = eps
-        self.max_depths = max_depths
-        self.min_samples_leafs = min_samples_leafs
+        # Assume 2 dimensions
+        self.kappa = kappa if type(kappa) == list else [kappa] * 2
+        self.eps = eps if type(eps) == list else [eps] * 2
+        self.max_depths = max_depth if type(max_depth) == list else [max_depth] * 2
+        self.min_samples_leaf = (
+            min_samples_leaf
+            if type(min_samples_leaf) == list
+            else [min_samples_leaf] * 2
+        )
         self.dist = Distribution(dist)
 
         # Assume 2 dimensions
@@ -46,7 +51,7 @@ class CycGBM:
         :return: Trained decision tree regressor.
         """
         tree = DecisionTreeRegressor(
-            max_depth=self.max_depths[j], min_samples_leaf=self.min_samples_leafs[j]
+            max_depth=self.max_depths[j], min_samples_leaf=self.min_samples_leaf[j]
         )
         g = self.dist.grad(z, y, j)
         tree.fit(X, -g)
@@ -97,12 +102,12 @@ class CycGBM:
 
         # Assume 2 dimensions
         z = self.z0.repeat(len(y)).reshape((2, len(y)))
-        self.trees = [[[]] * self.kappas[0], [[]] * self.kappas[1]]
+        self.trees = [[[]] * self.kappa[0], [[]] * self.kappa[1]]
 
-        for k in range(0, max(self.kappas)):
+        for k in range(0, max(self.kappa)):
             # Assume 2 dimensions
             for j in [0, 1]:
-                if k >= self.kappas[j]:
+                if k >= self.kappa[j]:
                     continue
                 tree = self._train_tree(X=X, y=y, z=z, j=j)
                 tree = self._adjust_node_values(tree=tree, X=X, y=y, z=z, j=j)
@@ -121,7 +126,7 @@ class CycGBM:
         tree = self._train_tree(X=X, y=y, z=z, j=j)
         tree = self._adjust_node_values(tree=tree, X=X, y=y, z=z, j=j)
         self.trees += [tree]
-        self.kappas[j] += 1
+        self.kappa[j] += 1
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -157,10 +162,10 @@ if __name__ == "__main__":
 
     kappas = [100, 10]
     eps = [0.1, 0.01]
-    gbm = CycGBM(kappas=kappas, eps=eps)
+    gbm = CycGBM(kappa=kappas, eps=eps)
     gbm.train(X, y)
     z_hat = gbm.predict(X)
 
-    loss = gbm.loss(z_hat, y).sum()
+    loss = gbm.dist.loss(z_hat, y).sum()
 
     print(loss)
