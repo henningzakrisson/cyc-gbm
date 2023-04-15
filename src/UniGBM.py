@@ -167,35 +167,74 @@ class UniGBM:
         :param X: Input data matrix of shape (n_samples, n_features).
         :return: Predicted response values of shape (n_samples,).
         """
-        z_hat = self.z0 + self.eps * sum([tree.predict(X) for tree in self.trees])
+        z_hat = np.ones(len(X)) * self.z0 + self.eps * sum(
+            [tree.predict(X) for tree in self.trees]
+        )
         return z_hat
 
 
 def tune_kappa(
     X: np.ndarray,
     y: np.ndarray,
+    kappa_max: int = 1000,
+    eps: int = 0.1,
     max_depth: int = 2,
     min_samples_leaf: int = 20,
+    dist="normal",
     n_splits: int = 4,
-    kappa_max: int = 1000,
+    random_state=None,
 ):
-    kf = KFold(n_splits=n_splits, shuffle=True)
+    """Tunes the kappa parameter of a UniGBM model using k-fold cross-validation.
+
+    :param X: The input data matrix of shape (n_samples, n_features).
+    :param y: The target vector of shape (n_samples,).
+    :param kappa_max: The maximum value of the kappa parameter to test.
+    :param eps: The epsilon parameter for the UniGBM model.
+    :param max_depth: The maximum depth of the decision trees in the UniGBM model.
+    :param min_samples_leaf: The minimum number of samples required to be at a leaf node in the UniGBM model.
+    :param dist: The distribution of the target variable.
+    :param n_splits: The number of folds to use for k-fold cross-validation.
+    :param random_state: The random state to use for the k-fold split.
+    :return: The optimal value of the kappa parameter."""
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+    loss = np.ones((n_splits, kappa_max)) * np.nan
 
     for i, idx in enumerate(kf.split(X)):
-        train_idx, val_idx = idx
+        idx_train, idx_valid = idx
+        X_train, y_train = X[idx_train], y[idx_train]
+        X_valid, y_valid = X[idx_valid], y[idx_valid]
+
+        gbm = UniGBM(
+            kappa=0,
+            eps=eps,
+            max_depth=max_depth,
+            min_samples_leaf=min_samples_leaf,
+            dist=dist,
+        )
+        gbm.train(X_train, y_train)
+
+        for k in range(0, kappa_max):
+            gbm.update(X_train, y_train, 1)
+            loss[i, k] = gbm.loss(gbm.predict(X_valid), y_valid).sum()
+            if loss[i, k] > loss[i, k - 1]:
+                loss[i, k:] = loss[i, k]
+                break
+
+    kappa = np.argmin(loss.sum(axis=0))
+
+    return kappa
 
 
 if __name__ == "__main__":
+    n = 1000
     rng = np.random.default_rng(seed=10)
-    X0 = np.arange(0, 100)
-    X1 = np.arange(0, 100)
+    X0 = np.arange(0, n)
+    X1 = np.arange(0, n)
     rng.shuffle(X1)
-    mu = 1 + 10 * (X0 > 30) + 5 * (X1 > 50)
-    phi = 1
-
-    alpha = 1 / (mu * phi)
-    beta = 1 / phi
+    mu = 10 * (X0 > 0.3 * n) + 5 * (X1 > 0.5 * n)
 
     X = np.stack([X0, X1]).T
-    y = rng.gamma(alpha, 1 / beta)
-    tune_kappa(X, y)
+    y = rng.normal(mu, 1.5)
+
+    kappa = tune_kappa(X=X, y=y, random_state=5)
+    print(kappa)
