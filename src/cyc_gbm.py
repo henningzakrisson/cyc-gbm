@@ -2,6 +2,7 @@ import numpy as np
 from sklearn.tree import DecisionTreeRegressor
 from typing import List, Union
 from src.distribution import Distribution
+from sklearn.model_selection import KFold
 
 
 class CycGBM:
@@ -136,6 +137,7 @@ class CycGBM:
         :return: Predicted response values of shape (d,n_samples).
         """
         # Assume two dimensions
+        # TODO: Fix so that this can output stuff even when there are no trees
         z_hat = (
             self.z0.repeat(len(X)).reshape((2, len(X)))
             + (
@@ -148,8 +150,67 @@ class CycGBM:
         return z_hat
 
 
+def tune_kappa(
+    X: np.ndarray,
+    y: np.ndarray,
+    kappa_max: Union[int, List[int]] = [1000, 1000],
+    eps: Union[float, List[float]] = [0.1, 0.1],
+    max_depth: Union[int, List[int]] = [2, 2],
+    min_samples_leaf: Union[int, List[int]] = [20, 20],
+    dist="normal",
+    n_splits: int = 4,
+    random_state=None,
+) -> List[int]:
+    """Tunes the kappa parameter of a CycGBM model using k-fold cross-validation.
+
+    :param X: The input data matrix of shape (n_samples, n_features).
+    :param y: The target vector of shape (n_samples,).
+    :param kappa_max: The maximum value of the kappa parameter to test. Dimension-wise or same for all parameter dimensions.
+    :param eps: The epsilon parameters for the CycGBM model.Dimension-wise or same for all parameter dimensions.
+    :param max_depth: The maximum depth of the decision trees in the GBM model. Dimension-wise or same for all parameter dimensions.
+    :param min_samples_leaf: The minimum number of samples required to be at a leaf node in the CycGBM model. Dimension-wise or same for all parameter dimensions.
+    :param dist: The distribution of the target variable.
+    :param n_splits: The number of folds to use for k-fold cross-validation.
+    :param random_state: The random state to use for the k-fold split.
+    :return: The optimal value of the kappa parameter."""
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+    # Assume two dimensions
+    loss = np.ones((n_splits, max(kappa_max), 2)) * np.nan
+
+    for i, idx in enumerate(kf.split(X)):
+        idx_train, idx_valid = idx
+        X_train, y_train = X[idx_train], y[idx_train]
+        X_valid, y_valid = X[idx_valid], y[idx_valid]
+
+        gbm = CycGBM(
+            kappa=[0, 0],
+            eps=eps,
+            max_depth=max_depth,
+            min_samples_leaf=min_samples_leaf,
+            dist=dist,
+        )
+        gbm.train(X_train, y_train)
+        z_valid = gbm.predict(X_valid)
+        loss[i, 0, :] = gbm.dist.loss(z_valid, y_valid).sum()
+
+        for k in range(1, max(kappa_max)):
+            # Assume 2 dimensions
+            for j in [0, 1]:
+                gbm.update(X=X_train, y=y_train, j=j)
+                z_valid = gbm.predict(X_valid)
+                loss[i, k, j] = gbm.dist.loss(z_valid, y_valid).sum()
+
+            if loss[i, k, 0] > loss[i, k - 1, 1] and loss[i, k, 1] > loss[i, k, 0]:
+                loss[i, k + 1 :, :] = loss[i, k, -1]
+                break
+
+    kappa = 1
+    return kappa
+
+
 if __name__ == "__main__":
     n = 100
+    expected_loss = 641.9173857564037
     rng = np.random.default_rng(seed=10)
     X0 = np.arange(0, n)
     X1 = np.arange(0, n)
@@ -160,12 +221,19 @@ if __name__ == "__main__":
     X = np.stack([X0, X1]).T
     y = rng.normal(mu, sigma)
 
-    kappas = [100, 10]
-    eps = [0.1, 0.01]
-    gbm = CycGBM(kappa=kappas, eps=eps)
-    gbm.train(X, y)
-    z_hat = gbm.predict(X)
-
-    loss = gbm.dist.loss(z_hat, y).sum()
-
-    print(loss)
+    kappa_max = [1000, 100]
+    eps = 0.1
+    max_depth = 2
+    min_samples_leaf = 20
+    random_state = 5
+    kappa = tune_kappa(
+        X=X,
+        y=y,
+        kappa_max=kappa_max,
+        eps=eps,
+        max_depth=max_depth,
+        min_samples_leaf=min_samples_leaf,
+        dist="normal",
+        n_splits=4,
+        random_state=random_state,
+    )

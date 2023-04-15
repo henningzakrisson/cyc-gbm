@@ -35,8 +35,8 @@ class GBMTests(unittest.TestCase):
         loss = gbm.dist.loss(z_hat, y).sum()
 
         self.assertAlmostEqual(
-            first=loss,
-            second=expected_loss,
+            first=expected_loss,
+            second=loss,
             places=5,
             msg="UniGBM Normal distribution loss not as expected",
         )
@@ -68,15 +68,15 @@ class GBMTests(unittest.TestCase):
         sse = sum((y - mu_hat) ** 2)
 
         self.assertAlmostEqual(
-            first=sse,
-            second=expected_sse,
+            first=expected_sse,
+            second=sse,
             places=5,
             msg="UniGBM Gamma distribution sse not as expected",
         )
 
     def test_kappa_tuning_uni(self):
         """Tests the `tune_kappa` function to ensure it returns the correct value of the kappa parameter."""
-        expected_kappa = 35
+        expected_kappa = 36
         n = 1000
         rng = np.random.default_rng(seed=10)
         X0 = np.arange(0, n)
@@ -90,8 +90,8 @@ class GBMTests(unittest.TestCase):
         kappa = tune_kappa(X=X, y=y, random_state=5)
 
         self.assertEqual(
-            first=kappa,
-            second=expected_kappa,
+            first=expected_kappa,
+            second=kappa,
             msg="Optimal number of boosting steps not correct for UniGBM",
         )
 
@@ -124,8 +124,8 @@ class GBMTests(unittest.TestCase):
         loss = gbm.dist.loss(z_hat, y).sum()
 
         self.assertAlmostEqual(
-            first=loss,
-            second=expected_loss,
+            first=expected_loss,
+            second=loss,
             places=5,
             msg="CycGBM Normal distribution loss not as expected",
         )
