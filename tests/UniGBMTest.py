@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from src.UniGBM import UniGBM
+from src.UniGBM import UniGBM, tune_kappa
 
 
 class UniGBMTest(unittest.TestCase):
@@ -71,4 +71,25 @@ class UniGBMTest(unittest.TestCase):
             second=expected_loss,
             places=5,
             msg="Gamma distribution loss not as expected",
+        )
+
+    def test_kappa_tuning(self):
+        """Tests the `tune_kappa` function to ensure it returns the correct value of the kappa parameter."""
+        expected_kappa = 35
+        n = 1000
+        rng = np.random.default_rng(seed=10)
+        X0 = np.arange(0, n)
+        X1 = np.arange(0, n)
+        rng.shuffle(X1)
+        mu = 10 * (X0 > 0.3 * n) + 5 * (X1 > 0.5 * n)
+
+        X = np.stack([X0, X1]).T
+        y = rng.normal(mu, 1.5)
+
+        kappa = tune_kappa(X=X, y=y, random_state=5)
+
+        self.assertEqual(
+            first=kappa,
+            second=expected_kappa,
+            msg="Optimal number of boosting steps not correct",
         )

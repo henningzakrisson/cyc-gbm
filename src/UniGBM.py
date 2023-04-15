@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.model_selection import KFold
 from src.exceptions import UnknownDistribution
 
 
@@ -30,7 +31,7 @@ class UniGBM:
         self.dist = dist
 
         self.z0 = np.nan
-        self.trees = [[]] * self.kappa
+        self.trees = None
 
         if self.dist == "normal":
             # The normal distribution uses a mean-dispersion parametrization
@@ -109,11 +110,30 @@ class UniGBM:
         for g in gs:
             # Find optimal step size for this node
             index = g_hat == g
-            gamma = self._optimize_step_size(y[index], z[index])
+            gamma = self._optimize_step_size(y=y[index], z=z[index])
             # Manipulate tree
             tree.tree_.value[tree.tree_.value == g] = gamma
 
         return tree
+
+    def _train_trees(self, X: np.ndarray, y: np.ndarray, z: np.ndarray, kappa: int):
+        """
+        Trains kappa trees using the training data X and y and the current model's parameter estimates z as inputs.
+
+        Args:
+            X: The input training data, shape (n_samples, n_features).
+            y: The target values for the training data, shape (n_samples,).
+            z: The current model's parameter estimates
+            kappa: The number of trees to train.
+        """
+        trees = [[]] * kappa
+        for k in range(0, kappa):
+            tree = self._train_tree(X=X, y=y, z=z)
+            tree = self._adjust_node_values(tree=tree, X=X, y=y, z=z)
+            z += self.eps * tree.predict(X)
+            trees[k] = tree
+
+        return trees
 
     def train(self, X: np.ndarray, y: np.ndarray):
         """
@@ -125,11 +145,20 @@ class UniGBM:
         self.z0 = self._initiate_param(y)
         z = self.z0.repeat(len(y))
 
-        for k in range(0, self.kappa):
-            tree = self._train_tree(X=X, y=y, z=z)
-            tree = self._adjust_node_values(tree=tree, X=X, y=y, z=z)
-            z += self.eps * tree.predict(X)
-            self.trees[k] = tree
+        self.trees = self._train_trees(X=X, y=y, z=z, kappa=self.kappa)
+
+    def update(self, X: np.ndarray, y: np.ndarray, k_add: int = 100):
+        """
+        Updates the current boosting model with additional trees, trained on the specified training data X and y.
+
+        :param X: The training input data, shape (n_samples, n_features).
+        :param y: The target values for the training data, shape (n_samples,).
+        :param k_add: The number of trees to add to the model. Defaults to 100.
+        """
+        z = self.predict(X)
+
+        self.trees += self._train_trees(X=X, y=y, z=z, kappa=k_add)
+        self.kappa += k_add
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -138,26 +167,74 @@ class UniGBM:
         :param X: Input data matrix of shape (n_samples, n_features).
         :return: Predicted response values of shape (n_samples,).
         """
-        z_hat = self.z0 + self.eps * sum([tree.predict(X) for tree in self.trees])
+        z_hat = np.ones(len(X)) * self.z0 + self.eps * sum(
+            [tree.predict(X) for tree in self.trees]
+        )
         return z_hat
 
 
-if __name__ == "__main__":
-    rng = np.random.default_rng(seed=10)
-    X0 = np.arange(0, 100)
-    X1 = np.arange(0, 100)
-    rng.shuffle(X1)
-    mu = 1 + 10 * (X0 > 30) + 5 * (X1 > 50)
-    phi = 1
+def tune_kappa(
+    X: np.ndarray,
+    y: np.ndarray,
+    kappa_max: int = 1000,
+    eps: int = 0.1,
+    max_depth: int = 2,
+    min_samples_leaf: int = 20,
+    dist="normal",
+    n_splits: int = 4,
+    random_state=None,
+):
+    """Tunes the kappa parameter of a UniGBM model using k-fold cross-validation.
 
-    alpha = 1 / (mu * phi)
-    beta = 1 / phi
+    :param X: The input data matrix of shape (n_samples, n_features).
+    :param y: The target vector of shape (n_samples,).
+    :param kappa_max: The maximum value of the kappa parameter to test.
+    :param eps: The epsilon parameter for the UniGBM model.
+    :param max_depth: The maximum depth of the decision trees in the UniGBM model.
+    :param min_samples_leaf: The minimum number of samples required to be at a leaf node in the UniGBM model.
+    :param dist: The distribution of the target variable.
+    :param n_splits: The number of folds to use for k-fold cross-validation.
+    :param random_state: The random state to use for the k-fold split.
+    :return: The optimal value of the kappa parameter."""
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+    loss = np.ones((n_splits, kappa_max)) * np.nan
+
+    for i, idx in enumerate(kf.split(X)):
+        idx_train, idx_valid = idx
+        X_train, y_train = X[idx_train], y[idx_train]
+        X_valid, y_valid = X[idx_valid], y[idx_valid]
+
+        gbm = UniGBM(
+            kappa=0,
+            eps=eps,
+            max_depth=max_depth,
+            min_samples_leaf=min_samples_leaf,
+            dist=dist,
+        )
+        gbm.train(X_train, y_train)
+
+        for k in range(0, kappa_max):
+            gbm.update(X_train, y_train, 1)
+            loss[i, k] = gbm.loss(gbm.predict(X_valid), y_valid).sum()
+            if loss[i, k] > loss[i, k - 1]:
+                loss[i, k:] = loss[i, k]
+                break
+
+    kappa = np.argmin(loss.sum(axis=0))
+
+    return kappa
+
+
+if __name__ == "__main__":
+    n = 1000
+    rng = np.random.default_rng(seed=10)
+    X0 = np.arange(0, n)
+    X1 = np.arange(0, n)
+    rng.shuffle(X1)
+    mu = 10 * (X0 > 0.3 * n) + 5 * (X1 > 0.5 * n)
 
     X = np.stack([X0, X1]).T
-    y = rng.gamma(alpha, 1 / beta)
+    y = rng.normal(mu, 1.5)
 
-    gbm = UniGBM(dist="gamma")
-    gbm.train(X, y)
-    y_hat = gbm.predict(X)
-
-    print(sum(y - np.exp(y_hat)) ** 2)
+    kappa = tune_kappa(X=X, y=y, random_state=5)
+    print(kappa)
