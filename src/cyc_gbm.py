@@ -86,7 +86,7 @@ class CycGBM:
         for g in gs:
             # Find optimal step size for this node
             index = g_hat == g
-            gamma = self.dist.opt_step(y=y[index], z=z[:, index], j=j)
+            gamma = self.dist.opt_step(y=y[index], z=z[:, index], j=j, g_0=g)
             # Manipulate tree
             tree.tree_.value[tree.tree_.value == g] = gamma
 
