@@ -1,7 +1,9 @@
 import unittest
 import numpy as np
-from src.uni_gbm import UniGBM, tune_kappa
+from src.uni_gbm import UniGBM
+from src.uni_gbm import tune_kappa as tune_kappa_uni
 from src.cyc_gbm import CycGBM
+from src.cyc_gbm import tune_kappa as tune_kappa_cyc
 
 
 class GBMTests(unittest.TestCase):
@@ -87,7 +89,7 @@ class GBMTests(unittest.TestCase):
         X = np.stack([X0, X1]).T
         y = rng.normal(mu, 1.5)
 
-        kappa = tune_kappa(X=X, y=y, random_state=5)
+        kappa = tune_kappa_uni(X=X, y=y, random_state=5)
 
         self.assertEqual(
             first=expected_kappa,
@@ -129,3 +131,40 @@ class GBMTests(unittest.TestCase):
             places=5,
             msg="CycGBM Normal distribution loss not as expected",
         )
+
+    def test_kappa_tuning_cyc(self):
+        n = 100
+        expected_kappa = [12, 35]
+        rng = np.random.default_rng(seed=10)
+        X0 = np.arange(0, n)
+        X1 = np.arange(0, n)
+        rng.shuffle(X1)
+        mu = 10 * (X0 > 0.3 * n) + 5 * (X1 > 0.5 * n)
+        sigma = np.exp(1 + 1 * (X0 < 0.4 * n))
+
+        X = np.stack([X0, X1]).T
+        y = rng.normal(mu, sigma)
+
+        kappa_max = [1000, 100]
+        eps = 0.1
+        max_depth = 2
+        min_samples_leaf = 20
+        random_state = 5
+        kappa = tune_kappa_cyc(
+            X=X,
+            y=y,
+            kappa_max=kappa_max,
+            eps=eps,
+            max_depth=max_depth,
+            min_samples_leaf=min_samples_leaf,
+            dist="normal",
+            n_splits=4,
+            random_state=random_state,
+        )
+        # Assume two dimensions
+        for j in [0, 1]:
+            self.assertEqual(
+                first=expected_kappa[0],
+                second=kappa[0],
+                msg=f"CycGBM Tuning method not giving expected result for dimension {j}",
+            )
