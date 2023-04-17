@@ -78,7 +78,7 @@ class Distribution:
         """
         if self.dist == "normal":
             if self.d == 2:
-                return np.array([y.mean(), y.std()])
+                return np.array([y.mean(), np.log(y.std())])
             elif self.d == 1:
                 return y.mean()
         elif self.dist == "gamma":
