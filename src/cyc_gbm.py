@@ -209,12 +209,12 @@ def tune_kappa(
             if loss[i, k, 0] > loss[i, k - 1, 1] and loss[i, k, 1] > loss[i, k, 0]:
                 loss[i, k + 1 :, :] = loss[i, k, -1]
                 break
-    # TODO: Evaluate loss improvements here
     loss_total = loss.sum(axis=0)
     # Assume two dimensions
     loss_improv_0 = loss_total[1:, 0] - loss_total[:-1, -1]
     loss_improv_1 = loss_total[1:, 1] - loss_total[1:, 0]
-    kappa = 1
+    loss_improv = np.stack([loss_improv_0, loss_improv_1])
+    kappa = np.argmax(loss_improv > 0, axis=1)
     return kappa
 
 
@@ -247,3 +247,5 @@ if __name__ == "__main__":
         n_splits=4,
         random_state=random_state,
     )
+
+    print(kappa)
