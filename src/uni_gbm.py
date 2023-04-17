@@ -144,7 +144,7 @@ def tune_kappa(
     dist="normal",
     n_splits: int = 4,
     random_state=None,
-):
+) -> int:
     """Tunes the kappa parameter of a UniGBM model using k-fold cross-validation.
 
     :param X: The input data matrix of shape (n_samples, n_features).
@@ -173,10 +173,12 @@ def tune_kappa(
             dist=dist,
         )
         gbm.train(X_train, y_train)
+        z_valid = gbm.predict(X_valid)
+        loss[i, 0] = gbm.dist.loss(z_valid, y_valid).sum()
 
-        for k in range(0, kappa_max):
-            gbm.update(X_train, y_train, 1)
-            z_valid = gbm.predict(X_valid)
+        for k in range(1, kappa_max + 1):
+            gbm.update(X=X_train, y=y_train, k_add=1)
+            z_valid += gbm.eps * gbm.trees[-1].predict(X_valid)
             loss[i, k] = gbm.dist.loss(z_valid, y_valid).sum()
             if loss[i, k] > loss[i, k - 1]:
                 loss[i, k:] = loss[i, k]
@@ -188,19 +190,16 @@ def tune_kappa(
 
 
 if __name__ == "__main__":
+    expected_kappa = 36
     n = 1000
-    expected_sse = 893.2061449825943
     rng = np.random.default_rng(seed=10)
     X0 = np.arange(0, n)
     X1 = np.arange(0, n)
     rng.shuffle(X1)
-    mu = 0.1 * (1 + 10 * (X0 > X0.mean()) + 5 * (X1 > X1.mean()))
+    mu = 10 * (X0 > 0.3 * n) + 5 * (X1 > 0.5 * n)
 
     X = np.stack([X0, X1]).T
-    y = rng.gamma(1, mu)
+    y = rng.normal(mu, 1.5)
 
-    gbm = UniGBM(dist="gamma", kappa=100, eps=0.1)
-    gbm.train(X, y)
-    mu_hat = np.exp(gbm.predict(X))
-
-    sse = sum((y - mu_hat) ** 2)
+    kappa = tune_kappa(X=X, y=y, random_state=5)
+    print(kappa)

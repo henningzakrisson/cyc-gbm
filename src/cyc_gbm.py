@@ -1,7 +1,8 @@
 import numpy as np
 from sklearn.tree import DecisionTreeRegressor
-from typing import List
+from typing import List, Union
 from src.distribution import Distribution
+from sklearn.model_selection import KFold
 
 
 class CycGBM:
@@ -12,23 +13,28 @@ class CycGBM:
     def __init__(
         self,
         # Assume 2 dimensions
-        kappas: List[int] = [100, 100],
-        eps: List[float] = [0.1, 0.1],
-        max_depths: List[int] = [2, 2],
-        min_samples_leafs: List[int] = [20, 20],
+        kappa: Union[int, List[int]] = [100, 100],
+        eps: Union[float, List[float]] = [0.1, 0.1],
+        max_depth: Union[int, List[int]] = [2, 2],
+        min_samples_leaf: Union[int, List[int]] = [20, 20],
         dist="normal",
     ):
         """
-        :param kappas: Number of boosting steps.
-        :param eps: Shrinkage factors, which scales the contribution of each tree.
-        :param max_depths: Maximum depths of each decision tree.
-        :param min_samples_leafs: Minimum number of samples required at a leaf node.
+        :param kappa: Number of boosting steps. Dimension-wise or global for all parameter dimensions.
+        :param eps: Shrinkage factors, which scales the contribution of each tree. Dimension-wise or global for all parameter dimensions.
+        :param max_depth: Maximum depths of each decision tree. Dimension-wise or global for all parameter dimensions.
+        :param min_samples_leaf: Minimum number of samples required at a leaf node. Dimension-wise or global for all parameter dimensions.
         :param dist: distribution for losses and gradients
         """
-        self.kappas = kappas
-        self.eps = eps
-        self.max_depths = max_depths
-        self.min_samples_leafs = min_samples_leafs
+        # Assume 2 dimensions
+        self.kappa = kappa if type(kappa) == list else [kappa] * 2
+        self.eps = eps if type(eps) == list else [eps] * 2
+        self.max_depths = max_depth if type(max_depth) == list else [max_depth] * 2
+        self.min_samples_leaf = (
+            min_samples_leaf
+            if type(min_samples_leaf) == list
+            else [min_samples_leaf] * 2
+        )
         self.dist = Distribution(dist)
 
         # Assume 2 dimensions
@@ -46,7 +52,7 @@ class CycGBM:
         :return: Trained decision tree regressor.
         """
         tree = DecisionTreeRegressor(
-            max_depth=self.max_depths[j], min_samples_leaf=self.min_samples_leafs[j]
+            max_depth=self.max_depths[j], min_samples_leaf=self.min_samples_leaf[j]
         )
         g = self.dist.grad(z, y, j)
         tree.fit(X, -g)
@@ -97,12 +103,12 @@ class CycGBM:
 
         # Assume 2 dimensions
         z = self.z0.repeat(len(y)).reshape((2, len(y)))
-        self.trees = [[[]] * self.kappas[0], [[]] * self.kappas[1]]
+        self.trees = [[[]] * self.kappa[0], [[]] * self.kappa[1]]
 
-        for k in range(0, max(self.kappas)):
+        for k in range(0, max(self.kappa)):
             # Assume 2 dimensions
             for j in [0, 1]:
-                if k >= self.kappas[j]:
+                if k >= self.kappa[j]:
                     continue
                 tree = self._train_tree(X=X, y=y, z=z, j=j)
                 tree = self._adjust_node_values(tree=tree, X=X, y=y, z=z, j=j)
@@ -120,8 +126,19 @@ class CycGBM:
         z = self.predict(X)
         tree = self._train_tree(X=X, y=y, z=z, j=j)
         tree = self._adjust_node_values(tree=tree, X=X, y=y, z=z, j=j)
-        self.trees += [tree]
-        self.kappas[j] += 1
+        self.trees[j] += [tree]
+        self.kappa[j] += 1
+
+    def _predict_dimension(self, X: np.ndarray, j: int) -> np.ndarray:
+        """
+        Make predictions using an ensemble of decision trees.
+
+        :param X: Input data of shape (n_samples, n_features).
+        :param j: Dimension to predict parameter in
+        :return: Predicted values of shape (n_samples,)."""
+        if len(self.trees[j]) == 0:
+            return np.zeros(len(X))
+        return self.eps[j] * sum([tree.predict(X) for tree in self.trees[j]])
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -131,20 +148,79 @@ class CycGBM:
         :return: Predicted response values of shape (d,n_samples).
         """
         # Assume two dimensions
-        z_hat = (
-            self.z0.repeat(len(X)).reshape((2, len(X)))
-            + (
-                np.array(self.eps)
-                * np.array(
-                    [sum([tree.predict(X) for tree in trees]) for trees in self.trees]
-                ).T
-            ).T
-        )
+        z_hat = self.z0.repeat(len(X)).reshape((2, len(X)))
+        for j in range(len(self.z0)):
+            z_hat[j] += self._predict_dimension(X=X, j=j)
+
         return z_hat
+
+
+def tune_kappa(
+    X: np.ndarray,
+    y: np.ndarray,
+    kappa_max: Union[int, List[int]] = 1000,
+    eps: Union[float, List[float]] = 0.1,
+    max_depth: Union[int, List[int]] = 2,
+    min_samples_leaf: Union[int, List[int]] = 20,
+    dist="normal",
+    n_splits: int = 4,
+    random_state=None,
+) -> List[int]:
+    """Tunes the kappa parameter of a CycGBM model using k-fold cross-validation.
+
+    :param X: The input data matrix of shape (n_samples, n_features).
+    :param y: The target vector of shape (n_samples,).
+    :param kappa_max: The maximum value of the kappa parameter to test. Dimension-wise or same for all parameter dimensions.
+    :param eps: The epsilon parameters for the CycGBM model.Dimension-wise or same for all parameter dimensions.
+    :param max_depth: The maximum depth of the decision trees in the GBM model. Dimension-wise or same for all parameter dimensions.
+    :param min_samples_leaf: The minimum number of samples required to be at a leaf node in the CycGBM model. Dimension-wise or same for all parameter dimensions.
+    :param dist: The distribution of the target variable.
+    :param n_splits: The number of folds to use for k-fold cross-validation.
+    :param random_state: The random state to use for the k-fold split.
+    :return: The optimal value of the kappa parameter."""
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+    # Assume two dimensions
+    kappa_max = kappa_max if type(kappa_max) == list else [kappa_max] * 2
+    loss = np.ones((n_splits, max(kappa_max), 2)) * np.nan
+
+    for i, idx in enumerate(kf.split(X)):
+        idx_train, idx_valid = idx
+        X_train, y_train = X[idx_train], y[idx_train]
+        X_valid, y_valid = X[idx_valid], y[idx_valid]
+
+        gbm = CycGBM(
+            kappa=[0, 0],
+            eps=eps,
+            max_depth=max_depth,
+            min_samples_leaf=min_samples_leaf,
+            dist=dist,
+        )
+        gbm.train(X_train, y_train)
+        z_valid = gbm.predict(X_valid)
+        loss[i, 0, :] = gbm.dist.loss(z_valid, y_valid).sum()
+
+        for k in range(1, max(kappa_max)):
+            # Assume 2 dimensions
+            for j in [0, 1]:
+                gbm.update(X=X_train, y=y_train, j=j)
+                z_valid[j] += gbm.eps[j] * gbm.trees[j][-1].predict(X_valid)
+                loss[i, k, j] = gbm.dist.loss(z_valid, y_valid).sum()
+
+            if loss[i, k, 0] > loss[i, k - 1, 1] and loss[i, k, 1] > loss[i, k, 0]:
+                loss[i, k + 1 :, :] = loss[i, k, -1]
+                break
+    loss_total = loss.sum(axis=0)
+    # Assume two dimensions
+    loss_improv_0 = loss_total[1:, 0] - loss_total[:-1, -1]
+    loss_improv_1 = loss_total[1:, 1] - loss_total[1:, 0]
+    loss_improv = np.stack([loss_improv_0, loss_improv_1])
+    kappa = np.argmax(loss_improv > 0, axis=1)
+    return kappa
 
 
 if __name__ == "__main__":
     n = 100
+    expected_loss = 641.9173857564037
     rng = np.random.default_rng(seed=10)
     X0 = np.arange(0, n)
     X1 = np.arange(0, n)
@@ -155,12 +231,21 @@ if __name__ == "__main__":
     X = np.stack([X0, X1]).T
     y = rng.normal(mu, sigma)
 
-    kappas = [100, 10]
-    eps = [0.1, 0.01]
-    gbm = CycGBM(kappas=kappas, eps=eps)
-    gbm.train(X, y)
-    z_hat = gbm.predict(X)
+    kappa_max = [1000, 100]
+    eps = 0.1
+    max_depth = 2
+    min_samples_leaf = 20
+    random_state = 5
+    kappa = tune_kappa(
+        X=X,
+        y=y,
+        kappa_max=kappa_max,
+        eps=eps,
+        max_depth=max_depth,
+        min_samples_leaf=min_samples_leaf,
+        dist="normal",
+        n_splits=4,
+        random_state=random_state,
+    )
 
-    loss = gbm.loss(z_hat, y).sum()
-
-    print(loss)
+    print(kappa)
