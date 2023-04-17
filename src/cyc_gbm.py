@@ -126,8 +126,20 @@ class CycGBM:
         z = self.predict(X)
         tree = self._train_tree(X=X, y=y, z=z, j=j)
         tree = self._adjust_node_values(tree=tree, X=X, y=y, z=z, j=j)
-        self.trees += [tree]
+        self.trees[j] += [tree]
         self.kappa[j] += 1
+
+    def _predict_dimension(self, X: np.ndarray, j: int) -> np.ndarray:
+        """
+        Make predictions using an ensemble of decision trees.
+
+        :param X: Input data of shape (n_samples, n_features).
+        :param j: Dimension to predict parameter in
+        :return: Predicted values of shape (n_samples,)."""
+        if len(self.trees[j]) == 0:
+            return np.zeros(len(X))
+        else:
+            return self.eps[j] * sum([tree.predict(X) for tree in self.trees[j]])
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -137,16 +149,10 @@ class CycGBM:
         :return: Predicted response values of shape (d,n_samples).
         """
         # Assume two dimensions
-        # TODO: Fix so that this can output stuff even when there are no trees
-        z_hat = (
-            self.z0.repeat(len(X)).reshape((2, len(X)))
-            + (
-                np.array(self.eps)
-                * np.array(
-                    [sum([tree.predict(X) for tree in trees]) for trees in self.trees]
-                ).T
-            ).T
-        )
+        z_hat = self.z0.repeat(len(X)).reshape((2, len(X)))
+        for j in range(len(self.z0)):
+            z_hat[j] += self._predict_dimension(X=X, j=j)
+
         return z_hat
 
 
@@ -203,7 +209,7 @@ def tune_kappa(
             if loss[i, k, 0] > loss[i, k - 1, 1] and loss[i, k, 1] > loss[i, k, 0]:
                 loss[i, k + 1 :, :] = loss[i, k, -1]
                 break
-
+    # TODO: Evaluate loss improvements here
     kappa = 1
     return kappa
 
