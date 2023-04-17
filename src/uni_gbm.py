@@ -178,7 +178,7 @@ def tune_kappa(
 
         for k in range(1, kappa_max + 1):
             gbm.update(X=X_train, y=y_train, k_add=1)
-            z_valid = gbm.predict(X_valid)
+            z_valid += gbm.eps * gbm.trees[-1].predict(X_valid)
             loss[i, k] = gbm.dist.loss(z_valid, y_valid).sum()
             if loss[i, k] > loss[i, k - 1]:
                 loss[i, k:] = loss[i, k]
@@ -190,7 +190,7 @@ def tune_kappa(
 
 
 if __name__ == "__main__":
-    expected_kappa = 35
+    expected_kappa = 36
     n = 1000
     rng = np.random.default_rng(seed=10)
     X0 = np.arange(0, n)
@@ -202,3 +202,4 @@ if __name__ == "__main__":
     y = rng.normal(mu, 1.5)
 
     kappa = tune_kappa(X=X, y=y, random_state=5)
+    print(kappa)

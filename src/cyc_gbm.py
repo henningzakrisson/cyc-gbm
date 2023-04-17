@@ -197,7 +197,7 @@ def tune_kappa(
             # Assume 2 dimensions
             for j in [0, 1]:
                 gbm.update(X=X_train, y=y_train, j=j)
-                z_valid = gbm.predict(X_valid)
+                z_valid[j] += gbm.eps[j] * gbm.trees[j][-1].predict(X_valid)
                 loss[i, k, j] = gbm.dist.loss(z_valid, y_valid).sum()
 
             if loss[i, k, 0] > loss[i, k - 1, 1] and loss[i, k, 1] > loss[i, k, 0]:
