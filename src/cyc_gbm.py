@@ -189,7 +189,7 @@ def tune_kappa(
         X_valid, y_valid = X[idx_valid], y[idx_valid]
 
         gbm = CycGBM(
-            kappa=[0, 0],
+            kappa=0,
             eps=eps,
             max_depth=max_depth,
             min_samples_leaf=min_samples_leaf,
@@ -209,13 +209,14 @@ def tune_kappa(
             if loss[i, k, 0] > loss[i, k - 1, 1] and loss[i, k, 1] > loss[i, k, 0]:
                 loss[i, k + 1 :, :] = loss[i, k, -1]
                 break
+
     loss_total = loss.sum(axis=0)
     # Assume two dimensions
     loss_improv_0 = loss_total[1:, 0] - loss_total[:-1, -1]
     loss_improv_1 = loss_total[1:, 1] - loss_total[1:, 0]
     loss_improv = np.stack([loss_improv_0, loss_improv_1])
     kappa = np.argmax(loss_improv > 0, axis=1)
-    return kappa
+    return kappa, loss
 
 
 if __name__ == "__main__":
