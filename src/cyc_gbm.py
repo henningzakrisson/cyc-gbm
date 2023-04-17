@@ -138,8 +138,7 @@ class CycGBM:
         :return: Predicted values of shape (n_samples,)."""
         if len(self.trees[j]) == 0:
             return np.zeros(len(X))
-        else:
-            return self.eps[j] * sum([tree.predict(X) for tree in self.trees[j]])
+        return self.eps[j] * sum([tree.predict(X) for tree in self.trees[j]])
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -159,10 +158,10 @@ class CycGBM:
 def tune_kappa(
     X: np.ndarray,
     y: np.ndarray,
-    kappa_max: Union[int, List[int]] = [1000, 1000],
-    eps: Union[float, List[float]] = [0.1, 0.1],
-    max_depth: Union[int, List[int]] = [2, 2],
-    min_samples_leaf: Union[int, List[int]] = [20, 20],
+    kappa_max: Union[int, List[int]] = 1000,
+    eps: Union[float, List[float]] = 0.1,
+    max_depth: Union[int, List[int]] = 2,
+    min_samples_leaf: Union[int, List[int]] = 20,
     dist="normal",
     n_splits: int = 4,
     random_state=None,
@@ -181,6 +180,7 @@ def tune_kappa(
     :return: The optimal value of the kappa parameter."""
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     # Assume two dimensions
+    kappa_max = kappa_max if type(kappa_max) == list else [kappa_max] * 2
     loss = np.ones((n_splits, max(kappa_max), 2)) * np.nan
 
     for i, idx in enumerate(kf.split(X)):
@@ -210,6 +210,10 @@ def tune_kappa(
                 loss[i, k + 1 :, :] = loss[i, k, -1]
                 break
     # TODO: Evaluate loss improvements here
+    loss_total = loss.sum(axis=0)
+    # Assume two dimensions
+    loss_improv_0 = loss_total[1:, 0] - loss_total[:-1, -1]
+    loss_improv_1 = loss_total[1:, 1] - loss_total[1:, 0]
     kappa = 1
     return kappa
 
