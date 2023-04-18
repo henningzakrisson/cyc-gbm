@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.tree import DecisionTreeRegressor
 from typing import List, Union
-from src.distribution import Distribution
+from src.distributions import initiate_dist
 from sklearn.model_selection import KFold
 
 
@@ -35,7 +35,7 @@ class CycGBM:
             if type(min_samples_leaf) == list
             else [min_samples_leaf] * 2
         )
-        self.dist = Distribution(dist)
+        self.dist = initiate_dist(dist)
 
         # Assume 2 dimensions
         self.z0s = [np.nan, np.nan]
