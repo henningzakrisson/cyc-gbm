@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.model_selection import KFold
-from src.distribution import Distribution
+from src.distributions import initiate_dist
 
 
 class UniGBM:
@@ -28,7 +28,7 @@ class UniGBM:
         self.eps = eps
         self.max_depth = max_depth
         self.min_samples_leaf = min_samples_leaf
-        self.dist = Distribution(dist, d=1)
+        self.dist = initiate_dist(dist, d=1)
 
         self.z0 = np.nan
         self.trees = None
