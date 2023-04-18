@@ -1,6 +1,8 @@
 import numpy as np
 from typing import Union
 from src.exceptions import UnknownDistribution
+from scipy.special import loggamma, polygamma
+from scipy.optimize import minimize
 
 
 class Distribution:
@@ -42,8 +44,9 @@ class Distribution:
             if self.d == 1:
                 return y * np.exp(-z) + z
             elif self.d == 2:
-                # TODO: Add these
-                return None
+                return loggamma(np.exp(-z[1])) + np.exp(-z[1]) * (
+                    y * np.exp(-z[0]) - np.log(y) + z[0] + z[1]
+                )
 
     def grad(self, z: np.ndarray, y: np.ndarray, j: int = 0) -> np.ndarray:
         """
@@ -64,10 +67,42 @@ class Distribution:
                 return z - y
         elif self.dist == "gamma":
             if self.d == 2:
-                # TODO: add these
-                return None
+                if j == 0:
+                    return np.exp(-z[1]) * (1 - y * np.exp(-z[0]))
+                elif j == 1:
+                    return np.exp(-z[1]) * (
+                        1
+                        + np.log(y)
+                        - z[0]
+                        - z[1]
+                        - y * np.exp(-z[0])
+                        - polygamma(0, np.exp(-z[1]))
+                    )
             elif self.d == 1:
                 return 1 - y * np.exp(-z)
+
+    def _mle_numeric(
+        self, y: np.ndarray, z: np.ndarray, j: int, z_j_0: np.ndarray = np.array([0, 0])
+    ):
+        """Compute maximum likelihood estimator numerically
+
+        :param y: Target values.
+        :param z: Current parameter estimates.
+        :param j: Index of the dimension to optimize.
+        :param z_j_0: Initial guess for the MLE
+        :return: The MLE of the loss for this dimension
+
+        """
+        # Dimension indicator (assume two dimensions)
+        if j == 0:
+            e = np.array([1, 0])
+        elif j == 1:
+            e = np.array([0, 1])
+
+        to_min = lambda z_j: self.loss(z + e[j] * z_j, y).sum()
+        z_j_opt = minimize(to_min, z_j_0)["x"][0]
+
+        return z_j_opt
 
     def mle(self, y: np.ndarray) -> Union[float, np.ndarray]:
         """
@@ -83,12 +118,42 @@ class Distribution:
                 return y.mean()
         elif self.dist == "gamma":
             if self.d == 2:
-                # TODO: add this
-                return None
+                z_0 = np.log(y.mean())
+                z_j_0 = np.log(y.var() / (y.mean() ** 2))
+                z_1 = self._mle_numeric(y, np.array([z_0, 0]), j=1, z_j_0=z_j_0)
+                return np.array([z_0, z_1])
             elif self.d == 1:
                 return np.log(y.mean())
 
-    def opt_step(self, y: np.ndarray, z: np.ndarray, j: int = 0) -> np.ndarray:
+    def _step_loss(self, z: np.ndarray, y: np.ndarray, gamma: float, j: int) -> float:
+        """
+        Loss function evaluated when adding step gamma to dimension j of z.
+
+        :param z: An array of shape (n_samples, n_features) representing the input features.
+        :param y: An array of shape (n_samples,) representing the target values.
+        :param gamma: A float representing the amount to add to the jth dimension of z.
+        :param j: An integer representing the dimension of z to add gamma to.
+        :return: A float representing the sum of the loss values across all samples.
+        """
+        z[j] += gamma
+        return self.loss(z, y).sum()
+
+    def _opt_step_numeric(self, y: np.ndarray, z: np.ndarray, j: int, g_0: float = 0):
+        """
+        Numerically optimize the step size for the data in specified dimension
+
+        :param y: Target values.
+        :param z: Current parameter estimates.
+        :param j: Index of the dimension to optimize.
+        :param g_0: Initial guess for the optimal step size. Default is 0.
+        :return: The optimal step size.
+        """
+
+        to_min = lambda gamma: self._step_loss(z=z, y=y, gamma=gamma, j=j)
+        gamma_opt = minimize(to_min, g_0)["x"][0]
+        return gamma_opt
+
+    def opt_step(self, y: np.ndarray, z: np.ndarray, j: int = 0, g_0=0) -> np.ndarray:
         """
         Calculate the optimal step length for these parameter estimates and responses
 
@@ -108,7 +173,12 @@ class Distribution:
                 return np.mean(y - z)
         if self.dist == "gamma":
             if self.d == 2:
-                # TODO: add these
-                return None
+                if j == 0:
+                    return np.log(
+                        (y * np.exp(-z[0] - z[1])).sum() / np.exp(-z[1]).sum()
+                    )
+                if j == 1:
+                    g_opt = self._opt_step_numeric(y=y, z=z, j=1, g_0=g_0)
+                    return g_opt
             elif self.d == 1:
                 return np.log((y * np.exp(-z)).mean())

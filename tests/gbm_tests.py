@@ -106,7 +106,7 @@ class GBMTests(unittest.TestCase):
             to within a tolerance.
         """
         n = 100
-        expected_loss = 641.9173857564037
+        expected_loss = 187.46122289939993
         rng = np.random.default_rng(seed=10)
         X0 = np.arange(0, n)
         X1 = np.arange(0, n)
@@ -118,8 +118,15 @@ class GBMTests(unittest.TestCase):
         y = rng.normal(mu, sigma)
 
         kappas = [100, 10]
-        eps = [0.1, 0.01]
-        gbm = CycGBM(kappa=kappas, eps=eps)
+        eps = 0.1
+        max_depth = 2
+        min_samples_leaf = 20
+        gbm = CycGBM(
+            kappa=kappas,
+            eps=eps,
+            min_samples_leaf=min_samples_leaf,
+            max_depth=max_depth,
+        )
         gbm.train(X, y)
         z_hat = gbm.predict(X)
 
@@ -130,6 +137,41 @@ class GBMTests(unittest.TestCase):
             second=loss,
             places=5,
             msg="CycGBM Normal distribution loss not as expected",
+        )
+
+    def test_gamma_distribution_cyc(self):
+        """
+        Test method for the `CycGBM` class on a dataset where the target variable
+        follows a gamma distribution.
+
+        :raises AssertionError: If the calculated loss does not match the expected loss
+            to within a tolerance.
+        """
+        n = 1000
+        expected_loss = 2600.6806681794524
+        rng = np.random.default_rng(seed=10)
+        X0 = np.arange(0, n)
+        X1 = np.arange(0, n)
+        rng.shuffle(X1)
+        mu = np.exp(1 * (X0 > 0.3 * n) + 0.5 * (X1 > 0.5 * n))
+        phi = np.exp(1 + 1 * (X0 < 0.4 * n))
+
+        X = np.stack([X0, X1]).T
+        y = rng.gamma(1 / phi, mu * phi)
+
+        kappas = [15, 30]
+        eps = 0.1
+        gbm = CycGBM(kappa=kappas, eps=eps, dist="gamma")
+        gbm.train(X, y)
+        z_hat = gbm.predict(X)
+
+        loss = gbm.dist.loss(z_hat, y).sum()
+
+        self.assertAlmostEqual(
+            first=expected_loss,
+            second=loss,
+            places=5,
+            msg="CycGBM Gamma distribution loss not as expected",
         )
 
     def test_kappa_tuning_cyc(self):
@@ -150,7 +192,7 @@ class GBMTests(unittest.TestCase):
         max_depth = 2
         min_samples_leaf = 20
         random_state = 5
-        kappa = tune_kappa_cyc(
+        kappa, _ = tune_kappa_cyc(
             X=X,
             y=y,
             kappa_max=kappa_max,
