@@ -1,9 +1,6 @@
 import unittest
 import numpy as np
-from src.uni_gbm import UniGBM
-from src.uni_gbm import tune_kappa as tune_kappa_uni
-from src.cyc_gbm import CycGBM
-from src.cyc_gbm import tune_kappa as tune_kappa_cyc
+from src.cyc_gbm import CycGBM, tune_kappa
 
 
 class GBMTests(unittest.TestCase):
@@ -13,14 +10,14 @@ class GBMTests(unittest.TestCase):
 
     def test_normal_distribution_uni(self):
         """
-        Test method for the `UniGBM` class on a dataset where the target variable
-        follows a normal distribution.
+        Test method for the CycGBM` class on a dataset where the target variable
+        follows a univariate normal distribution with constant variance.
 
         :raises AssertionError: If the calculated loss does not match the expected loss
             to within a tolerance.
         """
         n = 100
-        expected_loss = 181.94200480862173
+        expected_loss = 166.58751236236634
         rng = np.random.default_rng(seed=10)
         X0 = np.arange(0, n)
         X1 = np.arange(0, n)
@@ -30,7 +27,8 @@ class GBMTests(unittest.TestCase):
         X = np.stack([X0, X1]).T
         y = rng.normal(mu, 1.5)
 
-        gbm = UniGBM(dist="normal")
+        kappa = [100, 0]
+        gbm = CycGBM(dist="normal", kappa=kappa)
         gbm.train(X, y)
         z_hat = gbm.predict(X)
 
@@ -45,15 +43,15 @@ class GBMTests(unittest.TestCase):
 
     def test_gamma_distribution_uni(self):
         """
-        Test method for the `UniGBM` class on a dataset where the target variable
-        follows a gamma distribution.
+        Test method for the `CycGBM` class on a dataset where the target variable
+        follows a gamma distribution with constant overdispersion
 
         :raises AssertionError: If the calculated loss does not match the expected loss
             to within a tolerance.
         """
 
         n = 1000
-        expected_sse = 893.2061449825943
+        expected_loss = 1589.8032888648122
         rng = np.random.default_rng(seed=10)
         X0 = np.arange(0, n)
         X1 = np.arange(0, n)
@@ -63,15 +61,15 @@ class GBMTests(unittest.TestCase):
         X = np.stack([X0, X1]).T
         y = rng.gamma(1, mu)
 
-        gbm = UniGBM(dist="gamma", kappa=100, eps=0.1)
+        gbm = CycGBM(dist="gamma", kappa=[100, 0], eps=0.1)
         gbm.train(X, y)
-        mu_hat = np.exp(gbm.predict(X))
+        z_hat = gbm.predict(X)
 
-        sse = sum((y - mu_hat) ** 2)
+        loss = gbm.dist.loss(z_hat, y).sum()
 
         self.assertAlmostEqual(
-            first=expected_sse,
-            second=sse,
+            first=expected_loss,
+            second=loss,
             places=5,
             msg="UniGBM Gamma distribution sse not as expected",
         )
@@ -89,12 +87,12 @@ class GBMTests(unittest.TestCase):
         X = np.stack([X0, X1]).T
         y = rng.normal(mu, 1.5)
 
-        kappa = tune_kappa_uni(X=X, y=y, random_state=5)
+        kappa, _ = tune_kappa(X=X, y=y, random_state=5, kappa_max=[1000, 0])
 
         self.assertEqual(
             first=expected_kappa,
-            second=kappa,
-            msg="Optimal number of boosting steps not correct for UniGBM",
+            second=kappa[0],
+            msg="Optimal number of boosting steps not correct for CycGBM in normal distribution with constant variance",
         )
 
     def test_normal_distribution_cyc(self):
@@ -192,7 +190,7 @@ class GBMTests(unittest.TestCase):
         max_depth = 2
         min_samples_leaf = 20
         random_state = 5
-        kappa, _ = tune_kappa_cyc(
+        kappa, _ = tune_kappa(
             X=X,
             y=y,
             kappa_max=kappa_max,
