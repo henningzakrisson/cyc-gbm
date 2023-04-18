@@ -54,7 +54,7 @@ class CycGBM:
         tree = DecisionTreeRegressor(
             max_depth=self.max_depths[j], min_samples_leaf=self.min_samples_leaf[j]
         )
-        g = self.dist.grad(z, y, j)
+        g = self.dist.grad(z=z, y=y, j=j)
         tree.fit(X, -g)
 
         return tree
@@ -212,41 +212,31 @@ def tune_kappa(
 
     loss_total = loss.sum(axis=0)
     # Assume two dimensions
-    loss_improv_0 = loss_total[1:, 0] - loss_total[:-1, -1]
-    loss_improv_1 = loss_total[1:, 1] - loss_total[1:, 0]
-    loss_improv = np.stack([loss_improv_0, loss_improv_1])
-    kappa = np.argmax(loss_improv > 0, axis=1)
+    loss_delta_0 = loss_total[1:, 0] - loss_total[:-1, -1]
+    loss_delta_1 = loss_total[1:, 1] - loss_total[1:, 0]
+    loss_delta = np.stack([loss_delta_0, loss_delta_1])
+    kappa = np.argmax(loss_delta > 0, axis=1)
+    # TODO: remove the loss return (it is only for testing)
     return kappa, loss
 
 
 if __name__ == "__main__":
-    n = 100
-    expected_loss = 641.9173857564037
+    n = 1000
     rng = np.random.default_rng(seed=10)
     X0 = np.arange(0, n)
     X1 = np.arange(0, n)
     rng.shuffle(X1)
-    mu = 10 * (X0 > 0.3 * n) + 5 * (X1 > 0.5 * n)
-    sigma = np.exp(1 + 1 * (X0 < 0.4 * n))
+    mu = np.exp(1 * (X0 > 0.3 * n) + 0.5 * (X1 > 0.5 * n))
+    phi = np.exp(1 + 1 * (X0 < 0.4 * n))
 
     X = np.stack([X0, X1]).T
-    y = rng.normal(mu, sigma)
+    y = rng.gamma(1 / phi, mu * phi)
 
-    kappa_max = [1000, 100]
+    kappas = [15, 30]
     eps = 0.1
-    max_depth = 2
-    min_samples_leaf = 20
-    random_state = 5
-    kappa = tune_kappa(
-        X=X,
-        y=y,
-        kappa_max=kappa_max,
-        eps=eps,
-        max_depth=max_depth,
-        min_samples_leaf=min_samples_leaf,
-        dist="normal",
-        n_splits=4,
-        random_state=random_state,
-    )
+    gbm = CycGBM(kappa=kappas, eps=eps, dist="gamma")
+    gbm.train(X, y)
+    z_hat = gbm.predict(X)
 
-    print(kappa)
+    loss = gbm.dist.loss(z_hat, y).sum()
+    print(loss)

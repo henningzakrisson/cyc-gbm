@@ -70,7 +70,7 @@ class Distribution:
                 if j == 0:
                     return np.exp(-z[1]) * (1 - y * np.exp(-z[0]))
                 elif j == 1:
-                    np.exp(-z[1]) * (
+                    return np.exp(-z[1]) * (
                         1
                         + np.log(y)
                         - z[0]
@@ -125,9 +125,22 @@ class Distribution:
             elif self.d == 1:
                 return np.log(y.mean())
 
+    def _step_loss(self, z: np.ndarray, y: np.ndarray, gamma: float, j: int) -> float:
+        """
+        Loss function evaluated when adding step gamma to dimension j of z.
+
+        :param z: An array of shape (n_samples, n_features) representing the input features.
+        :param y: An array of shape (n_samples,) representing the target values.
+        :param gamma: A float representing the amount to add to the jth dimension of z.
+        :param j: An integer representing the dimension of z to add gamma to.
+        :return: A float representing the sum of the loss values across all samples.
+        """
+        z[j] += gamma
+        return self.loss(z, y).sum()
+
     def _opt_step_numeric(self, y: np.ndarray, z: np.ndarray, j: int, g_0: float = 0):
         """
-        Compute the optimal step size for the data in specific dimension
+        Numerically optimize the step size for the data in specified dimension
 
         :param y: Target values.
         :param z: Current parameter estimates.
@@ -135,13 +148,8 @@ class Distribution:
         :param g_0: Initial guess for the optimal step size. Default is 0.
         :return: The optimal step size.
         """
-        # Dimension indicator (assume two dimensions)
-        if j == 0:
-            e = np.array([1, 0])
-        elif j == 1:
-            e = np.array([0, 1])
 
-        to_min = lambda gamma: self.loss(z + e * gamma, y).sum()
+        to_min = lambda gamma: self._step_loss(z=z, y=y, gamma=gamma, j=j)
         gamma_opt = minimize(to_min, g_0)["x"][0]
         return gamma_opt
 
@@ -166,7 +174,9 @@ class Distribution:
         if self.dist == "gamma":
             if self.d == 2:
                 if j == 0:
-                    return np.log(np.exp(-z[0] - z[1]).sum() / np.exp(-z[1]).sum())
+                    return np.log(
+                        (y * np.exp(-z[0] - z[1])).sum() / np.exp(-z[1]).sum()
+                    )
                 if j == 1:
                     g_opt = self._opt_step_numeric(y=y, z=z, j=1, g_0=g_0)
                     return g_opt
