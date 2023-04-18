@@ -8,14 +8,10 @@ from scipy.optimize import minimize
 class NormalDistribution:
     def __init__(
         self,
-        d: int = 2,
     ):
         """
         Initialize a normal distribution object.
-
-        :param d: The dimensionality of the distribution (default=2).
         """
-        self.d = d
 
     def loss(self, z: np.ndarray, y: np.ndarray) -> np.ndarray:
         """
@@ -25,10 +21,7 @@ class NormalDistribution:
         :param y: The target values.
         :return: The loss function value(s) for the given `z` and `y`.
         """
-        if self.d == 1:
-            return (y - z) ** 2
-        elif self.d == 2:
-            return z[1] + 0.5 * np.exp(-2 * z[1]) * (y - z[0]) ** 2
+        return z[1] + 0.5 * np.exp(-2 * z[1]) * (y - z[0]) ** 2
 
     def grad(self, z: np.ndarray, y: np.ndarray, j: int = 0) -> np.ndarray:
         """
@@ -39,13 +32,10 @@ class NormalDistribution:
         :param j: The parameter dimension to compute the gradient for (default=0).
         :return: The gradient(s) of the loss function for the given `z`, `y`, and `j`.
         """
-        if self.d == 2:
-            if j == 0:
-                return -np.exp(-2 * z[1]) * (y - z[0])
-            elif j == 1:
-                return 1 - np.exp(-2 * z[1]) * (y - z[0]) ** 2
-        elif self.d == 1:
-            return z - y
+        if j == 0:
+            return -np.exp(-2 * z[1]) * (y - z[0])
+        elif j == 1:
+            return 1 - np.exp(-2 * z[1]) * (y - z[0]) ** 2
 
     def mle(self, y: np.ndarray) -> Union[float, np.ndarray]:
         """
@@ -54,10 +44,7 @@ class NormalDistribution:
         :param y: The target values.
         :return: The maximum likelihood estimator of the parameters.
         """
-        if self.d == 2:
-            return np.array([y.mean(), np.log(y.std())])
-        elif self.d == 1:
-            return y.mean()
+        return np.array([y.mean(), np.log(y.std())])
 
     def opt_step(self, y: np.ndarray, z: np.ndarray, j: int = 0, g_0=0) -> np.ndarray:
         """
@@ -66,29 +53,23 @@ class NormalDistribution:
         :param y: The target values
         :param z: The current parameter estimates
         :param j: The parameter dimension to update, defaults to 0
+        :param g_0: initial guess (not used for this distribution)
 
         :return: The optimal step length for the given parameter estimates and responses
         """
-        if self.d == 2:
-            if j == 0:
-                return np.mean(y - z[0])
-            elif j == 1:
-                return 0.5 * np.log(np.mean((np.exp(-2 * z[1]) * (y - z[0]) ** 2)))
-        elif self.d == 1:
-            return np.mean(y - z)
+        if j == 0:
+            return np.mean(y - z[0])
+        elif j == 1:
+            return 0.5 * np.log(np.mean((np.exp(-2 * z[1]) * (y - z[0]) ** 2)))
 
 
 class GammaDistribution:
     def __init__(
         self,
-        d: int = 2,
     ):
         """
         Initialize a gamma distribution object.
-
-        :param d: The dimensionality of the distribution (default=2).
         """
-        self.d = d
 
     def loss(self, z: np.ndarray, y: np.ndarray) -> np.ndarray:
         """
@@ -98,12 +79,9 @@ class GammaDistribution:
         :param y: The target values.
         :return: The loss function value(s) for the given `z` and `y`.
         """
-        if self.d == 1:
-            return y * np.exp(-z) + z
-        elif self.d == 2:
-            return loggamma(np.exp(-z[1])) + np.exp(-z[1]) * (
-                y * np.exp(-z[0]) - np.log(y) + z[0] + z[1]
-            )
+        return loggamma(np.exp(-z[1])) + np.exp(-z[1]) * (
+            y * np.exp(-z[0]) - np.log(y) + z[0] + z[1]
+        )
 
     def grad(self, z: np.ndarray, y: np.ndarray, j: int = 0) -> np.ndarray:
         """
@@ -114,21 +92,17 @@ class GammaDistribution:
         :param j: The parameter dimension to compute the gradient for (default=0).
         :return: The gradient(s) of the loss function for the given `z`, `y`, and `j`.
         """
-
-        if self.d == 2:
-            if j == 0:
-                return np.exp(-z[1]) * (1 - y * np.exp(-z[0]))
-            elif j == 1:
-                return np.exp(-z[1]) * (
-                    1
-                    + np.log(y)
-                    - z[0]
-                    - z[1]
-                    - y * np.exp(-z[0])
-                    - polygamma(0, np.exp(-z[1]))
-                )
-        elif self.d == 1:
-            return 1 - y * np.exp(-z)
+        if j == 0:
+            return np.exp(-z[1]) * (1 - y * np.exp(-z[0]))
+        elif j == 1:
+            return np.exp(-z[1]) * (
+                1
+                + np.log(y)
+                - z[0]
+                - z[1]
+                - y * np.exp(-z[0])
+                - polygamma(0, np.exp(-z[1]))
+            )
 
     def mle(self, y: np.ndarray) -> Union[float, np.ndarray]:
         """
@@ -137,15 +111,12 @@ class GammaDistribution:
         :param y: The target values.
         :return: The maximum likelihood estimator of the parameters.
         """
-        if self.d == 2:
-            z_0 = np.log(y.mean())
-            z_j_0 = np.log(y.var() / (y.mean() ** 2))
-            z_1 = mle_numeric(
-                distribution=self, y=y, z=np.array([z_0, 0]), j=1, z_j_0=z_j_0
-            )
-            return np.array([z_0, z_1])
-        elif self.d == 1:
-            return np.log(y.mean())
+        z_0 = np.log(y.mean())
+        z_1_0 = np.log(y.var() / (y.mean() ** 2))
+        z_1 = mle_numeric(
+            distribution=self, y=y, z=np.array([z_0, 0]), j=1, z_j_0=z_1_0
+        )
+        return np.array([z_0, z_1])
 
     def opt_step(self, y: np.ndarray, z: np.ndarray, j: int = 0, g_0=0) -> np.ndarray:
         """
@@ -157,14 +128,11 @@ class GammaDistribution:
 
         :return: The optimal step length for the given parameter estimates and responses
         """
-        if self.d == 2:
-            if j == 0:
-                return np.log((y * np.exp(-z[0] - z[1])).sum() / np.exp(-z[1]).sum())
-            if j == 1:
-                g_opt = opt_step_numeric(distribution=self, y=y, z=z, j=1, g_0=g_0)
-                return g_opt
-        elif self.d == 1:
-            return np.log((y * np.exp(-z)).mean())
+        if j == 0:
+            return np.log((y * np.exp(-z[0] - z[1])).sum() / np.exp(-z[1]).sum())
+        if j == 1:
+            g_opt = opt_step_numeric(distribution=self, y=y, z=z, j=1, g_0=g_0)
+            return g_opt
 
 
 def mle_numeric(
@@ -240,12 +208,10 @@ def opt_step_numeric(
     return step_opt
 
 
-def initiate_dist(
-    dist: str, d: int = 2
-) -> Union[NormalDistribution, GammaDistribution]:
+def initiate_dist(dist: str) -> Union[NormalDistribution, GammaDistribution]:
     if dist not in ["normal", "gamma"]:
         raise UnknownDistribution("Unknown distribution")
     if dist == "normal":
-        return NormalDistribution(d=d)
+        return NormalDistribution()
     if dist == "gamma":
-        return GammaDistribution(d=d)
+        return GammaDistribution()

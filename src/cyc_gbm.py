@@ -3,6 +3,7 @@ from sklearn.tree import DecisionTreeRegressor
 from typing import List, Union
 from src.distributions import initiate_dist
 from sklearn.model_selection import KFold
+import warnings
 
 
 class CycGBM:
@@ -181,7 +182,7 @@ def tune_kappa(
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     # Assume two dimensions
     kappa_max = kappa_max if type(kappa_max) == list else [kappa_max] * 2
-    loss = np.ones((n_splits, max(kappa_max), 2)) * np.nan
+    loss = np.ones((n_splits, max(kappa_max) + 1, 2)) * np.nan
 
     for i, idx in enumerate(kf.split(X)):
         idx_train, idx_valid = idx
@@ -199,14 +200,20 @@ def tune_kappa(
         z_valid = gbm.predict(X_valid)
         loss[i, 0, :] = gbm.dist.loss(z_valid, y_valid).sum()
 
-        for k in range(1, max(kappa_max)):
+        for k in range(1, max(kappa_max) + 1):
             # Assume 2 dimensions
             for j in [0, 1]:
+                if k >= kappa_max[j]:
+                    if j == 0:
+                        loss[i, k, j] = loss[i, k - 1, j + 1]
+                    else:
+                        loss[i, k, j] = loss[i, k, j - 1]
+                    continue
                 gbm.update(X=X_train, y=y_train, j=j)
                 z_valid[j] += gbm.eps[j] * gbm.trees[j][-1].predict(X_valid)
                 loss[i, k, j] = gbm.dist.loss(z_valid, y_valid).sum()
 
-            if loss[i, k, 0] > loss[i, k - 1, 1] and loss[i, k, 1] > loss[i, k, 0]:
+            if loss[i, k, 0] >= loss[i, k - 1, 1] and loss[i, k, 1] >= loss[i, k, 0]:
                 loss[i, k + 1 :, :] = loss[i, k, -1]
                 break
 
@@ -216,7 +223,14 @@ def tune_kappa(
     loss_delta_1 = loss_total[1:, 1] - loss_total[1:, 0]
     loss_delta = np.stack([loss_delta_0, loss_delta_1])
     kappa = np.argmax(loss_delta > 0, axis=1)
-    # TODO: remove the loss return (it is only for testing)
+
+    did_not_converge = (loss_delta > 0).sum(axis=1) == 0
+    # Asssume two dimensions
+    for j in range(0, 2):
+        if did_not_converge[j] and kappa_max[j] > 0:
+            warnings.warn(f"Tuning did not converge for dimension {j}")
+            kappa[j] = kappa_max[j]
+    # TODO: remove the loss return (it is only for testing purposes)
     return kappa, loss
 
 
@@ -226,17 +240,27 @@ if __name__ == "__main__":
     X0 = np.arange(0, n)
     X1 = np.arange(0, n)
     rng.shuffle(X1)
-    mu = np.exp(1 * (X0 > 0.3 * n) + 0.5 * (X1 > 0.5 * n))
-    phi = np.exp(1 + 1 * (X0 < 0.4 * n))
+    mu = 10 * (X0 > 0.3 * n) + 5 * (X1 > 0.5 * n)
 
     X = np.stack([X0, X1]).T
-    y = rng.gamma(1 / phi, mu * phi)
+    y = rng.normal(mu, 1.5)
 
-    kappas = [15, 30]
+    max_depth = 2
+    min_samples_leaf = 20
     eps = 0.1
-    gbm = CycGBM(kappa=kappas, eps=eps, dist="gamma")
-    gbm.train(X, y)
-    z_hat = gbm.predict(X)
+    n_splits = 4
+    random_state = 10
+    kappa_max = 100
 
-    loss = gbm.dist.loss(z_hat, y).sum()
-    print(loss)
+    kappa, _ = tune_kappa(
+        X=X,
+        y=y,
+        max_depth=max_depth,
+        min_samples_leaf=min_samples_leaf,
+        dist="normal",
+        n_splits=n_splits,
+        random_state=random_state,
+        eps=eps,
+        kappa_max=[kappa_max, 0],
+    )
+    print(kappa)
