@@ -87,9 +87,9 @@ class CycGBM:
         for g in gs:
             # Find optimal step size for this node
             index = g_hat == g
-            gamma = self.dist.opt_step(y=y[index], z=z[:, index], j=j, g_0=g)
+            g_opt = self.dist.opt_step(y=y[index], z=z[:, index], j=j, g_0=g)
             # Manipulate tree
-            tree.tree_.value[tree.tree_.value == g] = gamma
+            tree.tree_.value[tree.tree_.value == g] = g_opt
 
         return tree
 
@@ -240,27 +240,31 @@ if __name__ == "__main__":
     X0 = np.arange(0, n)
     X1 = np.arange(0, n)
     rng.shuffle(X1)
-    mu = 10 * (X0 > 0.3 * n) + 5 * (X1 > 0.5 * n)
+    mu = np.exp(1 * (X0 > 0.3 * n) + 0.5 * (X1 > 0.5 * n))
+    v = np.exp(-0.5 + 0.1 * X0 - 0.3 * np.abs(X1))
 
     X = np.stack([X0, X1]).T
-    y = rng.normal(mu, 1.5)
+    alpha = mu * (1 + v)
+    beta = v + 2
+    y0 = np.random.beta(alpha, beta)
+    y = y0 / (1 - y0)
 
     max_depth = 2
     min_samples_leaf = 20
     eps = 0.1
     n_splits = 4
     random_state = 10
-    kappa_max = 100
+    kappa_max = 250
 
     kappa, _ = tune_kappa(
         X=X,
         y=y,
         max_depth=max_depth,
         min_samples_leaf=min_samples_leaf,
-        dist="normal",
+        dist="beta_prime",
         n_splits=n_splits,
         random_state=random_state,
         eps=eps,
-        kappa_max=[kappa_max, 0],
+        kappa_max=kappa_max,
     )
     print(kappa)
