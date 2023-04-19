@@ -87,7 +87,7 @@ class GBMTests(unittest.TestCase):
         X = np.stack([X0, X1]).T
         y = rng.normal(mu, 1.5)
 
-        kappa, _ = tune_kappa(X=X, y=y, random_state=5, kappa_max=[1000, 0])
+        kappa = tune_kappa(X=X, y=y, random_state=5, kappa_max=[1000, 0])
 
         self.assertEqual(
             first=expected_kappa,
@@ -190,7 +190,7 @@ class GBMTests(unittest.TestCase):
         max_depth = 2
         min_samples_leaf = 20
         random_state = 5
-        kappa, _ = tune_kappa(
+        kappa = tune_kappa(
             X=X,
             y=y,
             kappa_max=kappa_max,

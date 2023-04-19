@@ -83,7 +83,7 @@ class CycGBM:
         eps: Union[float, List[float]] = [0.1, 0.1],
         max_depth: Union[int, List[int]] = [2, 2],
         min_samples_leaf: Union[int, List[int]] = [20, 20],
-        dist="normal",
+        dist: str = "normal",
     ):
         """
         :param kappa: Number of boosting steps. Dimension-wise or global for all parameter dimensions.
@@ -176,9 +176,10 @@ def tune_kappa(
     eps: Union[float, List[float]] = 0.1,
     max_depth: Union[int, List[int]] = 2,
     min_samples_leaf: Union[int, List[int]] = 20,
-    dist="normal",
+    dist: str = "normal",
     n_splits: int = 4,
-    random_state=None,
+    random_state: Union[int, None] = None,
+    return_loss: bool = False,
 ) -> List[int]:
     """Tunes the kappa parameter of a CycGBM model using k-fold cross-validation.
 
@@ -191,6 +192,7 @@ def tune_kappa(
     :param dist: The distribution of the target variable.
     :param n_splits: The number of folds to use for k-fold cross-validation.
     :param random_state: The random state to use for the k-fold split.
+    :param return_loss: boolean to indicate if the loss from the folds should be returned
     :return: The optimal value of the kappa parameter."""
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     # Assume two dimensions
@@ -226,6 +228,7 @@ def tune_kappa(
                     else:
                         loss[i, k, j] = loss[i, k, j - 1]
 
+            # Assume two dimensions
             if loss[i, k, 1] >= loss[i, k, 0] >= loss[i, k - 1, 1]:
                 loss[i, k + 1 :, :] = loss[i, k, -1]
                 break
@@ -238,13 +241,14 @@ def tune_kappa(
     kappa = np.argmax(loss_delta > 0, axis=1)
 
     did_not_converge = (loss_delta > 0).sum(axis=1) == 0
-    # Asssume two dimensions
+    # Assume two dimensions
     for j in range(0, 2):
         if did_not_converge[j] and kappa_max[j] > 0:
             warnings.warn(f"Tuning did not converge for dimension {j}")
             kappa[j] = kappa_max[j]
-    # TODO: remove the loss return (it is only for testing purposes)
-    return kappa, loss
+    if return_loss:
+        return kappa, loss
+    return kappa
 
 
 if __name__ == "__main__":
