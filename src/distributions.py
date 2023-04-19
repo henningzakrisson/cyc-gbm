@@ -13,7 +13,7 @@ class NormalDistribution:
         Initialize a normal distribution object.
         """
 
-    def loss(self, z: np.ndarray, y: np.ndarray) -> np.ndarray:
+    def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
         """
         Calculates the loss of the parameter estimates and the response.
 
@@ -23,7 +23,7 @@ class NormalDistribution:
         """
         return z[1] + 0.5 * np.exp(-2 * z[1]) * (y - z[0]) ** 2
 
-    def grad(self, z: np.ndarray, y: np.ndarray, j: int) -> np.ndarray:
+    def grad(self, y: np.ndarray, z: np.ndarray, j: int) -> np.ndarray:
         """
         Calculates the gradients of the loss function with respect to the parameters.
 
@@ -71,7 +71,7 @@ class GammaDistribution:
         Initialize a gamma distribution object.
         """
 
-    def loss(self, z: np.ndarray, y: np.ndarray) -> np.ndarray:
+    def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
         """
         Calculates the loss of the parameter estimates and the response.
 
@@ -83,7 +83,7 @@ class GammaDistribution:
             y * np.exp(-z[0]) - np.log(y) + z[0] + z[1]
         )
 
-    def grad(self, z: np.ndarray, y: np.ndarray, j: int) -> np.ndarray:
+    def grad(self, y: np.ndarray, z: np.ndarray, j: int) -> np.ndarray:
         """
         Calculates the gradients of the loss function with respect to the parameters.
 
@@ -141,7 +141,7 @@ class BetaPrimeDistribution:
         Initialize a beta prime distribution object.
         """
 
-    def loss(self, z: np.ndarray, y: np.ndarray) -> np.ndarray:
+    def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
         """
         Calculates the loss of the parameter estimates and the response.
 
@@ -160,7 +160,7 @@ class BetaPrimeDistribution:
         )
         return loss
 
-    def grad(self, z: np.ndarray, y: np.ndarray, j: int) -> np.ndarray:
+    def grad(self, y: np.ndarray, z: np.ndarray, j: int) -> np.ndarray:
         """
         Calculates the gradients of the loss function with respect to the parameters.
 
@@ -229,7 +229,7 @@ def mle_numeric(
     :return: The MLE of the loss for this dimension
 
     """
-    to_min = lambda z: distribution.loss(z, y).sum()
+    to_min = lambda z: distribution.loss(y=y, z=z).sum()
     z_opt = minimize(to_min, z_0)["x"]
 
     return z_opt
@@ -258,7 +258,7 @@ def opt_step_numeric(
         e = np.array([[1, 0]]).T
     elif j == 1:
         e = np.array([[0, 1]]).T
-    to_min = lambda step: distribution.loss(z=z + e * step, y=y).sum()
+    to_min = lambda step: distribution.loss(y=y, z=z + e * step).sum()
     step_opt = minimize(fun=to_min, x0=g_0)["x"][0]
     return step_opt
 

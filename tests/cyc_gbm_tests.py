@@ -32,7 +32,7 @@ class GBMTests(unittest.TestCase):
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
-        loss = gbm.dist.loss(z_hat, y).sum()
+        loss = gbm.dist.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -65,7 +65,7 @@ class GBMTests(unittest.TestCase):
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
-        loss = gbm.dist.loss(z_hat, y).sum()
+        loss = gbm.dist.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -75,7 +75,10 @@ class GBMTests(unittest.TestCase):
         )
 
     def test_kappa_tuning_uni(self):
-        """Tests the `tune_kappa` function to ensure it returns the correct value of the kappa parameter."""
+        """Tests the `tune_kappa` function to ensure it returns the correct value of the kappa parameter for uniparametric distributions.
+
+        :raises AssertionError: If the estimated number of boosting steps does not match the expecter number.
+        """
         expected_kappa = 36
         n = 1000
         rng = np.random.default_rng(seed=10)
@@ -100,8 +103,7 @@ class GBMTests(unittest.TestCase):
         Test method for the `CycGBM` class on a dataset where the target variable
         follows a normal distribution.
 
-        :raises AssertionError: If the calculated loss does not match the expected loss
-            to within a tolerance.
+        :raises AssertionError: If the calculated loss does not match the expected loss to within a tolerance.
         """
         n = 100
         expected_loss = 187.46122289939993
@@ -128,7 +130,7 @@ class GBMTests(unittest.TestCase):
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
-        loss = gbm.dist.loss(z_hat, y).sum()
+        loss = gbm.dist.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -163,7 +165,7 @@ class GBMTests(unittest.TestCase):
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
-        loss = gbm.dist.loss(z_hat, y).sum()
+        loss = gbm.dist.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -173,6 +175,10 @@ class GBMTests(unittest.TestCase):
         )
 
     def test_kappa_tuning_cyc(self):
+        """Tests the `tune_kappa` function to ensure it returns the correct value of the kappa parameter for multiparametric distributions.
+
+        :raises AssertionError: If the estimated number of boosting steps does not match the expecter number.
+        """
         n = 100
         expected_kappa = [12, 35]
         rng = np.random.default_rng(seed=10)
@@ -210,6 +216,13 @@ class GBMTests(unittest.TestCase):
             )
 
     def test_beta_prime(self):
+        """
+        Test method for the `CycGBM` class on a dataset where the target variable
+        follows a beta prime distribution.
+
+        :raises AssertionError: If the calculated loss does not match the expected loss
+            to within a tolerance.
+        """
         expected_loss = 121.22775641886105
         n = 1000
         rng = np.random.default_rng(seed=10)
@@ -239,7 +252,7 @@ class GBMTests(unittest.TestCase):
         )
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
-        loss = gbm.dist.loss(z_hat, y).sum()
+        loss = gbm.dist.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,

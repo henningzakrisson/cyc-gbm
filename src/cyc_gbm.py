@@ -57,7 +57,9 @@ class GBMTree(DecisionTreeRegressor):
             # Manipulate tree
             self.tree_.value[self.tree_.value == g] = g_opt
 
-    def fit_gradients(self, X, y, z, j: int) -> None:
+    def fit_gradients(
+        self, X: np.ndarray, y: np.ndarray, z: np.ndarray, j: int
+    ) -> None:
         """
         Fits the GBMTree to the gradients and adjusts node values to minimize loss
 
@@ -66,7 +68,7 @@ class GBMTree(DecisionTreeRegressor):
         :param z: The predicted parameter values from the previous iteration.
         :param j: The index of the current iteration.
         """
-        g = self.dist.grad(z=z, y=y, j=j)
+        g = self.dist.grad(y=y, z=z, j=j)
         self.fit(X, -g)
         self._adjust_node_values(X=X, y=y, z=z, j=j)
 
@@ -213,7 +215,7 @@ def tune_kappa(
         )
         gbm.fit(X_train, y_train)
         z_valid = gbm.predict(X_valid)
-        loss[i, 0, :] = gbm.dist.loss(z_valid, y_valid).sum()
+        loss[i, 0, :] = gbm.dist.loss(y=y_valid, z=z_valid).sum()
 
         for k in range(1, max(kappa_max) + 1):
             # Assume 2 dimensions
@@ -221,7 +223,7 @@ def tune_kappa(
                 if k < kappa_max[j]:
                     gbm.update(X=X_train, y=y_train, j=j)
                     z_valid[j] += gbm.eps[j] * gbm.trees[j][-1].predict(X_valid)
-                    loss[i, k, j] = gbm.dist.loss(z_valid, y_valid).sum()
+                    loss[i, k, j] = gbm.dist.loss(y=y_valid, z=z_valid).sum()
                 else:
                     if j == 0:
                         loss[i, k, j] = loss[i, k - 1, j + 1]
@@ -281,4 +283,4 @@ if __name__ == "__main__":
     gbm.fit(X, y)
     z_hat = gbm.predict(X)
 
-    print(f"new model loss: {gbm.dist.loss(z_hat, y).sum().round(2)}")
+    print(f"new model loss: {gbm.dist.loss(y = y,z = z_hat).sum().round(2)}")
