@@ -6,6 +6,71 @@ from sklearn.model_selection import KFold
 import warnings
 
 
+class GBMTree(DecisionTreeRegressor):
+    """
+    A Gradient Boosting Machine tree.
+
+    :param max_depth: The maximum depth of the tree.
+    :param min_samples_leaf: The minimum number of samples required to be at a leaf node.
+    :param dist: The distribution function used for calculating the gradients.
+
+    """
+
+    def __init__(
+        self,
+        max_depth: int,
+        min_samples_leaf: int,
+        dist,  # TODO: Add type annotation here when the wrapper class is introduced"?
+    ):
+        """
+        Constructs a new GBMTree instance.
+
+        :param max_depth: The maximum depth of the tree.
+        :param min_samples_leaf: The minimum number of samples required to be at a leaf node.
+        :param dist: The distribution function used for calculating the gradients.
+        """
+        super().__init__(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
+        self.dist = dist
+
+    def _adjust_node_values(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        z: np.ndarray,
+        j: int,
+    ) -> None:
+        """
+        Adjust the predicted node values of the decision tree to optimal step sizes
+
+        :param X: The input training data for the model as a numpy array
+        :param y: The output training data for the model as a numpy array
+        :param z: The current parameter estimates
+        :param j: Parameter dimension to update
+        :return: The decision tree regressor object with adjusted node values
+        """
+        g_hat = self.predict(X)
+        gs = np.unique(g_hat)
+        for g in gs:
+            # Find optimal step size for this node
+            index = g_hat == g
+            g_opt = self.dist.opt_step(y=y[index], z=z[:, index], j=j, g_0=g)
+            # Manipulate tree
+            self.tree_.value[self.tree_.value == g] = g_opt
+
+    def fit_gradients(self, X, y, z, j: int) -> None:
+        """
+        Fits the GBMTree to the gradients and adjusts node values to minimize loss
+
+        :param X: The training input samples.
+        :param y: The target values.
+        :param z: The predicted parameter values from the previous iteration.
+        :param j: The index of the current iteration.
+        """
+        g = self.dist.grad(z=z, y=y, j=j)
+        self.fit(X, -g)
+        self._adjust_node_values(X=X, y=y, z=z, j=j)
+
+
 class CycGBM:
     """
     Class for cyclical gradient boosting machine regressors
@@ -30,7 +95,7 @@ class CycGBM:
         # Assume 2 dimensions
         self.kappa = kappa if isinstance(kappa, list) else [kappa] * 2
         self.eps = eps if isinstance(eps, list) else [eps] * 2
-        self.max_depths = max_depth if isinstance(max_depth, list) else [max_depth] * 2
+        self.max_depth = max_depth if isinstance(max_depth, list) else [max_depth] * 2
         self.min_samples_leaf = (
             min_samples_leaf
             if isinstance(min_samples_leaf, list)
@@ -43,52 +108,6 @@ class CycGBM:
         self.z0s = [np.nan, np.nan]
         self.trees = [None, None]
 
-    def _fit_tree(self, X: np.ndarray, y: np.ndarray, z: np.ndarray, j: int):
-        """
-        Train a decision tree regressor to predict the residual of the current model.
-
-        :param X: Input data matrix of shape (n_samples, n_features).
-        :param y: True values of the response variable for the given input data X.
-        :param z: Parameter estimates of the current model
-        :param j: Parameter dimension to fit the tree to
-        :return: Trained decision tree regressor.
-        """
-        tree = DecisionTreeRegressor(
-            max_depth=self.max_depths[j], min_samples_leaf=self.min_samples_leaf[j]
-        )
-        g = self.dist.grad(z=z, y=y, j=j)
-        tree.fit(X, -g)
-
-        return tree
-
-    def _adjust_node_values(
-        self,
-        tree: DecisionTreeRegressor,
-        X: np.ndarray,
-        y: np.ndarray,
-        z: np.ndarray,
-        j: int,
-    ) -> DecisionTreeRegressor:
-        """
-        Adjust the predicted node values of the decision tree to optimal step sizes
-
-        :param tree: A decision tree regressor object to adjust the node values for
-        :param X: The input training data for the model as a numpy array
-        :param y: The output training data for the model as a numpy array
-        :param z: The current parameter estimates
-        :param j: Parameter dimension to update
-        :return: The decision tree regressor object with adjusted node values
-        """
-        g_hat = tree.predict(X)
-        gs = np.unique(g_hat)
-        for g in gs:
-            # Find optimal step size for this node
-            index = g_hat == g
-            g_opt = self.dist.opt_step(y=y[index], z=z[:, index], j=j, g_0=g)
-            # Manipulate tree
-            tree.tree_.value[tree.tree_.value == g] = g_opt
-        return tree
-
     def fit(self, X: np.ndarray, y: np.ndarray):
         """
         Train the model on the given training data.
@@ -96,7 +115,7 @@ class CycGBM:
         :param X: Input data matrix of shape (n_samples, n_features).
         :param y: True response values for the input data, of shape (n_samples,).
         """
-        self.z0 = self.dist.mle(y)
+        self.z0 = self.dist.mle(y)[:, None]
 
         # Assume 2 dimensions
         z = self.z0.repeat(len(y)).reshape((2, len(y)))
@@ -107,8 +126,12 @@ class CycGBM:
             for j in [0, 1]:
                 if k >= self.kappa[j]:
                     continue
-                tree = self._fit_tree(X=X, y=y, z=z, j=j)
-                tree = self._adjust_node_values(tree=tree, X=X, y=y, z=z, j=j)
+                tree = GBMTree(
+                    max_depth=self.max_depth[j],
+                    min_samples_leaf=self.min_samples_leaf[j],
+                    dist=self.dist,
+                )
+                tree.fit_gradients(X=X, y=y, z=z, j=j)
                 z[j] += self.eps[j] * tree.predict(X)
                 self.trees[j][k] = tree
 
@@ -121,21 +144,14 @@ class CycGBM:
         :param j: Parameter dimension to update
         """
         z = self.predict(X)
-        tree = self._fit_tree(X=X, y=y, z=z, j=j)
-        tree = self._adjust_node_values(tree=tree, X=X, y=y, z=z, j=j)
+        tree = GBMTree(
+            max_depth=self.max_depth[j],
+            min_samples_leaf=self.min_samples_leaf[j],
+            dist=self.dist,
+        )
+        tree.fit_gradients(X=X, y=y, z=z, j=j)
         self.trees[j] += [tree]
         self.kappa[j] += 1
-
-    def _predict_dimension(self, X: np.ndarray, j: int) -> np.ndarray:
-        """
-        Make predictions using an ensemble of decision trees.
-
-        :param X: Input data of shape (n_samples, n_features).
-        :param j: Dimension to predict parameter in
-        :return: Predicted values of shape (n_samples,)."""
-        if len(self.trees[j]) == 0:
-            return np.zeros(len(X))
-        return self.eps[j] * sum([tree.predict(X) for tree in self.trees[j]])
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -144,12 +160,13 @@ class CycGBM:
         :param X: Input data matrix of shape (n_samples, n_features).
         :return: Predicted response values of shape (d,n_samples).
         """
-        # Assume two dimensions
-        z_hat = self.z0.repeat(len(X)).reshape((2, len(X)))
+        z_hat = np.zeros((len(self.z0), len(X)))
         for j in range(len(self.z0)):
-            z_hat[j] += self._predict_dimension(X=X, j=j)
-
-        return z_hat
+            if len(self.trees[j]) > 0:
+                z_hat[j] = self.eps[j] * sum(
+                    [tree.predict(X) for tree in self.trees[j]]
+                )
+        return self.z0 + z_hat
 
 
 def tune_kappa(
@@ -199,17 +216,17 @@ def tune_kappa(
         for k in range(1, max(kappa_max) + 1):
             # Assume 2 dimensions
             for j in [0, 1]:
-                if k >= kappa_max[j]:
+                if k < kappa_max[j]:
+                    gbm.update(X=X_train, y=y_train, j=j)
+                    z_valid[j] += gbm.eps[j] * gbm.trees[j][-1].predict(X_valid)
+                    loss[i, k, j] = gbm.dist.loss(z_valid, y_valid).sum()
+                else:
                     if j == 0:
                         loss[i, k, j] = loss[i, k - 1, j + 1]
                     else:
                         loss[i, k, j] = loss[i, k, j - 1]
-                    continue
-                gbm.update(X=X_train, y=y_train, j=j)
-                z_valid[j] += gbm.eps[j] * gbm.trees[j][-1].predict(X_valid)
-                loss[i, k, j] = gbm.dist.loss(z_valid, y_valid).sum()
 
-            if loss[i, k, 0] >= loss[i, k - 1, 1] and loss[i, k, 1] >= loss[i, k, 0]:
+            if loss[i, k, 1] >= loss[i, k, 0] >= loss[i, k - 1, 1]:
                 loss[i, k + 1 :, :] = loss[i, k, -1]
                 break
 
