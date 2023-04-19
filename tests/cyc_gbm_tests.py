@@ -29,7 +29,7 @@ class GBMTests(unittest.TestCase):
 
         kappa = [100, 0]
         gbm = CycGBM(dist="normal", kappa=kappa)
-        gbm.train(X, y)
+        gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
         loss = gbm.dist.loss(z_hat, y).sum()
@@ -51,7 +51,7 @@ class GBMTests(unittest.TestCase):
         """
 
         n = 1000
-        expected_loss = 1589.8032888648122
+        expected_loss = 1635.3309099657408
         rng = np.random.default_rng(seed=10)
         X0 = np.arange(0, n)
         X1 = np.arange(0, n)
@@ -62,7 +62,7 @@ class GBMTests(unittest.TestCase):
         y = rng.gamma(1, mu)
 
         gbm = CycGBM(dist="gamma", kappa=[100, 0], eps=0.1)
-        gbm.train(X, y)
+        gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
         loss = gbm.dist.loss(z_hat, y).sum()
@@ -125,7 +125,7 @@ class GBMTests(unittest.TestCase):
             min_samples_leaf=min_samples_leaf,
             max_depth=max_depth,
         )
-        gbm.train(X, y)
+        gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
         loss = gbm.dist.loss(z_hat, y).sum()
@@ -146,7 +146,7 @@ class GBMTests(unittest.TestCase):
             to within a tolerance.
         """
         n = 1000
-        expected_loss = 2600.6806681794524
+        expected_loss = 2594.5555073093524
         rng = np.random.default_rng(seed=10)
         X0 = np.arange(0, n)
         X1 = np.arange(0, n)
@@ -160,7 +160,7 @@ class GBMTests(unittest.TestCase):
         kappas = [15, 30]
         eps = 0.1
         gbm = CycGBM(kappa=kappas, eps=eps, dist="gamma")
-        gbm.train(X, y)
+        gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
         loss = gbm.dist.loss(z_hat, y).sum()
@@ -208,3 +208,46 @@ class GBMTests(unittest.TestCase):
                 second=kappa[0],
                 msg=f"CycGBM Tuning method not giving expected result for dimension {j}",
             )
+
+    def test_beta_prime(self):
+        expected_loss = 121.22775641886105
+        n = 1000
+        rng = np.random.default_rng(seed=10)
+        X0 = np.arange(0, n) / n
+        X1 = np.arange(0, n) / n
+        rng.shuffle(X1)
+        mu = np.exp(1 * (X0 > 0.3 * n) + 0.5 * (X1 > 0.5 * n))
+        v = np.exp(1 + 1 * X0 - 3 * np.abs(X1))
+
+        X = np.stack([X0, X1]).T
+        alpha = mu * (1 + v)
+        beta = v + 2
+        y0 = rng.beta(alpha, beta)
+        y = y0 / (1 - y0)
+
+        max_depth = 2
+        min_samples_leaf = 20
+        eps = [0.1, 0.1]
+        kappa = [20, 100]
+
+        gbm = CycGBM(
+            kappa=kappa,
+            eps=eps,
+            max_depth=max_depth,
+            min_samples_leaf=min_samples_leaf,
+            dist="beta_prime",
+        )
+        gbm.fit(X, y)
+        z_hat = gbm.predict(X)
+        loss = gbm.dist.loss(z_hat, y).sum()
+
+        self.assertAlmostEqual(
+            first=expected_loss,
+            second=loss,
+            places=5,
+            msg="CycGBM BetaPrime distribution loss not as expected",
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

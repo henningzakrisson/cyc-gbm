@@ -28,21 +28,22 @@ class CycGBM:
         :param dist: distribution for losses and gradients
         """
         # Assume 2 dimensions
-        self.kappa = kappa if type(kappa) == list else [kappa] * 2
-        self.eps = eps if type(eps) == list else [eps] * 2
-        self.max_depths = max_depth if type(max_depth) == list else [max_depth] * 2
+        self.kappa = kappa if isinstance(kappa, list) else [kappa] * 2
+        self.eps = eps if isinstance(eps, list) else [eps] * 2
+        self.max_depths = max_depth if isinstance(max_depth, list) else [max_depth] * 2
         self.min_samples_leaf = (
             min_samples_leaf
-            if type(min_samples_leaf) == list
+            if isinstance(min_samples_leaf, list)
             else [min_samples_leaf] * 2
         )
+
         self.dist = initiate_dist(dist)
 
         # Assume 2 dimensions
         self.z0s = [np.nan, np.nan]
         self.trees = [None, None]
 
-    def _train_tree(self, X: np.ndarray, y: np.ndarray, z: np.ndarray, j: int):
+    def _fit_tree(self, X: np.ndarray, y: np.ndarray, z: np.ndarray, j: int):
         """
         Train a decision tree regressor to predict the residual of the current model.
 
@@ -78,11 +79,7 @@ class CycGBM:
         :param j: Parameter dimension to update
         :return: The decision tree regressor object with adjusted node values
         """
-
-        # Predict gradients
         g_hat = tree.predict(X)
-
-        # Look at all unique gradient predictions values and adjust them to optimal step size
         gs = np.unique(g_hat)
         for g in gs:
             # Find optimal step size for this node
@@ -90,10 +87,9 @@ class CycGBM:
             g_opt = self.dist.opt_step(y=y[index], z=z[:, index], j=j, g_0=g)
             # Manipulate tree
             tree.tree_.value[tree.tree_.value == g] = g_opt
-
         return tree
 
-    def train(self, X: np.ndarray, y: np.ndarray):
+    def fit(self, X: np.ndarray, y: np.ndarray):
         """
         Train the model on the given training data.
 
@@ -111,7 +107,7 @@ class CycGBM:
             for j in [0, 1]:
                 if k >= self.kappa[j]:
                     continue
-                tree = self._train_tree(X=X, y=y, z=z, j=j)
+                tree = self._fit_tree(X=X, y=y, z=z, j=j)
                 tree = self._adjust_node_values(tree=tree, X=X, y=y, z=z, j=j)
                 z[j] += self.eps[j] * tree.predict(X)
                 self.trees[j][k] = tree
@@ -125,7 +121,7 @@ class CycGBM:
         :param j: Parameter dimension to update
         """
         z = self.predict(X)
-        tree = self._train_tree(X=X, y=y, z=z, j=j)
+        tree = self._fit_tree(X=X, y=y, z=z, j=j)
         tree = self._adjust_node_values(tree=tree, X=X, y=y, z=z, j=j)
         self.trees[j] += [tree]
         self.kappa[j] += 1
@@ -181,7 +177,7 @@ def tune_kappa(
     :return: The optimal value of the kappa parameter."""
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     # Assume two dimensions
-    kappa_max = kappa_max if type(kappa_max) == list else [kappa_max] * 2
+    kappa_max = kappa_max if isinstance(kappa_max, list) else [kappa_max] * 2
     loss = np.ones((n_splits, max(kappa_max) + 1, 2)) * np.nan
 
     for i, idx in enumerate(kf.split(X)):
@@ -196,7 +192,7 @@ def tune_kappa(
             min_samples_leaf=min_samples_leaf,
             dist=dist,
         )
-        gbm.train(X_train, y_train)
+        gbm.fit(X_train, y_train)
         z_valid = gbm.predict(X_valid)
         loss[i, 0, :] = gbm.dist.loss(z_valid, y_valid).sum()
 
@@ -237,34 +233,31 @@ def tune_kappa(
 if __name__ == "__main__":
     n = 1000
     rng = np.random.default_rng(seed=10)
-    X0 = np.arange(0, n)
-    X1 = np.arange(0, n)
+    X0 = np.arange(0, n) / n
+    X1 = np.arange(0, n) / n
     rng.shuffle(X1)
     mu = np.exp(1 * (X0 > 0.3 * n) + 0.5 * (X1 > 0.5 * n))
-    v = np.exp(-0.5 + 0.1 * X0 - 0.3 * np.abs(X1))
+    v = np.exp(1 + 1 * X0 - 3 * np.abs(X1))
 
     X = np.stack([X0, X1]).T
     alpha = mu * (1 + v)
     beta = v + 2
-    y0 = np.random.beta(alpha, beta)
+    y0 = rng.beta(alpha, beta)
     y = y0 / (1 - y0)
 
     max_depth = 2
     min_samples_leaf = 20
-    eps = 0.1
-    n_splits = 4
-    random_state = 10
-    kappa_max = 250
+    eps = [0.1, 0.1]
+    kappa = [20, 100]
 
-    kappa, _ = tune_kappa(
-        X=X,
-        y=y,
+    gbm = CycGBM(
+        kappa=kappa,
+        eps=eps,
         max_depth=max_depth,
         min_samples_leaf=min_samples_leaf,
         dist="beta_prime",
-        n_splits=n_splits,
-        random_state=random_state,
-        eps=eps,
-        kappa_max=kappa_max,
     )
-    print(kappa)
+    gbm.fit(X, y)
+    z_hat = gbm.predict(X)
+
+    print(f"new model loss: {gbm.dist.loss(z_hat, y).sum().round(2)}")

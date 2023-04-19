@@ -113,10 +113,8 @@ class GammaDistribution:
         """
         z_0_0 = np.log(y.mean())
         z_0_1 = np.log(y.var() / (y.mean() ** 2))
-        z_0 = np.array([z_0_0,z_0_1])
-        z = mle_numeric(
-            distribution=self, y=y, z_0 = z_0
-        )
+        z_0 = np.array([z_0_0, z_0_1])
+        z = mle_numeric(distribution=self, y=y, z_0=z_0)
         return z
 
     def opt_step(self, y: np.ndarray, z: np.ndarray, j: int, g_0=0) -> np.ndarray:
@@ -201,9 +199,7 @@ class BetaPrimeDistribution:
         """
         z_0_0 = np.log(y.mean())
         z_1_0 = np.log(y.mean() * (1 + y.mean()) / y.var())
-        z = mle_numeric(
-            distribution=self, y=y, z_0=np.array([z_0_0,z_1_0])
-        )
+        z = mle_numeric(distribution=self, y=y, z_0=np.array([z_0_0, z_1_0]))
         return z
 
     def opt_step(self, y: np.ndarray, z: np.ndarray, j: int, g_0=0) -> np.ndarray:
@@ -257,17 +253,13 @@ def opt_step_numeric(
     :return: The optimal step size.
     """
 
-    # Unit vector for adding step to dimension j (assume two dimensions)
-    if j==0:
-        e = np.array([1,0])
-    elif j ==1:
-        e = np.array([0,1])
-
-    to_min = lambda step: distribution.loss(z=z + e[j]*step, y=y).sum()
-    grad = lambda step: distribution.grad(z = z + e[j]*step, y = y, j = j).sum()
-    step_opt = minimize(fun = to_min,
-                        jac = grad,
-                        x0 = g_0)["x"][0]
+    # Indicator vector for adding step to dimension j (assume two dimensions)
+    if j == 0:
+        e = np.array([[1, 0]]).T
+    elif j == 1:
+        e = np.array([[0, 1]]).T
+    to_min = lambda step: distribution.loss(z=z + e * step, y=y).sum()
+    step_opt = minimize(fun=to_min, x0=g_0)["x"][0]
     return step_opt
 
 
