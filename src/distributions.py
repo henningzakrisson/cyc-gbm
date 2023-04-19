@@ -111,12 +111,13 @@ class GammaDistribution:
         :param y: The target values.
         :return: The maximum likelihood estimator of the parameters.
         """
-        z_0 = np.log(y.mean())
-        z_1_0 = np.log(y.var() / (y.mean() ** 2))
-        z_1 = mle_numeric(
-            distribution=self, y=y, z=np.array([z_0, 0]), j=1, z_j_0=z_1_0
+        z_0_0 = np.log(y.mean())
+        z_0_1 = np.log(y.var() / (y.mean() ** 2))
+        z_0 = np.array([z_0_0,z_0_1])
+        z = mle_numeric(
+            distribution=self, y=y, z_0 = z_0
         )
-        return np.array([z_0, z_1])
+        return z
 
     def opt_step(self, y: np.ndarray, z: np.ndarray, j: int, g_0=0) -> np.ndarray:
         """
@@ -200,10 +201,10 @@ class BetaPrimeDistribution:
         """
         z_0_0 = np.log(y.mean())
         z_1_0 = np.log(y.mean() * (1 + y.mean()) / y.var())
-        z_1 = mle_numeric(
-            distribution=self, y=y, z=np.array([z_0, 0]), j=1, z_j_0=z_1_0
+        z = mle_numeric(
+            distribution=self, y=y, z_0=np.array([z_0_0,z_1_0])
         )
-        return np.array([z_0, z_1])
+        return z
 
     def opt_step(self, y: np.ndarray, z: np.ndarray, j: int, g_0=0) -> np.ndarray:
         """
@@ -222,51 +223,20 @@ class BetaPrimeDistribution:
 def mle_numeric(
     distribution: Union[NormalDistribution, GammaDistribution, BetaPrimeDistribution],
     y: np.ndarray,
-    z: np.ndarray,
-    j: int,
-    z_j_0: np.ndarray = np.array([0, 0]),
+    z_0: np.ndarray = np.array([0, 0]),
 ):
     """Compute maximum likelihood estimator numerically
 
     :param distribution: the distribution to minimize the loss over
     :param y: Target values.
-    :param z: Current parameter estimates.
-    :param j: Index of the dimension to optimize.
-    :param z_j_0: Initial guess for the MLE
+    :param z_0: Initial guess for the MLE
     :return: The MLE of the loss for this dimension
 
     """
-    # Dimension indicator (assume two dimensions)
-    if j == 0:
-        e = np.array([1, 0])
-    elif j == 1:
-        e = np.array([0, 1])
+    to_min = lambda z: distribution.loss(z, y).sum()
+    z_opt = minimize(to_min, z_0)["x"]
 
-    to_min = lambda z_j: distribution.loss(z + e[j] * z_j, y).sum()
-    z_j_opt = minimize(to_min, z_j_0)["x"][0]
-
-    return z_j_opt
-
-
-def step_loss(
-    distribution: Union[NormalDistribution, GammaDistribution, BetaPrimeDistribution],
-    z: np.ndarray,
-    y: np.ndarray,
-    step: float,
-    j: int,
-) -> float:
-    """
-    Loss function evaluated when adding step gamma to dimension j of z.
-
-    :param distribution: the distribution to calculate the loss over
-    :param z: An array of shape (n_samples, n_features) representing the input features.
-    :param y: An array of shape (n_samples,) representing the target values.
-    :param step: A float representing the amount to add to the jth dimension of z.
-    :param j: An integer representing the dimension of z to add gamma to.
-    :return: A float representing the sum of the loss values across all samples.
-    """
-    z[j] += step
-    return distribution.loss(z, y).sum()
+    return z_opt
 
 
 def opt_step_numeric(
@@ -287,8 +257,17 @@ def opt_step_numeric(
     :return: The optimal step size.
     """
 
-    to_min = lambda step: step_loss(distribution=distribution, z=z, y=y, step=step, j=j)
-    step_opt = minimize(to_min, g_0)["x"][0]
+    # Unit vector for adding step to dimension j (assume two dimensions)
+    if j==0:
+        e = np.array([1,0])
+    elif j ==1:
+        e = np.array([0,1])
+
+    to_min = lambda step: distribution.loss(z=z + e[j]*step, y=y).sum()
+    grad = lambda step: distribution.grad(z = z + e[j]*step, y = y, j = j).sum()
+    step_opt = minimize(fun = to_min,
+                        jac = grad,
+                        x0 = g_0)["x"][0]
     return step_opt
 
 
