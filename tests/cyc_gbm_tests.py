@@ -1,6 +1,8 @@
 import unittest
 import numpy as np
-from src.cyc_gbm import CycGBM, tune_kappa
+
+from src.CycGBM import CycGBM
+from src.utils import tune_kappa
 
 
 class GBMTests(unittest.TestCase):

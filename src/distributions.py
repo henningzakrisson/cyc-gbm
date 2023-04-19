@@ -9,9 +9,7 @@ class NormalDistribution:
     def __init__(
         self,
     ):
-        """
-        Initialize a normal distribution object.
-        """
+        """Initialize a normal distribution object."""
 
     def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
         """
