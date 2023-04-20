@@ -1,0 +1,2 @@
+class UnknownDistributionError(Exception):
+    pass
