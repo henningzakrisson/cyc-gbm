@@ -34,7 +34,7 @@ class GBMTests(unittest.TestCase):
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
-        loss = gbm.dist.calculate_loss(y=y, z=z_hat).sum()
+        loss = gbm.dist.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -67,7 +67,7 @@ class GBMTests(unittest.TestCase):
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
-        loss = gbm.dist.calculate_loss(y=y, z=z_hat).sum()
+        loss = gbm.dist.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -108,7 +108,7 @@ class GBMTests(unittest.TestCase):
         :raises AssertionError: If the calculated loss does not match the expected loss to within a tolerance.
         """
         n = 100
-        expected_loss = 187.46122289939993
+        expected_loss = 186.8538898178347
         rng = np.random.default_rng(seed=10)
         X0 = np.arange(0, n)
         X1 = np.arange(0, n)
@@ -132,7 +132,7 @@ class GBMTests(unittest.TestCase):
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
-        loss = gbm.dist.calculate_loss(y=y, z=z_hat).sum()
+        loss = gbm.dist.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -167,7 +167,7 @@ class GBMTests(unittest.TestCase):
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
-        loss = gbm.dist.calculate_loss(y=y, z=z_hat).sum()
+        loss = gbm.dist.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -254,7 +254,7 @@ class GBMTests(unittest.TestCase):
         )
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
-        loss = gbm.dist.calculate_loss(y=y, z=z_hat).sum()
+        loss = gbm.dist.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -278,7 +278,7 @@ class GBMTests(unittest.TestCase):
         X1 = np.arange(0, n)
         rng.shuffle(X1)
         mu = np.exp(1 * (X0 > 0.3 * n) + 0.5 * (X1 > 0.5 * n))
-        l = np.exp(-1 + 0.1 * X0 - 0.002 * X1 ** 2)
+        l = np.exp(-1 + 0.1 * X0 - 0.002 * X1**2)
 
         X = np.stack([X0, X1]).T
         y = rng.wald(mu, l)
@@ -288,7 +288,7 @@ class GBMTests(unittest.TestCase):
         gbm = CycGBM(dist="inv_gauss", kappa=kappa)
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
-        loss = gbm.dist.calculate_loss(y=y, z=z_hat).sum()
+        loss = gbm.dist.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,

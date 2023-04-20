@@ -1,16 +1,34 @@
 import numpy as np
-from typing import Union
+from typing import Union, Type
 from src.cyc_gbm.exceptions import UnknownDistributionError
 from scipy.special import loggamma, polygamma
 from scipy.optimize import minimize
 
 
-class Distribution:
-    def __init__(self):
-        """Initialize a distribution object.
-        """
+def inherit_docstrings(cls: Type) -> Type:
+    """
+    Decorator to copy docstrings from base class to derived class methods.
 
-    def calculate_loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
+    :param cls: The class to decorate.
+    :return: The decorated class.
+    """
+    for name, method in vars(cls).items():
+        if method.__doc__ is None:
+            for parent in cls.__bases__:
+                parent_method = getattr(parent, name)
+                if parent_method.__doc__ is not None:
+                    method.__doc__ = parent_method.__doc__
+                break
+    return cls
+
+
+class Distribution:
+    def __init__(
+        self,
+    ):
+        """Initialize a distribution object."""
+
+    def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
         """
         Calculates the loss of the parameter estimates and the response.
 
@@ -18,9 +36,9 @@ class Distribution:
         :param y: The target values.
         :return: The loss function value(s) for the given `z` and `y`.
         """
-        return self.loss_function(y=y, z=z)
+        pass
 
-    def calculate_grad(self, y: np.ndarray, z: np.ndarray, j: int) -> np.ndarray:
+    def grad(self, y: np.ndarray, z: np.ndarray, j: int) -> np.ndarray:
         """
         Calculates the gradients of the loss function with respect to the parameters.
 
@@ -31,45 +49,28 @@ class Distribution:
         """
         return self.grad_functions[j](y=y, z=z)
 
-    def estimate_mle(self, y: np.ndarray) -> Union[float, np.ndarray]:
+    def mme(self, y: np.ndarray) -> np.ndarray:
+        """
+        Calculates the method of moments estimator for the parameter vector
+
+        :param y: The target values.
+        :return: A moment-based initial guess for the MLE parameter
+        """
+        pass
+
+    def mle(self, y: np.ndarray) -> np.ndarray:
         """
         Calculates the maximum likelihood estimator of the parameter given observations.
 
         :param y: The target values.
         :return: The maximum likelihood estimator of the parameters.
         """
-        return self.mle_estimator(y=y)
-
-    def calculate_mle_numerically(
-        self,
-        y: np.ndarray,
-        z_0: np.ndarray = np.array([0, 0]),
-    ):
-        """Compute maximum likelihood estimator numerically
-
-        :param y: Target values.
-        :param z_0: Initial guess for the MLE
-        :return: The MLE of the parameter vector
-
-        """
-        to_min = lambda z: self.calculate_loss(y=y, z=z).sum()
+        z_0 = self.mme(y=y)
+        to_min = lambda z: self.loss(y=y, z=z).sum()
         z_opt = minimize(to_min, z_0)["x"]
         return z_opt
 
-    def calculate_step(self, y: np.ndarray, z: np.ndarray, j: int, g_0=0) -> np.ndarray:
-        """
-        Calculate the optimal step length for these parameter estimates and responses
-
-        :param y: The target values
-        :param z: The current parameter estimates
-        :param j: The parameter dimension to update, defaults to 0
-        :param g_0: initial guess (not used for this distribution)
-
-        :return: The optimal step length for the given parameter estimates and responses
-        """
-        return self.step_functions[j](y=y, z=z, g_0=g_0)
-
-    def calculate_step_numerically(
+    def opt_step(
         self,
         y: np.ndarray,
         z: np.ndarray,
@@ -87,53 +88,65 @@ class Distribution:
         """
 
         # Indicator vector for adding step to dimension j (assume two dimensions)
-        e = np.eye(2)[:,j:j+1]
-        to_min = lambda step: self.calculate_loss(y=y, z=z + e * step).sum()
+        e = np.eye(2)[:, j : j + 1]
+        to_min = lambda step: self.loss(y=y, z=z + e * step).sum()
         step_opt = minimize(fun=to_min, x0=g_0)["x"][0]
         return step_opt
 
 
-class InverseGaussianDistribution(Distribution):
-    def __init__(
-        self,
-    ):
-        """Initialize a normal distribution object."""
-        self.loss_function = (
-            lambda y, z: np.exp(z[1])*(y*np.exp(-2*z[0])-2*np.exp(-z[0])+y**(-1))-z[1]
-        )
-        self.grad_functions = (
-            lambda y, z: 2*np.exp(z[1]-z[0])*(1-y*np.exp(-z[0])),
-            lambda y, z: np.exp(z[1])*(y*np.exp(-2*z[0])-2*np.exp(-z[0])+y**(-1))-1
-        )
-        self.mle_estimator = lambda y: self.calculate_mle_numerically(
-            y=y,
-            z_0=[np.log(np.mean(y)), 3*np.log(np.mean(y)) - np.log(y.var())],
-        )
-        self.step_functions = (
-            lambda y, z, g_0: self.calculate_step_numerically(y=y, z=z, j=0, g_0=g_0),
-            lambda y, z, g_0: self.calculate_step_numerically(y=y, z=z, j=1, g_0=g_0),
-        )
-
+@inherit_docstrings
 class NormalDistribution(Distribution):
     def __init__(
         self,
     ):
         """Initialize a normal distribution object."""
-        self.loss_function = (
-            lambda y, z: z[1] + 0.5 * np.exp(-2 * z[1]) * (y - z[0]) ** 2
-        )
-        self.grad_functions = (
-            lambda y, z: -np.exp(-2 * z[1]) * (y - z[0]),
-            lambda y, z: 1 - np.exp(-2 * z[1]) * (y - z[0]) ** 2,
-        )
-        self.mle_estimator = lambda y: np.array([y.mean(), np.log(y.std())])
-        self.step_functions = (
-            lambda y, z, g_0: np.mean(y - z[0]),
-            lambda y, z, g_0: 0.5
-            * np.log(np.mean((np.exp(-2 * z[1]) * (y - z[0]) ** 2))),
-        )
+
+    def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
+        return z[1] + 0.5 * np.exp(-2 * z[1]) * (y - z[0]) ** 2
+
+    # loss.__doc__ = super().loss.__doc__
+
+    def grad(self, y: np.ndarray, z: np.ndarray, j: int) -> np.ndarray:
+        if j == 0:
+            return -np.exp(-2 * z[1]) * (y - z[0])
+        elif j == 1:
+            return 1 - np.exp(-2 * z[1]) * (y - z[0]) ** 2
+
+    # grad.__doc__ = Distribution.grad.__doc__
+
+    def mme(self, y: np.ndarray) -> np.ndarray:
+        return np.array([y.mean(), np.log(y.std())])
+
+    # initial_mle.__doc__ = Distribution.initial_mle.__doc__
 
 
+@inherit_docstrings
+class InverseGaussianDistribution(Distribution):
+    def __init__(
+        self,
+    ):
+        """Initialize a normal distribution object."""
+
+    def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
+        return (
+            np.exp(z[1]) * (y * np.exp(-2 * z[0]) - 2 * np.exp(-z[0]) + y ** (-1))
+            - z[1]
+        )
+
+    def grad(self, y: np.ndarray, z: np.ndarray, j: int) -> np.ndarray:
+        if j == 0:
+            return 2 * np.exp(z[1] - z[0]) * (1 - y * np.exp(-z[0]))
+        elif j == 1:
+            return (
+                np.exp(z[1]) * (y * np.exp(-2 * z[0]) - 2 * np.exp(-z[0]) + y ** (-1))
+                - 1
+            )
+
+    def mme(self, y: np.ndarray) -> np.ndarray:
+        return np.array([np.log(np.mean(y)), 3 * np.log(np.mean(y)) - np.log(y.var())])
+
+
+@inherit_docstrings
 class GammaDistribution(Distribution):
     def __init__(
         self,
@@ -141,33 +154,35 @@ class GammaDistribution(Distribution):
         """
         Initialize a gamma distribution object.
         """
-        self.loss_function = lambda y, z: loggamma(np.exp(-z[1])) + np.exp(-z[1]) * (
+
+    def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
+        return loggamma(np.exp(-z[1])) + np.exp(-z[1]) * (
             y * np.exp(-z[0]) - np.log(y) + z[0] + z[1]
         )
-        self.grad_functions = (
-            lambda y, z: np.exp(-z[1]) * (1 - y * np.exp(-z[0])),
-            lambda y, z: np.exp(-z[1])
-            * (
+
+    def grad(self, y: np.ndarray, z: np.ndarray, j: int) -> np.ndarray:
+        if j == 0:
+            return np.exp(-z[1]) * (1 - y * np.exp(-z[0]))
+        elif j == 1:
+            return np.exp(-z[1]) * (
                 1
                 + np.log(y)
                 - z[0]
                 - z[1]
                 - y * np.exp(-z[0])
                 - polygamma(0, np.exp(-z[1]))
-            ),
-        )
-        self.mle_estimator = lambda y: self.calculate_mle_numerically(
-            y=y,
-            z_0=[np.log(np.mean(y)), np.log(np.var(y) / (np.mean(y) ** 2))],
-        )
-        self.step_functions = (
-            lambda y, z, g_0: np.log(
-                (y * np.exp(-z[0] - z[1])).sum() / np.exp(-z[1]).sum()
-            ),
-            lambda y, z, g_0: self.calculate_step_numerically(y=y, z=z, j=1, g_0=g_0),
+            )
+
+    def mme(self, y: np.ndarray) -> np.ndarray:
+        return np.array(
+            [
+                np.log(np.mean(y)),
+                np.log(np.var(y) / (np.mean(y) ** 2)),
+            ]
         )
 
 
+@inherit_docstrings
 class BetaPrimeDistribution(Distribution):
     def __init__(
         self,
@@ -175,15 +190,19 @@ class BetaPrimeDistribution(Distribution):
         """
         Initialize a beta prime distribution object.
         """
-        self.loss_function = lambda y, z: (
+
+    def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
+        return (
             (np.exp(z[0]) + np.exp(z[1]) + np.exp(z[0] + z[1])) * np.log(y + 1)
             - np.exp(z[0]) * (np.exp(z[1]) + 1) * np.log(y)
             + loggamma(np.exp(z[0]) * (np.exp(z[1]) + 1))
             + loggamma(np.exp(z[1]) + 2)
             - loggamma(np.exp(z[0]) + np.exp(z[1]) + np.exp(z[0] + z[1]) + 2)
         )
-        self.grad_functions = (
-            lambda y, z: (
+
+    def grad(self, y: np.ndarray, z: np.ndarray, j: int) -> np.ndarray:
+        if j == 0:
+            return (
                 np.exp(z[0])
                 * (1 + np.exp(z[1]))
                 * (
@@ -193,24 +212,23 @@ class BetaPrimeDistribution(Distribution):
                     )
                     + np.log((1 + y) / y)
                 )
-            ),
-            lambda y, z: np.exp(z[1])
-            * (
+            )
+        elif j == 1:
+            return np.exp(z[1]) * (
                 np.exp(z[0]) * np.log((y + 1) / y)
                 + np.log(y + 1)
                 + np.exp(z[0]) * polygamma(0, np.exp(z[0]) * (np.exp(z[1]) + 1))
                 + polygamma(0, np.exp(z[1]) + 2)
                 - (np.exp(z[0]) + 1)
                 * polygamma(0, np.exp(z[0]) * (np.exp(z[1]) + 1) + np.exp(z[1]) + 2)
-            ),
-        )
-        self.mle_estimator = lambda y: self.calculate_mle_numerically(
-            y=y,
-            z_0=[np.log(np.mean(y)), np.log(y.mean() * (1 + y.mean()) / y.var())],
-        )
-        self.step_functions = (
-            lambda y, z, g_0: self.calculate_step_numerically(y=y, z=z, j=0, g_0=g_0),
-            lambda y, z, g_0: self.calculate_step_numerically(y=y, z=z, j=1, g_0=g_0),
+            )
+
+    def mme(self, y: np.ndarray) -> np.ndarray:
+        return np.array(
+            [
+                np.log(np.mean(y)),
+                np.log(y.mean() * (1 + y.mean()) / y.var()),
+            ]
         )
 
 
@@ -231,6 +249,11 @@ def initiate_dist(
         return GammaDistribution()
     if dist == "beta_prime":
         return BetaPrimeDistribution()
-    if dist == 'inv_gauss':
+    if dist == "inv_gauss":
         return InverseGaussianDistribution()
     raise UnknownDistributionError("Unknown distribution")
+
+
+if __name__ == "__main__":
+    normal_dist = initiate_dist(dist="normal")
+    print(normal_dist.loss.__doc__)

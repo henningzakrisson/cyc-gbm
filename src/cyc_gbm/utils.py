@@ -49,7 +49,7 @@ def tune_kappa(
         )
         gbm.fit(X_train, y_train)
         z_valid = gbm.predict(X_valid)
-        loss[i, 0, :] = gbm.dist.calculate_loss(y=y_valid, z=z_valid).sum()
+        loss[i, 0, :] = gbm.dist.loss(y=y_valid, z=z_valid).sum()
 
         for k in range(1, max(kappa_max) + 1):
             # Assume 2 dimensions
@@ -57,7 +57,7 @@ def tune_kappa(
                 if k < kappa_max[j]:
                     gbm.update(X=X_train, y=y_train, j=j)
                     z_valid[j] += gbm.eps[j] * gbm.trees[j][-1].predict(X_valid)
-                    loss[i, k, j] = gbm.dist.calculate_loss(y=y_valid, z=z_valid).sum()
+                    loss[i, k, j] = gbm.dist.loss(y=y_valid, z=z_valid).sum()
                 else:
                     if j == 0:
                         loss[i, k, j] = loss[i, k - 1, j + 1]
