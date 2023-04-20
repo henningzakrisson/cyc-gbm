@@ -1,8 +1,8 @@
 import unittest
 import numpy as np
 
-from src.CycGBM import CycGBM
-from src.utils import tune_kappa
+from src.cyc_gbm import CycGBM
+from src.cyc_gbm.utils import tune_kappa
 
 
 class GBMTests(unittest.TestCase):
@@ -34,7 +34,7 @@ class GBMTests(unittest.TestCase):
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
-        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+        loss = gbm.dist.calculate_loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -67,7 +67,7 @@ class GBMTests(unittest.TestCase):
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
-        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+        loss = gbm.dist.calculate_loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -132,7 +132,7 @@ class GBMTests(unittest.TestCase):
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
-        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+        loss = gbm.dist.calculate_loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -167,7 +167,7 @@ class GBMTests(unittest.TestCase):
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
-        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+        loss = gbm.dist.calculate_loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -254,7 +254,7 @@ class GBMTests(unittest.TestCase):
         )
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
-        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+        loss = gbm.dist.calculate_loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,

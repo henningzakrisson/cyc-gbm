@@ -1,7 +1,7 @@
 import numpy as np
 from typing import List, Union
-from src.distributions import initiate_dist
-from src.GBMTree import GBMTree
+from src.cyc_gbm.distributions import initiate_dist
+from src.cyc_gbm.GBMTree import GBMTree
 
 
 class CycGBM:
@@ -35,7 +35,7 @@ class CycGBM:
             else [min_samples_leaf] * 2
         )
 
-        self.dist = initiate_dist(dist)
+        self.dist = initiate_dist(dist=dist)
 
         # Assume 2 dimensions
         self.z0s = [np.nan, np.nan]
@@ -48,7 +48,7 @@ class CycGBM:
         :param X: Input data matrix of shape (n_samples, n_features).
         :param y: True response values for the input data, of shape (n_samples,).
         """
-        self.z0 = self.dist.mle(y)[:, None]
+        self.z0 = self.dist.estimate_mle(y)[:, None]
 
         # Assume 2 dimensions
         z = self.z0.repeat(len(y)).reshape((2, len(y)))
@@ -103,33 +103,18 @@ class CycGBM:
 
 
 if __name__ == "__main__":
-    n = 1000
+    n = 100
+    expected_loss = 166.58751236236634
     rng = np.random.default_rng(seed=10)
-    X0 = np.arange(0, n) / n
-    X1 = np.arange(0, n) / n
+    X0 = np.arange(0, n)
+    X1 = np.arange(0, n)
     rng.shuffle(X1)
-    mu = np.exp(1 * (X0 > 0.3 * n) + 0.5 * (X1 > 0.5 * n))
-    v = np.exp(1 + 1 * X0 - 3 * np.abs(X1))
+    mu = 10 * (X0 > 0.3 * n) + 5 * (X1 > 0.5 * n)
 
     X = np.stack([X0, X1]).T
-    alpha = mu * (1 + v)
-    beta = v + 2
-    y0 = rng.beta(alpha, beta)
-    y = y0 / (1 - y0)
+    y = rng.normal(mu, 1.5)
 
-    max_depth = 2
-    min_samples_leaf = 20
-    eps = [0.1, 0.1]
-    kappa = [20, 100]
-
-    gbm = CycGBM(
-        kappa=kappa,
-        eps=eps,
-        max_depth=max_depth,
-        min_samples_leaf=min_samples_leaf,
-        dist="beta_prime",
-    )
+    kappa = [100, 0]
+    gbm = CycGBM(dist="normal", kappa=kappa)
     gbm.fit(X, y)
     z_hat = gbm.predict(X)
-
-    print(f"new model loss: {gbm.dist.loss(y = y,z = z_hat).sum().round(2)}")
