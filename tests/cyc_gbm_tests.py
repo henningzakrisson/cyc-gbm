@@ -86,11 +86,11 @@ class GBMTests(unittest.TestCase):
         X = np.stack([X0, X1]).T
         y = rng.normal(mu, 1.5)
 
-        kappa = tune_kappa(X=X, y=y, random_state=5, kappa_max=[1000, 0])
+        tuning_results = tune_kappa(X=X, y=y, random_state=5, kappa_max=[1000, 0])
 
         self.assertEqual(
             first=expected_kappa,
-            second=kappa[0],
+            second=tuning_results["kappa"][0],
             msg="Optimal number of boosting steps not correct for CycGBM in normal distribution with constant variance",
         )
 
@@ -176,7 +176,7 @@ class GBMTests(unittest.TestCase):
         :raises AssertionError: If the estimated number of boosting steps does not match the expecter number.
         """
         n = 100
-        expected_kappa = [12, 35]
+        expected_kappa = [12, 16]
         rng = np.random.default_rng(seed=10)
         X0 = np.arange(0, n)
         X1 = np.arange(0, n)
@@ -192,7 +192,7 @@ class GBMTests(unittest.TestCase):
         max_depth = 2
         min_samples_leaf = 20
         random_state = 5
-        kappa = tune_kappa(
+        tuning_results = tune_kappa(
             X=X,
             y=y,
             kappa_max=kappa_max,
@@ -206,8 +206,8 @@ class GBMTests(unittest.TestCase):
         # Assume two dimensions
         for j in [0, 1]:
             self.assertEqual(
-                first=expected_kappa[0],
-                second=kappa[0],
+                first=expected_kappa[j],
+                second=tuning_results["kappa"][j],
                 msg=f"CycGBM Tuning method not giving expected result for dimension {j}",
             )
 
