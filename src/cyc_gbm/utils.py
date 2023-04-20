@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Union, List
+from typing import Union, List, Dict
 from src.cyc_gbm import CycGBM
 from sklearn.model_selection import KFold
 import warnings
@@ -15,8 +15,7 @@ def tune_kappa(
     dist: str = "normal",
     n_splits: int = 4,
     random_state: Union[int, None] = None,
-    return_loss: bool = False,
-) -> List[int]:
+) -> Dict[str, Union[List[int], np.ndarray]]:
     """Tunes the kappa parameter of a CycGBM model using k-fold cross-validation.
 
     :param X: The input data matrix of shape (n_samples, n_features).
@@ -29,7 +28,9 @@ def tune_kappa(
     :param n_splits: The number of folds to use for k-fold cross-validation.
     :param random_state: The random state to use for the k-fold split.
     :param return_loss: boolean to indicate if the loss from the folds should be returned
-    :return: The optimal value of the kappa parameter."""
+    :return: Dictionary containing 'kappa' as the optimal number of bossting steps and 'loss' as loss array over all folds.
+
+    """
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     # Assume two dimensions
     kappa_max = kappa_max if isinstance(kappa_max, list) else [kappa_max] * 2
@@ -82,6 +83,7 @@ def tune_kappa(
         if did_not_converge[j] and kappa_max[j] > 0:
             warnings.warn(f"Tuning did not converge for dimension {j}")
             kappa[j] = kappa_max[j]
-    if return_loss:
-        return kappa, loss
-    return kappa
+
+    results = {"kappa": kappa, "loss": loss}
+
+    return results
