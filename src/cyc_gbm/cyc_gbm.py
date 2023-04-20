@@ -1,7 +1,7 @@
 import numpy as np
 from typing import List, Union
 from src.cyc_gbm.distributions import initiate_dist
-from src.cyc_gbm.GBMTree import GBMTree
+from src.cyc_gbm.gbm_tree import GBMTree
 
 
 class CycGBM:

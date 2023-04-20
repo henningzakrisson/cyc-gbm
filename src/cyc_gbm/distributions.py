@@ -6,10 +6,8 @@ from scipy.optimize import minimize
 
 
 class Distribution:
-    def __init__(self, dist: str):
+    def __init__(self):
         """Initialize a distribution object.
-
-        :param dist: what distribution to initiate
         """
 
     def calculate_loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
@@ -89,10 +87,7 @@ class Distribution:
         """
 
         # Indicator vector for adding step to dimension j (assume two dimensions)
-        if j == 0:
-            e = np.array([[1, 0]]).T
-        elif j == 1:
-            e = np.array([[0, 1]]).T
+        e = np.eye(2)[:,j:j+1]
         to_min = lambda step: self.calculate_loss(y=y, z=z + e * step).sum()
         step_opt = minimize(fun=to_min, x0=g_0)["x"][0]
         return step_opt
@@ -200,7 +195,7 @@ class BetaPrimeDistribution(Distribution):
 
 def initiate_dist(
     dist: str,
-) -> Union[NormalDistribution, GammaDistribution, BetaPrimeDistribution]:
+) -> Distribution:
     """
     Returns a probability distribution object based on the distribution name.
 
