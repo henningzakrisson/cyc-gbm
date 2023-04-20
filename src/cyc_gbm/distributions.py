@@ -310,7 +310,7 @@ class BetaPrimeDistribution(Distribution):
             return np.exp(z[0] - z[1]) * (1 + np.exp(z[0]))
 
 
-def initiate_dist(
+def initiate_distribution(
     dist: str,
 ) -> Distribution:
     """
@@ -333,5 +333,5 @@ def initiate_dist(
 
 
 if __name__ == "__main__":
-    normal_dist = initiate_dist(dist="normal")
+    normal_dist = initiate_distribution(dist="normal")
     print(normal_dist.loss.__doc__)

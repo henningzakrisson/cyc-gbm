@@ -1,6 +1,6 @@
 import numpy as np
 from typing import List, Union
-from src.cyc_gbm.distributions import initiate_dist
+from src.cyc_gbm.distributions import initiate_distribution
 from src.cyc_gbm.gbm_tree import GBMTree
 
 
@@ -35,7 +35,7 @@ class CycGBM:
             else [min_samples_leaf] * 2
         )
 
-        self.dist = initiate_dist(dist=dist)
+        self.dist = initiate_distribution(dist=dist)
 
         # Assume 2 dimensions
         self.z0s = [np.nan, np.nan]

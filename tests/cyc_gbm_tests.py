@@ -3,7 +3,7 @@ import numpy as np
 
 from src.cyc_gbm import CycGBM
 from src.cyc_gbm.utils import tune_kappa
-from src.cyc_gbm.distributions import initiate_dist
+from src.cyc_gbm.distributions import initiate_distribution
 
 
 class GBMTests(unittest.TestCase):
@@ -25,7 +25,7 @@ class GBMTests(unittest.TestCase):
         z_0 = 10 * (X[:, 0] > 0.3 * n) + 5 * (X[:, 1] > 0.5 * n)
         z_1 = np.ones(n) * np.log(1.5)
         z = np.stack([z_0, z_1])
-        dist = initiate_dist(dist="normal")
+        dist = initiate_distribution(dist="normal")
         y = dist.simulate(z, random_state=10)
 
         kappa = [100, 0]
@@ -54,7 +54,7 @@ class GBMTests(unittest.TestCase):
         z_0 = 0.1 * (1 + 10 * (X[:, 0] > 0) + 5 * (X[:, 1] > 0))
         z_1 = np.ones(n) * np.log(1)
         z = np.stack([z_0, z_1])
-        dist = initiate_dist(dist="gamma")
+        dist = initiate_distribution(dist="gamma")
         y = dist.simulate(z, random_state=10)
 
         kappa = [100, 0]
