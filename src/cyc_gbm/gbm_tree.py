@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.tree import DecisionTreeRegressor
+from .distributions import Distribution
 
 
 class GBMTree(DecisionTreeRegressor):
@@ -16,14 +17,14 @@ class GBMTree(DecisionTreeRegressor):
         self,
         max_depth: int,
         min_samples_leaf: int,
-        dist,  # TODO: Add type annotation here when the wrapper class is introduced"?
+        dist: Distribution,
     ):
         """
         Constructs a new GBMTree instance.
 
         :param max_depth: The maximum depth of the tree.
         :param min_samples_leaf: The minimum number of samples required to be at a leaf node.
-        :param dist: The distribution function used for calculating the gradients.
+        :param dist: The distribution used for calculating the gradients and losses
         """
         super().__init__(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
         self.dist = dist
@@ -49,7 +50,7 @@ class GBMTree(DecisionTreeRegressor):
         for g in gs:
             # Find optimal step size for this node
             index = g_hat == g
-            g_opt = self.dist.calculate_step(y=y[index], z=z[:, index], j=j, g_0=g)
+            g_opt = self.dist.opt_step(y=y[index], z=z[:, index], j=j, g_0=g)
             # Manipulate tree
             self.tree_.value[self.tree_.value == g] = g_opt
 
@@ -64,6 +65,6 @@ class GBMTree(DecisionTreeRegressor):
         :param z: The predicted parameter values from the previous iteration.
         :param j: The index of the current iteration.
         """
-        g = self.dist.calculate_grad(y=y, z=z, j=j)
+        g = self.dist.grad(y=y, z=z, j=j)
         self.fit(X, -g)
         self._adjust_node_values(X=X, y=y, z=z, j=j)

@@ -48,15 +48,15 @@ class CycGBM:
         :param X: Input data matrix of shape (n_samples, n_features).
         :param y: True response values for the input data, of shape (n_samples,).
         """
-        self.z0 = self.dist.estimate_mle(y)[:, None]
+        self.z0 = self.dist.mle(y)[:, None]
 
         # Assume 2 dimensions
-        z = self.z0.repeat(len(y)).reshape((2, len(y)))
-        self.trees = [[[]] * self.kappa[0], [[]] * self.kappa[1]]
+        z = np.tile(self.z0, (1, len(y)))
+        self.trees = [[None] * self.kappa[0], [None] * self.kappa[1]]
 
         for k in range(0, max(self.kappa)):
             # Assume 2 dimensions
-            for j in [0, 1]:
+            for j in range(2):
                 if k >= self.kappa[j]:
                     continue
                 tree = GBMTree(
@@ -109,18 +109,17 @@ if __name__ == "__main__":
     X1 = np.arange(0, n)
     rng.shuffle(X1)
     mu = np.exp(1 * (X0 > 0.3 * n) + 0.5 * (X1 > 0.5 * n))
-    l = np.exp(-1 + 0.1 * X0 - 0.002*X1**2)
+    l = np.exp(-1 + 0.1 * X0 - 0.002 * X1**2)
 
     X = np.stack([X0, X1]).T
     y = np.random.wald(mu, l)
 
     kappa = 100
     eps = 0.001
-    gbm = CycGBM(dist="inv_gauss", kappa=kappa)
+    gbm = CycGBM(dist="normal", kappa=kappa)
     gbm.fit(X, y)
     z_hat = gbm.predict(X)
-    mle_loss = gbm.dist.calculate_loss(y = y, z = gbm.z0).sum()
-    gbm_loss = gbm.dist.calculate_loss(y = y, z = z_hat).sum()
-    print(f'Intercept loss: {mle_loss}')
-    print(f'CycGBM loss: {gbm_loss}')
-
+    mle_loss = gbm.dist.loss(y=y, z=gbm.z0).sum()
+    gbm_loss = gbm.dist.loss(y=y, z=z_hat).sum()
+    print(f"Intercept loss: {mle_loss}")
+    print(f"CycGBM loss: {gbm_loss}")
