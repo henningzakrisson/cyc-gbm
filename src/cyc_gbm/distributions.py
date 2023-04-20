@@ -47,14 +47,35 @@ class Distribution:
         :param j: The parameter dimension to compute the gradient for (default=0).
         :return: The gradient(s) of the loss function for the given `z`, `y`, and `j`.
         """
-        return self.grad_functions[j](y=y, z=z)
+        pass
 
     def mme(self, y: np.ndarray) -> np.ndarray:
         """
         Calculates the method of moments estimator for the parameter vector
 
         :param y: The target values.
-        :return: A moment-based initial guess for the MLE parameter
+        :return: the method of moments estimator
+        """
+        pass
+
+    def simulate(
+        self, z: np.ndarray, random_state: Union[int, None] = None
+    ) -> np.ndarray:
+        """Simulate values given parameter values in z
+
+        :param z: Parameter values of shape (n_parameters, n_samples).
+        :param random_state: Random seed to use in simulation.
+        :return: Simulated values of shape (n_samples,).
+        """
+        pass
+
+    def moment(self, z: np.ndarray, k: int) -> np.ndarray:
+        """
+        Calculates the k:th moment given parameter estimates z.
+
+        :param z: The predicted parameters of shape (d,n_samples).
+        :param k: The number of the moment
+        :return: Array with the k:th moments of shape (n_samples,)
         """
         pass
 
@@ -99,12 +120,13 @@ class NormalDistribution(Distribution):
     def __init__(
         self,
     ):
-        """Initialize a normal distribution object."""
+        """Initialize a normal distribution object.
+
+        Parameterization: z[0] = mu, z[1] = log(sigma), where E[X] = mu, Var(X) = sigma^2
+        """
 
     def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
         return z[1] + 0.5 * np.exp(-2 * z[1]) * (y - z[0]) ** 2
-
-    # loss.__doc__ = super().loss.__doc__
 
     def grad(self, y: np.ndarray, z: np.ndarray, j: int) -> np.ndarray:
         if j == 0:
@@ -112,12 +134,20 @@ class NormalDistribution(Distribution):
         elif j == 1:
             return 1 - np.exp(-2 * z[1]) * (y - z[0]) ** 2
 
-    # grad.__doc__ = Distribution.grad.__doc__
-
     def mme(self, y: np.ndarray) -> np.ndarray:
         return np.array([y.mean(), np.log(y.std())])
 
-    # initial_mle.__doc__ = Distribution.initial_mle.__doc__
+    def simulate(
+        self, z: np.ndarray, random_state: Union[int, None] = None
+    ) -> np.ndarray:
+        rng = np.random.default_rng(seed=random_state)
+        return rng.normal(z[0], np.exp(z[1]))
+
+    def moment(self, z: np.ndarray, k: int) -> np.ndarray:
+        if k == 0:
+            return z[0]
+        elif k == 1:
+            return np.exp(2 * z[1])
 
 
 @inherit_docstrings
@@ -125,7 +155,10 @@ class InverseGaussianDistribution(Distribution):
     def __init__(
         self,
     ):
-        """Initialize a normal distribution object."""
+        """Initialize a normal distribution object.
+
+        Parameterization: z[0] = log(mu), z[1] = log(lambda), where E[X] = mu, Var(X) =mu^3 / lambda
+        """
 
     def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
         return (
@@ -145,6 +178,18 @@ class InverseGaussianDistribution(Distribution):
     def mme(self, y: np.ndarray) -> np.ndarray:
         return np.array([np.log(np.mean(y)), 3 * np.log(np.mean(y)) - np.log(y.var())])
 
+    def simulate(
+        self, z: np.ndarray, random_state: Union[int, None] = None
+    ) -> np.ndarray:
+        rng = np.random.default_rng(seed=random_state)
+        return rng.wald(np.exp(z[0]), np.exp(z[1]))
+
+    def moment(self, z: np.ndarray, k: int) -> np.ndarray:
+        if k == 0:
+            return np.exp(z[0])
+        elif k == 1:
+            return np.exp(3 * z[0] - z[1])
+
 
 @inherit_docstrings
 class GammaDistribution(Distribution):
@@ -153,6 +198,8 @@ class GammaDistribution(Distribution):
     ):
         """
         Initialize a gamma distribution object.
+
+        Parameterization: z[0] = log(mu), z[1] = log(phi), where E[X] = mu, Var(X) =phi * mu^2
         """
 
     def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
@@ -181,6 +228,18 @@ class GammaDistribution(Distribution):
             ]
         )
 
+    def simulate(
+        self, z: np.ndarray, random_state: Union[int, None] = None
+    ) -> np.ndarray:
+        rng = np.random.default_rng(seed=random_state)
+        return rng.gamma(np.exp(z[1]), np.exp(-z[0] - z[1]))
+
+    def moment(self, z: np.ndarray, k: int) -> np.ndarray:
+        if k == 0:
+            return np.exp(z[0])
+        elif k == 1:
+            return np.exp(2 * z[0] + z[1])
+
 
 @inherit_docstrings
 class BetaPrimeDistribution(Distribution):
@@ -189,6 +248,8 @@ class BetaPrimeDistribution(Distribution):
     ):
         """
         Initialize a beta prime distribution object.
+
+        Parameterization: z[0] = log(mu), z[1] = log(v), where E[X] = mu, Var(X) =mu*(1+mu)/v
         """
 
     def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
@@ -230,6 +291,23 @@ class BetaPrimeDistribution(Distribution):
                 np.log(y.mean() * (1 + y.mean()) / y.var()),
             ]
         )
+
+    def simulate(
+        self, z: np.ndarray, random_state: Union[int, None] = None
+    ) -> np.ndarray:
+        rng = np.random.default_rng(seed=random_state)
+        mu = np.exp(z[0])
+        v = np.exp(z[1])
+        alpha = mu * (1 + v)
+        beta = v + 2
+        y0 = rng.beta(alpha, beta)
+        return y0 / (1 - y0)
+
+    def moment(self, z: np.ndarray, k: int) -> np.ndarray:
+        if k == 0:
+            return np.exp(z[0])
+        elif k == 1:
+            return np.exp(z[0] - z[1]) * (1 + np.exp(z[0]))
 
 
 def initiate_dist(

@@ -51,12 +51,12 @@ class CycGBM:
         self.z0 = self.dist.mle(y)[:, None]
 
         # Assume 2 dimensions
-        z = self.z0.repeat(len(y)).reshape((2, len(y)))
-        self.trees = [[[]] * self.kappa[0], [[]] * self.kappa[1]]
+        z = np.tile(self.z0, (1, len(y)))
+        self.trees = [[None] * self.kappa[0], [None] * self.kappa[1]]
 
         for k in range(0, max(self.kappa)):
             # Assume 2 dimensions
-            for j in [0, 1]:
+            for j in range(2):
                 if k >= self.kappa[j]:
                     continue
                 tree = GBMTree(

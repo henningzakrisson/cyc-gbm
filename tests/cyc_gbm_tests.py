@@ -3,6 +3,7 @@ import numpy as np
 
 from src.cyc_gbm import CycGBM
 from src.cyc_gbm.utils import tune_kappa
+from src.cyc_gbm.distributions import initiate_dist
 
 
 class GBMTests(unittest.TestCase):
@@ -19,25 +20,21 @@ class GBMTests(unittest.TestCase):
             to within a tolerance.
         """
         n = 100
-        expected_loss = 166.58751236236634
         rng = np.random.default_rng(seed=10)
-        X0 = np.arange(0, n)
-        X1 = np.arange(0, n)
-        rng.shuffle(X1)
-        mu = 10 * (X0 > 0.3 * n) + 5 * (X1 > 0.5 * n)
-
-        X = np.stack([X0, X1]).T
-        y = rng.normal(mu, 1.5)
+        X = rng.normal(0, 1, (n, 2))
+        z_0 = 10 * (X[:, 0] > 0.3 * n) + 5 * (X[:, 1] > 0.5 * n)
+        z_1 = np.ones(n) * np.log(1.5)
+        z = np.stack([z_0, z_1])
+        dist = initiate_dist(dist="normal")
+        y = dist.simulate(z, random_state=10)
 
         kappa = [100, 0]
         gbm = CycGBM(dist="normal", kappa=kappa)
         gbm.fit(X, y)
-        z_hat = gbm.predict(X)
-
-        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+        loss = gbm.dist.loss(y=y, z=gbm.predict(X)).sum()
 
         self.assertAlmostEqual(
-            first=expected_loss,
+            first=54.96955230902564,
             second=loss,
             places=5,
             msg="UniGBM Normal distribution loss not as expected",
@@ -51,26 +48,23 @@ class GBMTests(unittest.TestCase):
         :raises AssertionError: If the calculated loss does not match the expected loss
             to within a tolerance.
         """
-
-        n = 1000
-        expected_loss = 1635.3309099657408
+        n = 100
         rng = np.random.default_rng(seed=10)
-        X0 = np.arange(0, n)
-        X1 = np.arange(0, n)
-        rng.shuffle(X1)
-        mu = 0.1 * (1 + 10 * (X0 > X0.mean()) + 5 * (X1 > X1.mean()))
+        X = rng.normal(0, 1, (n, 2))
+        z_0 = 0.1 * (1 + 10 * (X[:, 0] > 0) + 5 * (X[:, 1] > 0))
+        z_1 = np.ones(n) * np.log(1)
+        z = np.stack([z_0, z_1])
+        dist = initiate_dist(dist="gamma")
+        y = dist.simulate(z, random_state=10)
 
-        X = np.stack([X0, X1]).T
-        y = rng.gamma(1, mu)
-
-        gbm = CycGBM(dist="gamma", kappa=[100, 0], eps=0.1)
+        kappa = [100, 0]
+        eps = 0.1
+        gbm = CycGBM(dist="gamma", kappa=kappa, eps=eps)
         gbm.fit(X, y)
-        z_hat = gbm.predict(X)
-
-        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+        loss = gbm.dist.loss(y=y, z=gbm.predict(X)).sum()
 
         self.assertAlmostEqual(
-            first=expected_loss,
+            first=134.98811187268964,
             second=loss,
             places=5,
             msg="UniGBM Gamma distribution sse not as expected",

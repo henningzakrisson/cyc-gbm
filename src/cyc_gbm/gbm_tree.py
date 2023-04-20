@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.tree import DecisionTreeRegressor
+from .distributions import Distribution
 
 
 class GBMTree(DecisionTreeRegressor):
@@ -16,14 +17,14 @@ class GBMTree(DecisionTreeRegressor):
         self,
         max_depth: int,
         min_samples_leaf: int,
-        dist,  # TODO: Add type annotation here when the wrapper class is introduced"?
+        dist: Distribution,
     ):
         """
         Constructs a new GBMTree instance.
 
         :param max_depth: The maximum depth of the tree.
         :param min_samples_leaf: The minimum number of samples required to be at a leaf node.
-        :param dist: The distribution function used for calculating the gradients.
+        :param dist: The distribution used for calculating the gradients and losses
         """
         super().__init__(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
         self.dist = dist
