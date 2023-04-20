@@ -41,7 +41,7 @@ class CycGBM:
         self.z0s = [np.nan, np.nan]
         self.trees = [None, None]
 
-    def fit(self, X: np.ndarray, y: np.ndarray):
+    def fit(self, X: np.ndarray, y: np.ndarray) -> None:
         """
         Train the model on the given training data.
 
@@ -68,7 +68,7 @@ class CycGBM:
                 z[j] += self.eps[j] * tree.predict(X)
                 self.trees[j][k] = tree
 
-    def update(self, X: np.ndarray, y: np.ndarray, j: int):
+    def update(self, X: np.ndarray, y: np.ndarray, j: int) -> None:
         """
         Updates the current boosting model with one additional tree
 
@@ -104,17 +104,23 @@ class CycGBM:
 
 if __name__ == "__main__":
     n = 100
-    expected_loss = 166.58751236236634
     rng = np.random.default_rng(seed=10)
     X0 = np.arange(0, n)
     X1 = np.arange(0, n)
     rng.shuffle(X1)
-    mu = 10 * (X0 > 0.3 * n) + 5 * (X1 > 0.5 * n)
+    mu = np.exp(1 * (X0 > 0.3 * n) + 0.5 * (X1 > 0.5 * n))
+    l = np.exp(-1 + 0.1 * X0 - 0.002*X1**2)
 
     X = np.stack([X0, X1]).T
-    y = rng.normal(mu, 1.5)
+    y = np.random.wald(mu, l)
 
-    kappa = [100, 0]
-    gbm = CycGBM(dist="normal", kappa=kappa)
+    kappa = 100
+    eps = 0.001
+    gbm = CycGBM(dist="inv_gauss", kappa=kappa)
     gbm.fit(X, y)
     z_hat = gbm.predict(X)
+    mle_loss = gbm.dist.calculate_loss(y = y, z = gbm.z0).sum()
+    gbm_loss = gbm.dist.calculate_loss(y = y, z = z_hat).sum()
+    print(f'Intercept loss: {mle_loss}')
+    print(f'CycGBM loss: {gbm_loss}')
+

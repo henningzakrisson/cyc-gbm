@@ -93,6 +93,27 @@ class Distribution:
         return step_opt
 
 
+class InverseGaussianDistribution(Distribution):
+    def __init__(
+        self,
+    ):
+        """Initialize a normal distribution object."""
+        self.loss_function = (
+            lambda y, z: np.exp(z[1])*(y*np.exp(-2*z[0])-2*np.exp(-z[0])+y**(-1))-z[1]
+        )
+        self.grad_functions = (
+            lambda y, z: 2*np.exp(z[1]-z[0])*(1-y*np.exp(-z[0])),
+            lambda y, z: np.exp(z[1])*(y*np.exp(-2*z[0])-2*np.exp(-z[0])+y**(-1))-1
+        )
+        self.mle_estimator = lambda y: self.calculate_mle_numerically(
+            y=y,
+            z_0=[np.log(np.mean(y)), 3*np.log(np.mean(y)) - np.log(y.var())],
+        )
+        self.step_functions = (
+            lambda y, z, g_0: self.calculate_step_numerically(y=y, z=z, j=0, g_0=g_0),
+            lambda y, z, g_0: self.calculate_step_numerically(y=y, z=z, j=1, g_0=g_0),
+        )
+
 class NormalDistribution(Distribution):
     def __init__(
         self,
@@ -210,4 +231,6 @@ def initiate_dist(
         return GammaDistribution()
     if dist == "beta_prime":
         return BetaPrimeDistribution()
+    if dist == 'inv_gauss':
+        return InverseGaussianDistribution()
     raise UnknownDistributionError("Unknown distribution")
