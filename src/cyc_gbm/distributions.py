@@ -108,8 +108,8 @@ class Distribution:
         :return: The optimal step size.
         """
 
-        # Indicator vector for adding step to dimension j (assume two dimensions)
-        e = np.eye(2)[:, j : j + 1]
+        # Indicator vector for adding step to dimension j
+        e = np.eye(self.d)[:, j : j + 1]
         to_min = lambda step: self.loss(y=y, z=z + e * step).sum()
         step_opt = minimize(fun=to_min, x0=g_0)["x"][0]
         return step_opt
@@ -124,6 +124,7 @@ class NormalDistribution(Distribution):
 
         Parameterization: z[0] = mu, z[1] = log(sigma), where E[X] = mu, Var(X) = sigma^2
         """
+        self.d = 2
 
     def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
         return z[1] + 0.5 * np.exp(-2 * z[1]) * (y - z[0]) ** 2
@@ -159,6 +160,7 @@ class InverseGaussianDistribution(Distribution):
 
         Parameterization: z[0] = log(mu), z[1] = log(lambda), where E[X] = mu, Var(X) =mu^3 / lambda
         """
+        self.d = 2
 
     def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
         return (
@@ -201,6 +203,7 @@ class GammaDistribution(Distribution):
 
         Parameterization: z[0] = log(mu), z[1] = log(phi), where E[X] = mu, Var(X) =phi * mu^2
         """
+        self.d = 2
 
     def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
         return loggamma(np.exp(-z[1])) + np.exp(-z[1]) * (
@@ -251,6 +254,7 @@ class BetaPrimeDistribution(Distribution):
 
         Parameterization: z[0] = log(mu), z[1] = log(v), where E[X] = mu, Var(X) =mu*(1+mu)/v
         """
+        self.d = 2
 
     def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
         return (

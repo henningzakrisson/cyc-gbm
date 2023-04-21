@@ -11,11 +11,10 @@ class CycGBM:
 
     def __init__(
         self,
-        # Assume 2 dimensions
-        kappa: Union[int, List[int]] = [100, 100],
-        eps: Union[float, List[float]] = [0.1, 0.1],
-        max_depth: Union[int, List[int]] = [2, 2],
-        min_samples_leaf: Union[int, List[int]] = [20, 20],
+        kappa: Union[int, List[int]] = 100,
+        eps: Union[float, List[float]] = 0.1,
+        max_depth: Union[int, List[int]] = 2,
+        min_samples_leaf: Union[int, List[int]] = 20,
         dist: str = "normal",
     ):
         """
@@ -25,21 +24,16 @@ class CycGBM:
         :param min_samples_leaf: Minimum number of samples required at a leaf node. Dimension-wise or global for all parameter dimensions.
         :param dist: distribution for losses and gradients
         """
-        # Assume 2 dimensions
-        self.kappa = kappa if isinstance(kappa, list) else [kappa] * 2
-        self.eps = eps if isinstance(eps, list) else [eps] * 2
-        self.max_depth = max_depth if isinstance(max_depth, list) else [max_depth] * 2
+        self.dist = initiate_distribution(dist=dist)
+        self.d = self.dist.d
+        self.kappa = kappa if isinstance(kappa, list) else [kappa] * self.d
+        self.eps = eps if isinstance(eps, list) else [eps] * self.d
+        self.max_depth = max_depth if isinstance(max_depth, list) else [max_depth] * self.d
         self.min_samples_leaf = (
             min_samples_leaf
             if isinstance(min_samples_leaf, list)
-            else [min_samples_leaf] * 2
+            else [min_samples_leaf] * self.d
         )
-
-        self.dist = initiate_distribution(dist=dist)
-
-        # Assume 2 dimensions
-        self.z0s = [np.nan, np.nan]
-        self.trees = [None, None]
 
     def fit(self, X: np.ndarray, y: np.ndarray) -> None:
         """
@@ -50,13 +44,11 @@ class CycGBM:
         """
         self.z0 = self.dist.mle(y)[:, None]
 
-        # Assume 2 dimensions
         z = np.tile(self.z0, (1, len(y)))
-        self.trees = [[None] * self.kappa[0], [None] * self.kappa[1]]
+        self.trees = [[None] * self.kappa[j] for j in range(self.d)]
 
         for k in range(0, max(self.kappa)):
-            # Assume 2 dimensions
-            for j in range(2):
+            for j in range(self.d):
                 if k >= self.kappa[j]:
                     continue
                 tree = GBMTree(
@@ -93,8 +85,8 @@ class CycGBM:
         :param X: Input data matrix of shape (n_samples, n_features).
         :return: Predicted response values of shape (d,n_samples).
         """
-        z_hat = np.zeros((len(self.z0), len(X)))
-        for j in range(len(self.z0)):
+        z_hat = np.zeros((self.d, len(X)))
+        for j in range(self.d):
             if len(self.trees[j]) > 0:
                 z_hat[j] = self.eps[j] * sum(
                     [tree.predict(X) for tree in self.trees[j]]
