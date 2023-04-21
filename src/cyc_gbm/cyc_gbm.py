@@ -95,20 +95,35 @@ class CycGBM:
 
 
 if __name__ == "__main__":
-    n = 100
+    # Simulator
     rng = np.random.default_rng(seed=10)
-    X0 = np.arange(0, n)
-    X1 = np.arange(0, n)
-    rng.shuffle(X1)
-    mu = np.exp(1 * (X0 > 0.3 * n) + 0.5 * (X1 > 0.5 * n))
-    l = np.exp(-1 + 0.1 * X0 - 0.002 * X1**2)
 
-    X = np.stack([X0, X1]).T
-    y = np.random.wald(mu, l)
+
+    def simulator(z):
+        mu = np.exp(z[0])
+        theta = np.exp(z[1])
+        p = theta / (mu + theta)
+        r = theta
+        return rng.negative_binomial(r, p)
+
+
+    # Parameter functions (0:th index in x is constant)
+    def z_function(x):
+        z0 = -1 + 0.004 * np.minimum(2, x[:, 4]) ** 2 + 2.2 * np.minimum(0.5, x[:, 1]) + np.sin(0.3 * x[:, 2])
+        z1 = -2 + 0.3 * (x[:, 1] > 0) + 0.2 * np.abs(x[:, 2]) * (x[:, 5] > 0) + 0.2 * x[:, 3]
+        return np.stack([z0, z1])
+
+
+    # Simulate
+    n = 1000
+    p = 9
+    X = np.concatenate([np.ones((1, n)), rng.normal(0, 1, (p - 1, n))]).T
+    z = z_function(X)
+    y = simulator(z)
 
     kappa = 100
     eps = 0.001
-    gbm = CycGBM(dist="normal", kappa=kappa)
+    gbm = CycGBM(dist="neg_bin", kappa=kappa)
     gbm.fit(X, y)
     z_hat = gbm.predict(X)
     mle_loss = gbm.dist.loss(y=y, z=gbm.z0).sum()
