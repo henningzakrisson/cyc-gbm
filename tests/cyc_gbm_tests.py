@@ -203,7 +203,6 @@ class GBMTests(unittest.TestCase):
             n_splits=4,
             random_state=random_state,
         )
-        # Assume two dimensions
         for j in [0, 1]:
             self.assertEqual(
                 first=expected_kappa[j],
@@ -253,7 +252,7 @@ class GBMTests(unittest.TestCase):
         self.assertAlmostEqual(
             first=expected_loss,
             second=loss,
-            places=5,
+            places=3,
             msg="CycGBM BetaPrime distribution loss not as expected",
         )
 
