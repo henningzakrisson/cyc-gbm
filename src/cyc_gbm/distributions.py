@@ -150,6 +150,7 @@ class NormalDistribution(Distribution):
         elif k == 1:
             return np.exp(2 * z[1])
 
+
 @inherit_docstrings
 class NegativeBinomialDistribution(Distribution):
     def __init__(
@@ -164,7 +165,13 @@ class NegativeBinomialDistribution(Distribution):
     def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
         mu = np.exp(z[0])
         theta = np.exp(z[1])
-        return loggamma(theta) - loggamma(theta + y) + (theta + y) * np.log(theta + mu) - y * z[0] - theta * z[1]
+        return (
+            loggamma(theta)
+            - loggamma(theta + y)
+            + (theta + y) * np.log(theta + mu)
+            - y * z[0]
+            - theta * z[1]
+        )
 
     def grad(self, y: np.ndarray, z: np.ndarray, j: int) -> np.ndarray:
         mu = np.exp(z[0])
@@ -172,10 +179,17 @@ class NegativeBinomialDistribution(Distribution):
         if j == 0:
             return -y + mu * (y + theta) / (mu + theta)
         elif j == 1:
-            return theta*(polygamma(0,theta)-polygamma(0,theta+y)+np.log(theta+mu)+(y+theta)/(mu+theta)-z[1]-1)
+            return theta * (
+                polygamma(0, theta)
+                - polygamma(0, theta + y)
+                + np.log(theta + mu)
+                + (y + theta) / (mu + theta)
+                - z[1]
+                - 1
+            )
 
     def mme(self, y: np.ndarray) -> np.ndarray:
-        return np.array([y.mean(), np.log(y.mean()**2/(y.var() - y.mean()))])
+        return np.array([y.mean(), np.log(y.mean() ** 2 / (y.var() - y.mean()))])
 
     def simulate(
         self, z: np.ndarray, random_state: Union[int, None] = None
@@ -191,7 +205,8 @@ class NegativeBinomialDistribution(Distribution):
         if k == 0:
             return np.exp(z[0])
         elif k == 1:
-            return np.exp(z[0])*(1+np.exp(z[0]-z[1]))
+            return np.exp(z[0]) * (1 + np.exp(z[0] - z[1]))
+
 
 @inherit_docstrings
 class InverseGaussianDistribution(Distribution):

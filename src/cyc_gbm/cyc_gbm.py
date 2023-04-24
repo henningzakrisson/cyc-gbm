@@ -28,7 +28,9 @@ class CycGBM:
         self.d = self.dist.d
         self.kappa = kappa if isinstance(kappa, list) else [kappa] * self.d
         self.eps = eps if isinstance(eps, list) else [eps] * self.d
-        self.max_depth = max_depth if isinstance(max_depth, list) else [max_depth] * self.d
+        self.max_depth = (
+            max_depth if isinstance(max_depth, list) else [max_depth] * self.d
+        )
         self.min_samples_leaf = (
             min_samples_leaf
             if isinstance(min_samples_leaf, list)
@@ -98,7 +100,6 @@ if __name__ == "__main__":
     # Simulator
     rng = np.random.default_rng(seed=10)
 
-
     def simulator(z):
         mu = np.exp(z[0])
         theta = np.exp(z[1])
@@ -106,13 +107,21 @@ if __name__ == "__main__":
         r = theta
         return rng.negative_binomial(r, p)
 
-
     # Parameter functions (0:th index in x is constant)
     def z_function(x):
-        z0 = -1 + 0.004 * np.minimum(2, x[:, 4]) ** 2 + 2.2 * np.minimum(0.5, x[:, 1]) + np.sin(0.3 * x[:, 2])
-        z1 = -2 + 0.3 * (x[:, 1] > 0) + 0.2 * np.abs(x[:, 2]) * (x[:, 5] > 0) + 0.2 * x[:, 3]
+        z0 = (
+            -1
+            + 0.004 * np.minimum(2, x[:, 4]) ** 2
+            + 2.2 * np.minimum(0.5, x[:, 1])
+            + np.sin(0.3 * x[:, 2])
+        )
+        z1 = (
+            -2
+            + 0.3 * (x[:, 1] > 0)
+            + 0.2 * np.abs(x[:, 2]) * (x[:, 5] > 0)
+            + 0.2 * x[:, 3]
+        )
         return np.stack([z0, z1])
-
 
     # Simulate
     n = 1000
