@@ -32,7 +32,7 @@ def tune_kappa(
     :return: Dictionary containing 'kappa' as the optimal number of bossting steps and 'loss' as loss array over all folds.
 
     """
-    distribution = initiate_distribution(dist = dist)
+    distribution = initiate_distribution(dist=dist)
     d = distribution.d
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     kappa_max = kappa_max if isinstance(kappa_max, list) else [kappa_max] * d
@@ -67,15 +67,18 @@ def tune_kappa(
                         loss[i, k, j] = loss[i, k, j - 1]
 
             # Stop if no improvement was made
-            if np.all([loss[i, k, 0] >= loss[i, k - 1, 1]] + [loss[i, k, j] >= loss[i, k, j-1] for j in range(1,d)]):
+            if np.all(
+                [loss[i, k, 0] >= loss[i, k - 1, 1]]
+                + [loss[i, k, j] >= loss[i, k, j - 1] for j in range(1, d)]
+            ):
                 loss[i, k + 1 :, :] = loss[i, k, -1]
                 break
 
     loss_total = loss.sum(axis=0)
-    loss_delta = np.zeros((d,max(kappa_max) + 1))
-    loss_delta[0,1:] = loss_total[1:, 0] - loss_total[:-1, -1]
-    for j in range(1,d):
-        loss_delta[j,1:] = loss_total[1:, j] - loss_total[1:, j-1]
+    loss_delta = np.zeros((d, max(kappa_max) + 1))
+    loss_delta[0, 1:] = loss_total[1:, 0] - loss_total[:-1, -1]
+    for j in range(1, d):
+        loss_delta[j, 1:] = loss_total[1:, j] - loss_total[1:, j - 1]
     kappa = np.argmax(loss_delta > 0, axis=1) - 1
     did_not_converge = (loss_delta > 0).sum(axis=1) == 0
     for j in range(d):
@@ -86,6 +89,7 @@ def tune_kappa(
     results = {"kappa": kappa, "loss": loss}
 
     return results
+
 
 if __name__ == "__main__":
     n = 100
