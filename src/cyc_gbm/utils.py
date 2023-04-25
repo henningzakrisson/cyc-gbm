@@ -118,7 +118,7 @@ if __name__ == "__main__":
     n_splits = 4
     random_state = 5
 
-    kappa = tune_kappa(
+    tuning_results = tune_kappa(
         X=X,
         y=y,
         kappa_max=kappa_max,
@@ -130,4 +130,4 @@ if __name__ == "__main__":
         random_state=random_state,
     )
 
-    print(kappa)
+    print(tuning_results["kappa"])
