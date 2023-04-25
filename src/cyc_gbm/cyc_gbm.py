@@ -97,21 +97,30 @@ class CycGBM:
 
 
 if __name__ == "__main__":
-    expected_loss = -105.64814333065765
-    n = 100
     rng = np.random.default_rng(seed=10)
-    X = rng.normal(0, 1, (n, 2))
-    z0 = -1 + 0.004 * np.minimum(2, X[:, 0]) ** 2 + 2.2 * np.minimum(0.5, X[:, 1])
-    z1 = -2 + 0.3 * (X[:, 1] > 0) + 0.2 * np.abs(X[:, 1]) * (X[:, 0] > 0)
-    z = np.stack([z0, z1])
-    distribution = initiate_distribution(dist="neg_bin")
+    n = 10000
+    p = 9
+    X = np.concatenate([np.ones((1, n)), rng.normal(0, 1, (p - 1, n))]).T
+    z0 = (
+        1.5 * X[:, 1]
+        + 2 * X[:, 3]
+        - 0.65 * X[:, 2] ** 2
+        + 0.5 * np.abs(X[:, 3]) * np.sin(0.5 * X[:, 2])
+        + 0.45 * X[:, 4] * X[:, 5] ** 2
+    )
+    z1 = 1 + 0.02 * X[:, 2] + 0.5 * X[:, 1] * (X[:, 1] < 2) + 1.8 * (X[:, 5] > 0)
+    z2 = 0.2 * X[:, 3] + 0.03 * X[:, 2] ** 2
+    z = np.stack([z0, z1, z2])
+    distribution = initiate_distribution(dist="multivariate_normal")
     y = distribution.simulate(z=z, random_state=5)
 
-    kappa = 100
-    eps = 0.01
-    gbm = CycGBM(dist="neg_bin", kappa=kappa)
+    kappa = [23, 17, 79]
+    eps = [0.5, 0.25, 0.1]
+    gbm = CycGBM(dist="multivariate_normal", kappa=kappa, eps=eps)
     gbm.fit(X, y)
     z_hat = gbm.predict(X)
     loss = gbm.dist.loss(y=y, z=z_hat).sum()
+    loss_init = gbm.dist.loss(y=y, z=gbm.z0).sum()
 
-    print(loss - expected_loss)
+    print(f"Initial loss: {loss_init}")
+    print(f"Final loss: {loss}")

@@ -123,6 +123,112 @@ class Distribution:
 
 
 @inherit_docstrings
+class MultivariateNormalDistribution(Distribution):
+    def __init__(
+        self,
+    ):
+        """Initialize a multivariate normal distribution object with equal means and variances and
+        correlation
+
+        Parameterization: z[0] = mu, z[1] = 2*log(sigma), z[2] = inv_sigm(rho)
+        where
+        E[X] = [mu,mu]
+        Cov(X) = [sigma^2, rho*sigma^2; rho*sigma^2, sigma^2]
+        """
+        self.d = 3
+
+    def sigm(self, x: np.ndarray) -> np.ndarray:
+        """Sigmoid function
+
+        :param x: Input array.
+        :return: Sigmoid of input array.
+        """
+        return 1 / (1 + np.exp(-x))
+
+    def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
+        mu = z[0]
+        sigma = np.exp(z[1])
+        rho = self.sigm(z[2])
+
+        mu_term = (
+            (y[:, 0] - mu) ** 2
+            - 2 * rho * (y[:, 0] - mu) * (y[:, 1] - mu)
+            + (y[:, 1] - mu) ** 2
+        )
+        rho_term = 1 / (1 - rho**2)
+        return z[1] + 0.5 * mu_term * rho_term * np.exp(-z[1])
+
+    def grad(self, y: np.ndarray, z: np.ndarray, j: int) -> np.ndarray:
+        if j == 0:
+            mu = z[0]
+            s2 = np.exp(z[1])
+            rho = self.sigm(z[2])
+
+            return (1 / (s2 * (1 + rho))) * (2 * mu - y[:, 0] - y[:, 1])
+        elif j == 1:
+            mu = z[0]
+            s2 = np.exp(z[1])
+            rho = self.sigm(z[2])
+
+            mu_term = (
+                (y[:, 0] - mu) ** 2
+                - 2 * rho * (y[:, 0] - mu) * (y[:, 1] - mu)
+                + (y[:, 1] - mu) ** 2
+            )
+            a = mu_term / (2 * (1 - rho**2))
+            grad = 1 - a * np.exp(-z[1])
+            if np.any(np.isnan(grad)) or np.any(np.isinf(grad)):
+                raise Exception("NaN in gradient")
+            return grad
+
+        elif j == 2:
+            mu = z[0]
+            s2 = np.exp(z[1])
+            rho = self.sigm(z[2])
+
+            m_1 = (y[:, 0] - mu) ** 2 + (y[:, 1] - mu) ** 2
+            m_2 = (y[:, 0] - mu) * (y[:, 1] - mu)
+            return 1 * (
+                (rho / ((1 + rho)))
+                * (
+                    (1 / (s2 * (1 - rho**2))) * (-m_2 * rho**2 + m_1 * rho - m_2)
+                    - rho
+                )
+            )
+
+    def mme(self, y: np.ndarray) -> np.ndarray:
+        # Return the mean, variance and correlation of a 2d normal distribution
+        mu = y.mean()
+        s2 = y.var()
+        rho = np.corrcoef(y.T)[0, 1]
+        return np.array([mu, np.log(s2), np.log(rho)])
+
+    def simulate(
+        self, z: np.ndarray, random_state: Union[int, None] = None
+    ) -> np.ndarray:
+        rng = np.random.default_rng(seed=random_state)
+        mu = np.stack([z[0]] * 2)
+        rho = self.sigm(z[2])
+        s2 = np.exp(z[1])
+        Sigma = np.stack([np.stack([s2, s2 * rho]), np.stack([s2 * rho, s2])])
+
+        return np.stack(
+            [
+                rng.multivariate_normal(mu[:, i], Sigma[:, :, i])
+                for i in range(0, z.shape[1])
+            ]
+        )
+
+    def moment(self, z: np.ndarray, k: int) -> np.ndarray:
+        if k == 1:
+            return np.array([z[0], z[0]])
+        elif k == 2:
+            rho = self.sigm(z[2])
+            s2 = np.exp(z[1])
+            return np.stack([np.stack([s2, s2 * rho]), np.stack([s2 * rho, s2])])
+
+
+@inherit_docstrings
 class NormalDistribution(Distribution):
     def __init__(
         self,
@@ -400,6 +506,8 @@ def initiate_distribution(
         return InverseGaussianDistribution()
     if dist == "neg_bin":
         return NegativeBinomialDistribution()
+    if dist == "multivariate_normal":
+        return MultivariateNormalDistribution()
     raise UnknownDistributionError("Unknown distribution")
 
 

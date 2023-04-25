@@ -92,29 +92,28 @@ def tune_kappa(
 
 
 if __name__ == "__main__":
-    # Simulator
     rng = np.random.default_rng(seed=10)
-    distribution = initiate_distribution(dist="neg_bin")
-    p = 9
     n = 1000
+    p = 9
     X = np.concatenate([np.ones((1, n)), rng.normal(0, 1, (p - 1, n))]).T
     z0 = (
-        -1
-        + 0.004 * np.minimum(2, X[:, 4]) ** 2
-        + 2.2 * np.minimum(0.5, X[:, 1])
-        + np.sin(0.3 * X[:, 2])
+        1.5 * X[:, 1]
+        + 2 * X[:, 3]
+        - 0.65 * X[:, 2] ** 2
+        + 0.5 * np.abs(X[:, 3]) * np.sin(0.5 * X[:, 2])
+        + 0.45 * X[:, 4] * X[:, 5] ** 2
     )
-    z1 = (
-        -2 + 0.3 * (X[:, 1] > 0) + 0.2 * np.abs(X[:, 2]) * (X[:, 5] > 0) + 0.2 * X[:, 3]
-    )
-    z = np.stack([z0, z1])
-    y = distribution.simulate(z, random_state=11)
+    z1 = 1 + 0.02 * X[:, 2] + 0.5 * X[:, 1] * (X[:, 1] < 2) + 1.8 * (X[:, 5] > 0)
+    z2 = 0.2 * X[:, 3] + 0.3 * X[:, 2]
+    z = np.stack([z0, z1, z2])
+    distribution = initiate_distribution(dist="multivariate_normal")
+    y = distribution.simulate(z=z, random_state=5)
 
     # Set hyperparameters
-    kappa_max = 100
-    max_depth = 3
-    min_samples_leaf = 5
-    eps = [0.1, 0.1]
+    kappa_max = 1000
+    max_depth = 1
+    min_samples_leaf = 2
+    eps = [0.5, 0.25, 0.1]
     n_splits = 4
     random_state = 5
 
@@ -125,9 +124,10 @@ if __name__ == "__main__":
         eps=eps,
         max_depth=max_depth,
         min_samples_leaf=min_samples_leaf,
-        dist="neg_bin",
+        dist="multivariate_normal",
         n_splits=n_splits,
         random_state=random_state,
     )
 
-    print(tuning_results["kappa"])
+    kappa_opt = tuning_results["kappa"]
+    print(f"Optimal kappa: {kappa_opt}")
