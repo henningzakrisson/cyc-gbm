@@ -97,23 +97,21 @@ class CycGBM:
 
 
 if __name__ == "__main__":
+    expected_loss = -105.64814333065765
     n = 100
     rng = np.random.default_rng(seed=10)
-    X0 = np.arange(0, n)
-    X1 = np.arange(0, n)
-    rng.shuffle(X1)
-    mu = np.exp(1 * (X0 > 0.3 * n) + 0.5 * (X1 > 0.5 * n))
-    l = np.exp(-1 + 0.1 * X0 - 0.002 * X1**2)
-
-    X = np.stack([X0, X1]).T
-    y = np.random.wald(mu, l)
+    X = rng.normal(0, 1, (n, 2))
+    z0 = -1 + 0.004 * np.minimum(2, X[:, 0]) ** 2 + 2.2 * np.minimum(0.5, X[:, 1])
+    z1 = -2 + 0.3 * (X[:, 1] > 0) + 0.2 * np.abs(X[:, 1]) * (X[:, 0] > 0)
+    z = np.stack([z0, z1])
+    distribution = initiate_distribution(dist="neg_bin")
+    y = distribution.simulate(z=z, random_state=5)
 
     kappa = 100
-    eps = 0.001
-    gbm = CycGBM(dist="normal", kappa=kappa)
+    eps = 0.01
+    gbm = CycGBM(dist="neg_bin", kappa=kappa)
     gbm.fit(X, y)
     z_hat = gbm.predict(X)
-    mle_loss = gbm.dist.loss(y=y, z=gbm.z0).sum()
-    gbm_loss = gbm.dist.loss(y=y, z=z_hat).sum()
-    print(f"Intercept loss: {mle_loss}")
-    print(f"CycGBM loss: {gbm_loss}")
+    loss = gbm.dist.loss(y=y, z=z_hat).sum()
+
+    print(loss - expected_loss)

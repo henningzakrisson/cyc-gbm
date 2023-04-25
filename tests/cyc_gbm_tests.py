@@ -290,6 +290,40 @@ class GBMTests(unittest.TestCase):
             msg="CycGBM Inverse Gaussian distribution loss not as expected",
         )
 
+    def test_negative_binomial(self):
+        """
+        Test method for the `CycGBM` class on a dataset where the target variable
+        follows a negative binomial distribution.
+
+        :raises AssertionError: If the calculated loss does not match the expected loss
+            to within a tolerance.
+        """
+        expected_loss = -105.64814333065765
+        n = 100
+        rng = np.random.default_rng(seed=10)
+        X = rng.normal(0, 1, (n, 2))
+        z0 = -1 + 0.004 * np.minimum(2, X[:, 0]) ** 2 + 2.2 * np.minimum(0.5, X[:, 1])
+        z1 = -2 + 0.3 * (X[:, 1] > 0) + 0.2 * np.abs(X[:, 1]) * (X[:, 0] > 0)
+        z = np.stack([z0, z1])
+        distribution = initiate_distribution(dist="neg_bin")
+        y = distribution.simulate(z=z, random_state=5)
+
+        kappa = 100
+        eps = 0.01
+        gbm = CycGBM(dist="neg_bin", kappa=kappa)
+        gbm.fit(X, y)
+        z_hat = gbm.predict(X)
+        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+
+        # The tolerance is set to 1 decimal place because the negative binomial
+        # loss is not convex in two dimensions
+        self.assertAlmostEqual(
+            first=expected_loss,
+            second=loss,
+            places=1,
+            msg="CycGBM Negative Binomial distribution loss not as expected",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

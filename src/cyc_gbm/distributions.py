@@ -111,7 +111,14 @@ class Distribution:
         # Indicator vector for adding step to dimension j
         e = np.eye(self.d)[:, j : j + 1]
         to_min = lambda step: self.loss(y=y, z=z + e * step).sum()
-        step_opt = minimize(fun=to_min, x0=g_0)["x"][0]
+        grad = lambda step: self.grad(y=y, z=z + e * step, j=j).sum()
+        step_opt = minimize(
+            fun=to_min,
+            jac=grad,
+            x0=g_0,
+        )[
+            "x"
+        ][0]
         return step_opt
 
 
@@ -145,10 +152,68 @@ class NormalDistribution(Distribution):
         return rng.normal(z[0], np.exp(z[1]))
 
     def moment(self, z: np.ndarray, k: int) -> np.ndarray:
-        if k == 0:
+        if k == 1:
             return z[0]
-        elif k == 1:
+        elif k == 2:
             return np.exp(2 * z[1])
+
+
+@inherit_docstrings
+class NegativeBinomialDistribution(Distribution):
+    def __init__(
+        self,
+    ):
+        """Initialize a negative binomial distribution object.
+
+        Parameterization: z[0] = mu, z[1] = log(theta), where E[X] = mu, Var(X) = mu*(1+mu/theta)
+        """
+        self.d = 2
+
+    def loss(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
+        mu = np.exp(z[0])
+        theta = np.exp(z[1])
+        return (
+            loggamma(theta)
+            - loggamma(theta + y)
+            + (theta + y) * np.log(theta + mu)
+            - y * z[0]
+            - theta * z[1]
+        )
+
+    def grad(self, y: np.ndarray, z: np.ndarray, j: int) -> np.ndarray:
+        mu = np.exp(z[0])
+        theta = np.exp(z[1])
+        if j == 0:
+            return -y + mu * (y + theta) / (mu + theta)
+        elif j == 1:
+            return theta * (
+                polygamma(0, theta)
+                - polygamma(0, theta + y)
+                + np.log(theta + mu)
+                + (y + theta) / (mu + theta)
+                - z[1]
+                - 1
+            )
+
+    def mme(self, y: np.ndarray) -> np.ndarray:
+        return np.array([y.mean(), np.log(y.mean() ** 2 / (y.var() - y.mean()))])
+
+    def simulate(
+        self, z: np.ndarray, random_state: Union[int, None] = None
+    ) -> np.ndarray:
+        rng = np.random.default_rng(seed=random_state)
+        mu = np.exp(z[0])
+        theta = np.exp(z[1])
+        p = theta / (mu + theta)
+        r = theta
+        y = rng.negative_binomial(r, p)
+        return y.astype(float)
+
+    def moment(self, z: np.ndarray, k: int) -> np.ndarray:
+        if k == 1:
+            return np.exp(z[0])
+        elif k == 2:
+            return np.exp(z[0]) * (1 + np.exp(z[0] - z[1]))
 
 
 @inherit_docstrings
@@ -187,9 +252,9 @@ class InverseGaussianDistribution(Distribution):
         return rng.wald(np.exp(z[0]), np.exp(z[1]))
 
     def moment(self, z: np.ndarray, k: int) -> np.ndarray:
-        if k == 0:
+        if k == 1:
             return np.exp(z[0])
-        elif k == 1:
+        elif k == 2:
             return np.exp(3 * z[0] - z[1])
 
 
@@ -238,9 +303,9 @@ class GammaDistribution(Distribution):
         return rng.gamma(np.exp(z[1]), np.exp(-z[0] - z[1]))
 
     def moment(self, z: np.ndarray, k: int) -> np.ndarray:
-        if k == 0:
+        if k == 1:
             return np.exp(z[0])
-        elif k == 1:
+        elif k == 2:
             return np.exp(2 * z[0] + z[1])
 
 
@@ -308,9 +373,9 @@ class BetaPrimeDistribution(Distribution):
         return y0 / (1 - y0)
 
     def moment(self, z: np.ndarray, k: int) -> np.ndarray:
-        if k == 0:
+        if k == 1:
             return np.exp(z[0])
-        elif k == 1:
+        elif k == 2:
             return np.exp(z[0] - z[1]) * (1 + np.exp(z[0]))
 
 
@@ -333,6 +398,8 @@ def initiate_distribution(
         return BetaPrimeDistribution()
     if dist == "inv_gauss":
         return InverseGaussianDistribution()
+    if dist == "neg_bin":
+        return NegativeBinomialDistribution()
     raise UnknownDistributionError("Unknown distribution")
 
 

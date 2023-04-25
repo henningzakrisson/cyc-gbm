@@ -92,23 +92,32 @@ def tune_kappa(
 
 
 if __name__ == "__main__":
-    n = 100
-    expected_kappa = [12, 16]
+    # Simulator
     rng = np.random.default_rng(seed=10)
-    X0 = np.arange(0, n)
-    X1 = np.arange(0, n)
-    rng.shuffle(X1)
-    mu = 10 * (X0 > 0.3 * n) + 5 * (X1 > 0.5 * n)
-    sigma = np.exp(1 + 1 * (X0 < 0.4 * n))
+    distribution = initiate_distribution(dist="neg_bin")
+    p = 9
+    n = 1000
+    X = np.concatenate([np.ones((1, n)), rng.normal(0, 1, (p - 1, n))]).T
+    z0 = (
+        -1
+        + 0.004 * np.minimum(2, X[:, 4]) ** 2
+        + 2.2 * np.minimum(0.5, X[:, 1])
+        + np.sin(0.3 * X[:, 2])
+    )
+    z1 = (
+        -2 + 0.3 * (X[:, 1] > 0) + 0.2 * np.abs(X[:, 2]) * (X[:, 5] > 0) + 0.2 * X[:, 3]
+    )
+    z = np.stack([z0, z1])
+    y = distribution.simulate(z, random_state=11)
 
-    X = np.stack([X0, X1]).T
-    y = rng.normal(mu, sigma)
-
-    kappa_max = [1000, 100]
-    eps = 0.1
-    max_depth = 2
-    min_samples_leaf = 20
+    # Set hyperparameters
+    kappa_max = 100
+    max_depth = 3
+    min_samples_leaf = 5
+    eps = [0.1, 0.1]
+    n_splits = 4
     random_state = 5
+
     tuning_results = tune_kappa(
         X=X,
         y=y,
@@ -116,7 +125,9 @@ if __name__ == "__main__":
         eps=eps,
         max_depth=max_depth,
         min_samples_leaf=min_samples_leaf,
-        dist="normal",
-        n_splits=4,
+        dist="neg_bin",
+        n_splits=n_splits,
         random_state=random_state,
     )
+
+    print(tuning_results["kappa"])
