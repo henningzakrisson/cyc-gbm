@@ -111,7 +111,14 @@ class Distribution:
         # Indicator vector for adding step to dimension j
         e = np.eye(self.d)[:, j : j + 1]
         to_min = lambda step: self.loss(y=y, z=z + e * step).sum()
-        step_opt = minimize(fun=to_min, x0=g_0)["x"][0]
+        grad = lambda step: self.grad(y=y, z=z + e * step, j=j).sum()
+        step_opt = minimize(
+            fun=to_min,
+            jac=grad,
+            x0=g_0,
+        )[
+            "x"
+        ][0]
         return step_opt
 
 
@@ -145,9 +152,9 @@ class NormalDistribution(Distribution):
         return rng.normal(z[0], np.exp(z[1]))
 
     def moment(self, z: np.ndarray, k: int) -> np.ndarray:
-        if k == 0:
+        if k == 1:
             return z[0]
-        elif k == 1:
+        elif k == 2:
             return np.exp(2 * z[1])
 
 
@@ -199,12 +206,13 @@ class NegativeBinomialDistribution(Distribution):
         theta = np.exp(z[1])
         p = theta / (mu + theta)
         r = theta
-        return rng.negative_binomial(r, p)
+        y = rng.negative_binomial(r, p)
+        return y.astype(float)
 
     def moment(self, z: np.ndarray, k: int) -> np.ndarray:
-        if k == 0:
+        if k == 1:
             return np.exp(z[0])
-        elif k == 1:
+        elif k == 2:
             return np.exp(z[0]) * (1 + np.exp(z[0] - z[1]))
 
 
@@ -244,9 +252,9 @@ class InverseGaussianDistribution(Distribution):
         return rng.wald(np.exp(z[0]), np.exp(z[1]))
 
     def moment(self, z: np.ndarray, k: int) -> np.ndarray:
-        if k == 0:
+        if k == 1:
             return np.exp(z[0])
-        elif k == 1:
+        elif k == 2:
             return np.exp(3 * z[0] - z[1])
 
 
@@ -295,9 +303,9 @@ class GammaDistribution(Distribution):
         return rng.gamma(np.exp(z[1]), np.exp(-z[0] - z[1]))
 
     def moment(self, z: np.ndarray, k: int) -> np.ndarray:
-        if k == 0:
+        if k == 1:
             return np.exp(z[0])
-        elif k == 1:
+        elif k == 2:
             return np.exp(2 * z[0] + z[1])
 
 
@@ -365,9 +373,9 @@ class BetaPrimeDistribution(Distribution):
         return y0 / (1 - y0)
 
     def moment(self, z: np.ndarray, k: int) -> np.ndarray:
-        if k == 0:
+        if k == 1:
             return np.exp(z[0])
-        elif k == 1:
+        elif k == 2:
             return np.exp(z[0] - z[1]) * (1 + np.exp(z[0]))
 
 

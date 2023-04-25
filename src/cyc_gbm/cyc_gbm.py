@@ -97,45 +97,21 @@ class CycGBM:
 
 
 if __name__ == "__main__":
-    # Simulator
+    expected_loss = -105.64814333065765
+    n = 100
     rng = np.random.default_rng(seed=10)
-
-    def simulator(z):
-        mu = np.exp(z[0])
-        theta = np.exp(z[1])
-        p = theta / (mu + theta)
-        r = theta
-        return rng.negative_binomial(r, p)
-
-    # Parameter functions (0:th index in x is constant)
-    def z_function(x):
-        z0 = (
-            -1
-            + 0.004 * np.minimum(2, x[:, 4]) ** 2
-            + 2.2 * np.minimum(0.5, x[:, 1])
-            + np.sin(0.3 * x[:, 2])
-        )
-        z1 = (
-            -2
-            + 0.3 * (x[:, 1] > 0)
-            + 0.2 * np.abs(x[:, 2]) * (x[:, 5] > 0)
-            + 0.2 * x[:, 3]
-        )
-        return np.stack([z0, z1])
-
-    # Simulate
-    n = 1000
-    p = 9
-    X = np.concatenate([np.ones((1, n)), rng.normal(0, 1, (p - 1, n))]).T
-    z = z_function(X)
-    y = simulator(z)
+    X = rng.normal(0, 1, (n, 2))
+    z0 = -1 + 0.004 * np.minimum(2, X[:, 0]) ** 2 + 2.2 * np.minimum(0.5, X[:, 1])
+    z1 = -2 + 0.3 * (X[:, 1] > 0) + 0.2 * np.abs(X[:, 1]) * (X[:, 0] > 0)
+    z = np.stack([z0, z1])
+    distribution = initiate_distribution(dist="neg_bin")
+    y = distribution.simulate(z=z, random_state=5)
 
     kappa = 100
-    eps = 0.001
+    eps = 0.01
     gbm = CycGBM(dist="neg_bin", kappa=kappa)
     gbm.fit(X, y)
     z_hat = gbm.predict(X)
-    mle_loss = gbm.dist.loss(y=y, z=gbm.z0).sum()
-    gbm_loss = gbm.dist.loss(y=y, z=z_hat).sum()
-    print(f"Intercept loss: {mle_loss}")
-    print(f"CycGBM loss: {gbm_loss}")
+    loss = gbm.dist.loss(y=y, z=z_hat).sum()
+
+    print(loss - expected_loss)
