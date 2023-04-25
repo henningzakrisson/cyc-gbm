@@ -23,6 +23,7 @@ def tune_kappa(
     dist: str = "normal",
     n_splits: int = 4,
     random_state: Union[int, None] = None,
+    log: bool = False,
 ) -> Dict[str, Union[List[int], np.ndarray]]:
     """Tunes the kappa parameter of a CycGBM model using k-fold cross-validation.
 
@@ -44,8 +45,8 @@ def tune_kappa(
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     kappa_max = kappa_max if isinstance(kappa_max, list) else [kappa_max] * d
     loss = np.ones((n_splits, max(kappa_max) + 1, d)) * np.nan
-
-    logger.info(f"Starting tuning of kappa with {n_splits}-fold cross-validation")
+    if log:
+        logger.info(f"Starting tuning of kappa with {n_splits}-fold cross-validation")
     for i, idx in enumerate(kf.split(X)):
         idx_train, idx_valid = idx
         X_train, y_train = X[idx_train], y[idx_train]
@@ -64,9 +65,10 @@ def tune_kappa(
 
         for k in range(1, max(kappa_max) + 1):
             for j in range(d):
-                logger.info(
-                    f"Fold {i+1}/{n_splits}, boosting step {k}/{max(kappa_max)}, parameter dimension {j+1}/{d}"
-                )
+                if log:
+                    logger.info(
+                        f"Fold {i+1}/{n_splits}, boosting step {k}/{max(kappa_max)}, parameter dimension {j+1}/{d}"
+                    )
                 if k < kappa_max[j]:
                     gbm.update(X=X_train, y=y_train, j=j)
                     z_valid[j] += gbm.eps[j] * gbm.trees[j][-1].predict(X_valid)
@@ -94,7 +96,8 @@ def tune_kappa(
     did_not_converge = (loss_delta > 0).sum(axis=1) == 0
     for j in range(d):
         if did_not_converge[j] and kappa_max[j] > 0:
-            logger.warning(f"Tuning did not converge for dimension {j}")
+            if log:
+                logger.warning(f"Tuning did not converge for dimension {j}")
             kappa[j] = kappa_max[j]
 
     results = {"kappa": kappa, "loss": loss}

@@ -31,7 +31,6 @@ class CycGBM:
         :param min_samples_leaf: Minimum number of samples required at a leaf node. Dimension-wise or global for all parameter dimensions.
         :param dist: distribution for losses and gradients
         """
-        logger.info("Initializing CycGBM")
         self.dist = initiate_distribution(dist=dist)
         self.d = self.dist.d
         self.kappa = kappa if isinstance(kappa, list) else [kappa] * self.d
@@ -45,21 +44,23 @@ class CycGBM:
             else [min_samples_leaf] * self.d
         )
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> None:
+    def fit(self, X: np.ndarray, y: np.ndarray, log: bool = False) -> None:
         """
         Train the model on the given training data.
 
         :param X: Input data matrix of shape (n_samples, n_features).
         :param y: True response values for the input data, of shape (n_samples,).
         """
-        logger.info("Initializing model")
+        if log:
+            logger.info("Initializing model")
         self.z0 = self.dist.mle(y)[:, None]
 
         z = np.tile(self.z0, (1, len(y)))
         self.trees = [[None] * self.kappa[j] for j in range(self.d)]
         for k in range(0, max(self.kappa)):
             for j in range(self.d):
-                logger.info(f"Boosting step {k+1}, parameter dimension {j+1}")
+                if log:
+                    logger.info(f"Boosting step {k+1}, parameter dimension {j+1}")
                 if k >= self.kappa[j]:
                     continue
                 tree = GBMTree(
@@ -70,7 +71,8 @@ class CycGBM:
                 tree.fit_gradients(X=X, y=y, z=z, j=j)
                 z[j] += self.eps[j] * tree.predict(X)
                 self.trees[j][k] = tree
-        logger.info("Finished training")
+        if log:
+            logger.info("Finished training")
 
     def update(self, X: np.ndarray, y: np.ndarray, j: int) -> None:
         """
