@@ -29,6 +29,25 @@ class GBMTree(DecisionTreeRegressor):
         super().__init__(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
         self.dist = dist
 
+    def _adjust_node_value(
+        self, X: np.ndarray, y: np.ndarray, z: np.ndarray, j: int, node_index: int
+    ) -> None:
+        """
+        Adjust the predicted node values of an individual node to its optimal step size.
+
+        :param X: The input training data for the model as a numpy array
+        :param y: The output training data for the model as a numpy array
+        :param z: The current parameter estimates
+        :param j: Parameter dimension to update
+        :param node_index: The index of the node to update
+        """
+        feature = self.tree_.feature[node_index]
+        threshold = self.tree_.threshold[node_index]
+        index = X[:, feature] <= threshold
+        g_0 = self.tree_.value[node_index]
+        g_opt = self.dist.opt_step(y=y[index], z=z[:, index], j=j, g_0=g_0)
+        self.tree_.value[node_index] = g_opt
+
     def _adjust_node_values(
         self,
         X: np.ndarray,
@@ -43,7 +62,6 @@ class GBMTree(DecisionTreeRegressor):
         :param y: The output training data for the model as a numpy array
         :param z: The current parameter estimates
         :param j: Parameter dimension to update
-        :return: The decision tree regressor object with adjusted node values
         """
         g_hat = self.predict(X)
         gs = np.unique(g_hat)
@@ -58,7 +76,7 @@ class GBMTree(DecisionTreeRegressor):
         self, X: np.ndarray, y: np.ndarray, z: np.ndarray, j: int
     ) -> None:
         """
-        Fits the GBMTree to the gradients and adjusts node values to minimize loss
+        Fits the GBMTree to the negative gradients and adjusts node values to minimize loss.
 
         :param X: The training input samples.
         :param y: The target values.
