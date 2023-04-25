@@ -4,6 +4,13 @@ from src.cyc_gbm import CycGBM
 from src.cyc_gbm.distributions import initiate_distribution
 from sklearn.model_selection import KFold
 import warnings
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler())
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger.handlers[0].setFormatter(formatter)
 
 
 def tune_kappa(
@@ -16,6 +23,7 @@ def tune_kappa(
     dist: str = "normal",
     n_splits: int = 4,
     random_state: Union[int, None] = None,
+    log: bool = False,
 ) -> Dict[str, Union[List[int], np.ndarray]]:
     """Tunes the kappa parameter of a CycGBM model using k-fold cross-validation.
 
@@ -37,7 +45,8 @@ def tune_kappa(
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     kappa_max = kappa_max if isinstance(kappa_max, list) else [kappa_max] * d
     loss = np.ones((n_splits, max(kappa_max) + 1, d)) * np.nan
-
+    if log:
+        logger.info(f"Starting tuning of kappa with {n_splits}-fold cross-validation")
     for i, idx in enumerate(kf.split(X)):
         idx_train, idx_valid = idx
         X_train, y_train = X[idx_train], y[idx_train]
@@ -56,6 +65,10 @@ def tune_kappa(
 
         for k in range(1, max(kappa_max) + 1):
             for j in range(d):
+                if log:
+                    logger.info(
+                        f"Fold {i+1}/{n_splits}, boosting step {k}/{max(kappa_max)}, parameter dimension {j+1}/{d}"
+                    )
                 if k < kappa_max[j]:
                     gbm.update(X=X_train, y=y_train, j=j)
                     z_valid[j] += gbm.eps[j] * gbm.trees[j][-1].predict(X_valid)
@@ -83,7 +96,8 @@ def tune_kappa(
     did_not_converge = (loss_delta > 0).sum(axis=1) == 0
     for j in range(d):
         if did_not_converge[j] and kappa_max[j] > 0:
-            warnings.warn(f"Tuning did not converge for dimension {j}")
+            if log:
+                logger.warning(f"Tuning did not converge for dimension {j}")
             kappa[j] = kappa_max[j]
 
     results = {"kappa": kappa, "loss": loss}
@@ -104,7 +118,7 @@ if __name__ == "__main__":
         + 0.45 * X[:, 4] * X[:, 5] ** 2
     )
     z1 = 1 + 0.02 * X[:, 2] + 0.5 * X[:, 1] * (X[:, 1] < 2) + 1.8 * (X[:, 5] > 0)
-    z2 = 0.2 * X[:, 3] + 0.3 * X[:, 2]
+    z2 = 1.2 * X[:, 3] + 0.3 * X[:, 2]
     z = np.stack([z0, z1, z2])
     distribution = initiate_distribution(dist="multivariate_normal")
     y = distribution.simulate(z=z, random_state=5)
