@@ -29,11 +29,13 @@ class GBMTree(DecisionTreeRegressor):
         super().__init__(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
         self.dist = dist
 
-    def _adjust_node_value(
-        self, X: np.ndarray, y: np.ndarray, z: np.ndarray, j: int, node_index: int
+    def _adjust_node_values(
+        self, X: np.ndarray, y: np.ndarray, z: np.ndarray, j: int, node_index: int = 0
     ) -> None:
         """
-        Adjust the predicted node values of an individual node to its optimal step size.
+        Adjust the predicted node values of the node outputs to its optimal step size.
+        Adjustment is performed recursively starting at the top of the tree.
+        The impurity is also changed to the loss of the new node values.
 
         :param X: The input training data for the model as a numpy array
         :param y: The output training data for the model as a numpy array
@@ -41,36 +43,32 @@ class GBMTree(DecisionTreeRegressor):
         :param j: Parameter dimension to update
         :param node_index: The index of the node to update
         """
+        if node_index == -1:
+            # This is nota node, but the child of a leaf
+            return
+        # Optimize node and update impurity
+        g_0 = self.tree_.value[node_index]
+        g_opt = self.dist.opt_step(y=y, z=z, j=j, g_0=g_0)
+        self.tree_.value[node_index] = g_opt
+        e = np.eye(self.dist.d)[:, j:j + 1] # Indicator vector
+        self.tree_.impurity[node_index] = self.dist.loss(y=y, z=z + e * g_opt).sum()
+
+        # Tend to the children
         feature = self.tree_.feature[node_index]
         threshold = self.tree_.threshold[node_index]
-        index = X[:, feature] <= threshold
-        g_0 = self.tree_.value[node_index]
-        g_opt = self.dist.opt_step(y=y[index], z=z[:, index], j=j, g_0=g_0)
-        self.tree_.value[node_index] = g_opt
+        index_left = X[:, feature] <= threshold
+        child_left = self.tree_.children_left[node_index]
+        child_right = self.tree_.children_right[node_index]
+        self._adjust_node_values(X=X[index_left], y=y[index_left], z=z[:, index_left], j=j, node_index=child_left)
+        self._adjust_node_values(X=X[~index_left], y=y[~index_left], z=z[:, ~index_left], j=j, node_index=child_right)
 
-    def _adjust_node_values(
-        self,
-        X: np.ndarray,
-        y: np.ndarray,
-        z: np.ndarray,
-        j: int,
-    ) -> None:
+    def feature_importances(self) -> np.ndarray:
         """
-        Adjust the predicted node values of the decision tree to optimal step sizes
+        Returns the feature importances of the tree.
 
-        :param X: The input training data for the model as a numpy array
-        :param y: The output training data for the model as a numpy array
-        :param z: The current parameter estimates
-        :param j: Parameter dimension to update
+        :return: The feature importances of the tree.
         """
-        g_hat = self.predict(X)
-        gs = np.unique(g_hat)
-        for g in gs:
-            # Find optimal step size for this node
-            index = g_hat == g
-            g_opt = self.dist.opt_step(y=y[index], z=z[:, index], j=j, g_0=g)
-            # Manipulate tree
-            self.tree_.value[self.tree_.value == g] = g_opt
+        return self.tree_.compute_feature_importances(normalize=False)
 
     def fit_gradients(
         self, X: np.ndarray, y: np.ndarray, z: np.ndarray, j: int
