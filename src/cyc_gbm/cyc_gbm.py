@@ -107,32 +107,45 @@ class CycGBM:
                 )
         return self.z0 + z_hat
 
+    def feature_importances(self, j: Union[str,int] = 'all', normalize: bool = True) -> np.ndarray:
+        """
+        Computes the feature importances for parameter dimension j
+
+        :param j: Parameter dimension. If 'all', calculate importance over all parameter dimensions.
+        :return: Feature importance of shape (n_features,)
+        """
+        if j == 'all':
+            feature_importances = np.array([[tree.feature_importances() for tree in self.trees[j]] for j in range(self.d)]).sum(axis=(0,1))
+        else:
+            feature_importances = np.array([tree.feature_importances() for tree in self.trees[j]]).sum(axis=0)
+        if normalize:
+            feature_importances /= feature_importances.sum()
+        return feature_importances
+
 
 if __name__ == "__main__":
     rng = np.random.default_rng(seed=10)
     n = 10000
-    p = 9
+    p = 5
     X = np.concatenate([np.ones((1, n)), rng.normal(0, 1, (p - 1, n))]).T
     z0 = (
-        1.5 * X[:, 1]
-        + 2 * X[:, 3]
-        - 0.65 * X[:, 2] ** 2
-        + 0.5 * np.abs(X[:, 3]) * np.sin(0.5 * X[:, 2])
-        + 0.45 * X[:, 4] * X[:, 5] ** 2
+            1.5 * X[:, 1]
+            + 2 * X[:, 2]
     )
-    z1 = 1 + 0.02 * X[:, 2] + 0.5 * X[:, 1] * (X[:, 1] < 2) + 1.8 * (X[:, 5] > 0)
-    z2 = 0.2 * X[:, 3] + 0.03 * X[:, 2] ** 2
-    z = np.stack([z0, z1, z2])
-    distribution = initiate_distribution(dist="multivariate_normal")
+    z1 = 1 + 1.2 * X[:, 1]
+    z = np.stack([z0, z1])
+    distribution = initiate_distribution(dist="normal")
     y = distribution.simulate(z=z, random_state=5)
 
-    kappa = [23, 17, 79]
-    eps = [0.5, 0.25, 0.1]
-    gbm = CycGBM(dist="multivariate_normal", kappa=kappa, eps=eps)
+    kappa = 100
+    eps = 0.1
+    max_depth = 2
+    gbm = CycGBM(dist="normal", kappa=kappa, eps=eps, max_depth=max_depth)
     gbm.fit(X, y)
-    z_hat = gbm.predict(X)
-    loss = gbm.dist.loss(y=y, z=z_hat).sum()
-    loss_init = gbm.dist.loss(y=y, z=gbm.z0).sum()
 
-    print(f"Initial loss: {loss_init}")
-    print(f"Final loss: {loss}")
+    feature_importances = gbm.feature_importances(j=0)
+    print(feature_importances.round(5))
+    feature_importances = gbm.feature_importances(j=1)
+    print(feature_importances.round(5))
+    feature_importances = gbm.feature_importances(j='all')
+    print(feature_importances.round(5))

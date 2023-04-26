@@ -363,6 +363,40 @@ class GBMTests(unittest.TestCase):
             msg="CycGBM Multivariate Normal distribution loss not as expected",
         )
 
+    def test_feature_importance(self):
+        """ Test method for the 'CycGBM' class to test the feature importance calculation."""
+        rng = np.random.default_rng(seed=10)
+        n = 10000
+        p = 5
+        X = np.concatenate([np.ones((1, n)), rng.normal(0, 1, (p - 1, n))]).T
+        z0 = (
+                1.5 * X[:, 1]
+                + 2 * X[:, 2]
+        )
+        z1 = 1 + 1.2 * X[:, 1]
+        z = np.stack([z0, z1])
+        distribution = initiate_distribution(dist="normal")
+        y = distribution.simulate(z=z, random_state=5)
+
+        kappa = 100
+        eps = 0.1
+        max_depth = 2
+        gbm = CycGBM(dist="normal", kappa=kappa, eps=eps, max_depth=max_depth)
+        gbm.fit(X, y)
+
+        feature_importances = {j: gbm.feature_importances(j=j) for j in [0,1,'all']}
+        expected_feature_importances = {0: [ 0,      0.27203,  0.72798, 0,0],
+                                        1: [0, 0.94076, 0.05484, 0.00224, 0.00217],
+                                        'all': [0, 0.64087,0.3567, 0.00123, 0.0012]}
+        for j in [0,1,'all']:
+            for feature in range(p):
+                self.assertAlmostEqual(
+                    first=expected_feature_importances[j][feature],
+                    second=feature_importances[j][feature],
+                    places=5,
+                    msg=f"CycGBM feature importance not as expected for feature {feature}, parameter {j}"
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
