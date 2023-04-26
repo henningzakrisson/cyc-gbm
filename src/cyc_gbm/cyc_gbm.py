@@ -107,17 +107,26 @@ class CycGBM:
                 )
         return self.z0 + z_hat
 
-    def feature_importances(self, j: Union[str,int] = 'all', normalize: bool = True) -> np.ndarray:
+    def feature_importances(
+        self, j: Union[str, int] = "all", normalize: bool = True
+    ) -> np.ndarray:
         """
         Computes the feature importances for parameter dimension j
 
         :param j: Parameter dimension. If 'all', calculate importance over all parameter dimensions.
         :return: Feature importance of shape (n_features,)
         """
-        if j == 'all':
-            feature_importances = np.array([[tree.feature_importances() for tree in self.trees[j]] for j in range(self.d)]).sum(axis=(0,1))
+        if j == "all":
+            feature_importances = np.array(
+                [
+                    [tree.feature_importances() for tree in self.trees[j]]
+                    for j in range(self.d)
+                ]
+            ).sum(axis=(0, 1))
         else:
-            feature_importances = np.array([tree.feature_importances() for tree in self.trees[j]]).sum(axis=0)
+            feature_importances = np.array(
+                [tree.feature_importances() for tree in self.trees[j]]
+            ).sum(axis=0)
         if normalize:
             feature_importances /= feature_importances.sum()
         return feature_importances
@@ -128,10 +137,7 @@ if __name__ == "__main__":
     n = 10000
     p = 5
     X = np.concatenate([np.ones((1, n)), rng.normal(0, 1, (p - 1, n))]).T
-    z0 = (
-            1.5 * X[:, 1]
-            + 2 * X[:, 2]
-    )
+    z0 = 1.5 * X[:, 1] + 2 * X[:, 2]
     z1 = 1 + 1.2 * X[:, 1]
     z = np.stack([z0, z1])
     distribution = initiate_distribution(dist="normal")
@@ -147,5 +153,5 @@ if __name__ == "__main__":
     print(feature_importances.round(5))
     feature_importances = gbm.feature_importances(j=1)
     print(feature_importances.round(5))
-    feature_importances = gbm.feature_importances(j='all')
+    feature_importances = gbm.feature_importances(j="all")
     print(feature_importances.round(5))

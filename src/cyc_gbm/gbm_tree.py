@@ -50,7 +50,7 @@ class GBMTree(DecisionTreeRegressor):
         g_0 = self.tree_.value[node_index]
         g_opt = self.dist.opt_step(y=y, z=z, j=j, g_0=g_0)
         self.tree_.value[node_index] = g_opt
-        e = np.eye(self.dist.d)[:, j:j + 1] # Indicator vector
+        e = np.eye(self.dist.d)[:, j : j + 1]  # Indicator vector
         self.tree_.impurity[node_index] = self.dist.loss(y=y, z=z + e * g_opt).sum()
 
         # Tend to the children
@@ -59,8 +59,20 @@ class GBMTree(DecisionTreeRegressor):
         index_left = X[:, feature] <= threshold
         child_left = self.tree_.children_left[node_index]
         child_right = self.tree_.children_right[node_index]
-        self._adjust_node_values(X=X[index_left], y=y[index_left], z=z[:, index_left], j=j, node_index=child_left)
-        self._adjust_node_values(X=X[~index_left], y=y[~index_left], z=z[:, ~index_left], j=j, node_index=child_right)
+        self._adjust_node_values(
+            X=X[index_left],
+            y=y[index_left],
+            z=z[:, index_left],
+            j=j,
+            node_index=child_left,
+        )
+        self._adjust_node_values(
+            X=X[~index_left],
+            y=y[~index_left],
+            z=z[:, ~index_left],
+            j=j,
+            node_index=child_right,
+        )
 
     def feature_importances(self) -> np.ndarray:
         """
