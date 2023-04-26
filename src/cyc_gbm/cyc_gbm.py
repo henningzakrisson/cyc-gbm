@@ -33,7 +33,11 @@ class CycGBM:
         """
         self.dist = initiate_distribution(dist=dist)
         self.d = self.dist.d
-        self.kappa = kappa if isinstance(kappa, list) else [kappa] * self.d
+        self.kappa = (
+            kappa
+            if isinstance(kappa, list) or isinstance(kappa, np.ndarray)
+            else [kappa] * self.d
+        )
         self.eps = eps if isinstance(eps, list) else [eps] * self.d
         self.max_depth = (
             max_depth if isinstance(max_depth, list) else [max_depth] * self.d
