@@ -59,12 +59,16 @@ class Distribution:
         pass
 
     def simulate(
-        self, z: np.ndarray, random_state: Union[int, None] = None
+        self,
+        z: np.ndarray,
+        random_state: Union[int, None] = None,
+        rng: Union[np.random.Generator, None] = None,
     ) -> np.ndarray:
         """Simulate values given parameter values in z
 
         :param z: Parameter values of shape (n_parameters, n_samples).
         :param random_state: Random seed to use in simulation.
+        :param rng: Random number generator to use in simulation.
         :return: Simulated values of shape (n_samples,).
         """
         pass
@@ -204,9 +208,13 @@ class MultivariateNormalDistribution(Distribution):
         return np.array([mu, np.log(s2), np.log(rho)])
 
     def simulate(
-        self, z: np.ndarray, random_state: Union[int, None] = None
+        self,
+        z: np.ndarray,
+        random_state: Union[int, None] = None,
+        rng: Union[np.random.Generator, None] = None,
     ) -> np.ndarray:
-        rng = np.random.default_rng(seed=random_state)
+        if rng is None:
+            rng = np.random.default_rng(seed=random_state)
         mu = np.stack([z[0]] * 2)
         rho = self.sigm(z[2])
         s2 = np.exp(z[1])
@@ -252,9 +260,13 @@ class NormalDistribution(Distribution):
         return np.array([y.mean(), np.log(y.std())])
 
     def simulate(
-        self, z: np.ndarray, random_state: Union[int, None] = None
+        self,
+        z: np.ndarray,
+        random_state: Union[int, None] = None,
+        rng: Union[np.random.Generator, None] = None,
     ) -> np.ndarray:
-        rng = np.random.default_rng(seed=random_state)
+        if rng is None:
+            rng = np.random.default_rng(seed=random_state)
         return rng.normal(z[0], np.exp(z[1]))
 
     def moment(self, z: np.ndarray, k: int) -> np.ndarray:
@@ -305,9 +317,13 @@ class NegativeBinomialDistribution(Distribution):
         return np.array([y.mean(), np.log(y.mean() ** 2 / (y.var() - y.mean()))])
 
     def simulate(
-        self, z: np.ndarray, random_state: Union[int, None] = None
+        self,
+        z: np.ndarray,
+        random_state: Union[int, None] = None,
+        rng: Union[np.random.Generator, None] = None,
     ) -> np.ndarray:
-        rng = np.random.default_rng(seed=random_state)
+        if rng is None:
+            rng = np.random.default_rng(seed=random_state)
         mu = np.exp(z[0])
         theta = np.exp(z[1])
         p = theta / (mu + theta)
@@ -352,9 +368,13 @@ class InverseGaussianDistribution(Distribution):
         return np.array([np.log(np.mean(y)), 3 * np.log(np.mean(y)) - np.log(y.var())])
 
     def simulate(
-        self, z: np.ndarray, random_state: Union[int, None] = None
+        self,
+        z: np.ndarray,
+        random_state: Union[int, None] = None,
+        rng: Union[np.random.Generator, None] = None,
     ) -> np.ndarray:
-        rng = np.random.default_rng(seed=random_state)
+        if rng is None:
+            rng = np.random.default_rng(seed=random_state)
         return rng.wald(np.exp(z[0]), np.exp(z[1]))
 
     def moment(self, z: np.ndarray, k: int) -> np.ndarray:
@@ -403,9 +423,13 @@ class GammaDistribution(Distribution):
         )
 
     def simulate(
-        self, z: np.ndarray, random_state: Union[int, None] = None
+        self,
+        z: np.ndarray,
+        random_state: Union[int, None] = None,
+        rng: Union[np.random.Generator, None] = None,
     ) -> np.ndarray:
-        rng = np.random.default_rng(seed=random_state)
+        if rng is None:
+            rng = np.random.default_rng(seed=random_state)
         return rng.gamma(np.exp(z[1]), np.exp(-z[0] - z[1]))
 
     def moment(self, z: np.ndarray, k: int) -> np.ndarray:
@@ -468,9 +492,13 @@ class BetaPrimeDistribution(Distribution):
         )
 
     def simulate(
-        self, z: np.ndarray, random_state: Union[int, None] = None
+        self,
+        z: np.ndarray,
+        random_state: Union[int, None] = None,
+        rng: Union[np.random.Generator, None] = None,
     ) -> np.ndarray:
-        rng = np.random.default_rng(seed=random_state)
+        if rng is None:
+            rng = np.random.default_rng(seed=random_state)
         mu = np.exp(z[0])
         v = np.exp(z[1])
         alpha = mu * (1 + v)
