@@ -41,6 +41,21 @@ class CycGBM:
             else [min_samples_leaf] * self.d
         )
 
+        self.z0 = None
+        self.trees = [[None] * self.kappa[j] for j in range(self.d)]
+
+    def _adjust_mle(self, X: np.ndarray, y: np.ndarray) -> None:
+        """
+        Adjust the initial values of the model for parameters not modeled by the GBM
+
+        :param X: Input data matrix of shape (n_samples, n_features).
+        :param y: True response values for the input data, of shape (n_samples,).
+        """
+        z = self.predict(X=X)
+        for j in range(self.d):
+            if self.kappa[j] == 0:
+                self.z0[j] += self.dist.opt_step(y=y, z=z, j=j)
+
     def fit(self, X: np.ndarray, y: np.ndarray) -> None:
         """
         Train the model on the given training data.
@@ -49,9 +64,8 @@ class CycGBM:
         :param y: True response values for the input data, of shape (n_samples,).
         """
         self.z0 = self.dist.mle(y)[:, None]
-
         z = np.tile(self.z0, (1, len(y)))
-        self.trees = [[None] * self.kappa[j] for j in range(self.d)]
+
         for k in range(0, max(self.kappa)):
             for j in range(self.d):
                 if k >= self.kappa[j]:
@@ -64,6 +78,8 @@ class CycGBM:
                 tree.fit_gradients(X=X, y=y, z=z, j=j)
                 z[j] += self.eps[j] * tree.predict(X)
                 self.trees[j][k] = tree
+
+        self._adjust_mle(X=X, y=y)
 
     def update(self, X: np.ndarray, y: np.ndarray, j: int) -> None:
         """
