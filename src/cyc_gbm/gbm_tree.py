@@ -47,7 +47,7 @@ class GBMTree(DecisionTreeRegressor):
             # This is nota node, but the child of a leaf
             return
         # Optimize node and update impurity
-        g_0 = self.tree_.value[node_index]
+        g_0 = self.tree_.value[node_index][0][0]
         g_opt = self.dist.opt_step(y=y, z=z, j=j, g_0=g_0)
         self.tree_.value[node_index] = g_opt
         e = np.eye(self.dist.d)[:, j : j + 1]  # Indicator vector
