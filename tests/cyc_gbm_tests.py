@@ -207,7 +207,7 @@ class GBMTests(unittest.TestCase):
             self.assertEqual(
                 first=expected_kappa[j],
                 second=tuning_results["kappa"][j],
-                msg=f"CycGBM Tuning method not giving expected result for dimension {j}",
+                msg=f"CycGBM Tuning method not giving expected result for dimension {j} in normal distribution",
             )
 
     def test_beta_prime(self):
