@@ -2,13 +2,6 @@ import numpy as np
 from typing import List, Union
 from src.cyc_gbm.distributions import initiate_distribution
 from src.cyc_gbm.gbm_tree import GBMTree
-import logging
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(logging.StreamHandler())
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-logger.handlers[0].setFormatter(formatter)
 
 
 class CycGBM:
@@ -33,7 +26,11 @@ class CycGBM:
         """
         self.dist = initiate_distribution(dist=dist)
         self.d = self.dist.d
-        self.kappa = kappa if isinstance(kappa, list) else [kappa] * self.d
+        self.kappa = (
+            kappa
+            if isinstance(kappa, list) or isinstance(kappa, np.ndarray)
+            else [kappa] * self.d
+        )
         self.eps = eps if isinstance(eps, list) else [eps] * self.d
         self.max_depth = (
             max_depth if isinstance(max_depth, list) else [max_depth] * self.d
@@ -44,23 +41,33 @@ class CycGBM:
             else [min_samples_leaf] * self.d
         )
 
-    def fit(self, X: np.ndarray, y: np.ndarray, log: bool = False) -> None:
+        self.z0 = None
+        self.trees = [[None] * self.kappa[j] for j in range(self.d)]
+
+    def _adjust_mle(self, X: np.ndarray, y: np.ndarray) -> None:
+        """
+        Adjust the initial values of the model for parameters not modeled by the GBM
+
+        :param X: Input data matrix of shape (n_samples, n_features).
+        :param y: True response values for the input data, of shape (n_samples,).
+        """
+        z = self.predict(X=X)
+        for j in range(self.d):
+            if self.kappa[j] == 0:
+                self.z0[j] += self.dist.opt_step(y=y, z=z, j=j)
+
+    def fit(self, X: np.ndarray, y: np.ndarray) -> None:
         """
         Train the model on the given training data.
 
         :param X: Input data matrix of shape (n_samples, n_features).
         :param y: True response values for the input data, of shape (n_samples,).
         """
-        if log:
-            logger.info("Initializing model")
         self.z0 = self.dist.mle(y)[:, None]
-
         z = np.tile(self.z0, (1, len(y)))
-        self.trees = [[None] * self.kappa[j] for j in range(self.d)]
+
         for k in range(0, max(self.kappa)):
             for j in range(self.d):
-                if log:
-                    logger.info(f"Boosting step {k+1}, parameter dimension {j+1}")
                 if k >= self.kappa[j]:
                     continue
                 tree = GBMTree(
@@ -71,8 +78,8 @@ class CycGBM:
                 tree.fit_gradients(X=X, y=y, z=z, j=j)
                 z[j] += self.eps[j] * tree.predict(X)
                 self.trees[j][k] = tree
-        if log:
-            logger.info("Finished training")
+
+        self._adjust_mle(X=X, y=y)
 
     def update(self, X: np.ndarray, y: np.ndarray, j: int) -> None:
         """

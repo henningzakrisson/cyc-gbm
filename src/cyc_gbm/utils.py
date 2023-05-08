@@ -1,9 +1,7 @@
 import numpy as np
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Tuple
 from src.cyc_gbm import CycGBM
 from src.cyc_gbm.distributions import initiate_distribution
-from sklearn.model_selection import KFold
-import warnings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -11,6 +9,79 @@ logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler())
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger.handlers[0].setFormatter(formatter)
+
+
+def train_test_split(
+    X: np.ndarray,
+    y: np.ndarray,
+    z: Union[np.ndarray, None] = None,
+    test_size: float = 0.8,
+    random_state: Union[int, None] = None,
+    rng: Union[np.random.Generator, None] = None,
+) -> Tuple[
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    Union[np.ndarray, None],
+    Union[np.ndarray, None],
+]:
+    """Split X, y and z into a training set and a test set.
+
+    :param X: The input data matrix of shape (n_samples, n_features).
+    :param y: The target vector of shape (n_samples,).
+    :param z: The parameter vector of shape (n_parameters, n_samples).
+    :param test_size: The proportion of the dataset to include in the test split.
+    :param random_state: The seed used by the random number generator.
+    :param rng: The random number generator.
+    :return: X_train, X_test, y_train, y_test, z_train, z_test
+    """
+    # Split X, y and z into a training set and a test set
+    if rng is None:
+        rng = np.random.default_rng(random_state)
+    n_samples = X.shape[0]
+    n_test = int(n_samples * test_size)
+    idx = rng.permutation(n_samples)
+    idx_test = idx[:n_test]
+    idx_train = idx[n_test:]
+    X_train, X_test = X[idx_train], X[idx_test]
+    y_train, y_test = y[idx_train], y[idx_test]
+    if z is None:
+        return X_train, X_test, y_train, y_test, None, None
+    else:
+        z_train, z_test = z[:, idx_train], z[:, idx_test]
+        return X_train, X_test, y_train, y_test, z_train, z_test
+
+
+def _fold_split(
+    X: np.ndarray,
+    y: np.ndarray,
+    z: Union[np.ndarray, None] = None,
+    n_splits: int = 4,
+    random_state: Union[int, None] = None,
+    rng: Union[np.random.Generator, None] = None,
+) -> List[Tuple[np.ndarray, np.ndarray]]:
+    """Split X, y and z into k folds.
+
+    :param X: The input data matrix of shape (n_samples, n_features).
+    :param y: The target vector of shape (n_samples,).
+    :param z: The parameter vector of shape (n_parameters, n_samples).
+    :param n_splits: The number of folds to use for k-fold cross-validation.
+    :param random_state: The seed used by the random number generator.
+    :param rng: The random number generator.
+    :return List of tuples containing (idx_train, idx_test) for each fold.
+    """
+    if rng is None:
+        rng = np.random.default_rng(random_state)
+    n_samples = X.shape[0]
+    idx = rng.permutation(n_samples)
+    idx_folds = np.array_split(idx, n_splits)
+    folds = []
+    for i in range(n_splits):
+        idx_test = idx_folds[i]
+        idx_train = np.concatenate(idx_folds[:i] + idx_folds[i + 1 :])
+        folds.append((idx_train, idx_test))
+    return folds
 
 
 def tune_kappa(
@@ -23,7 +94,8 @@ def tune_kappa(
     dist: str = "normal",
     n_splits: int = 4,
     random_state: Union[int, None] = None,
-    log: bool = False,
+    rng: Union[np.random.Generator, None] = None,
+    verbose: int = 0,
 ) -> Dict[str, Union[List[int], np.ndarray]]:
     """Tunes the kappa parameter of a CycGBM model using k-fold cross-validation.
 
@@ -36,18 +108,23 @@ def tune_kappa(
     :param dist: The distribution of the target variable.
     :param n_splits: The number of folds to use for k-fold cross-validation.
     :param random_state: The random state to use for the k-fold split.
-    :param return_loss: boolean to indicate if the loss from the folds should be returned
+    :param rng: The random number generator.
+    :param verbose: The verbosity level of the logger. 0: no logging, 1: fold logging, 2: tree logging.
     :return: Dictionary containing 'kappa' as the optimal number of bossting steps and 'loss' as loss array over all folds.
 
     """
+    if rng is None:
+        rng = np.random.default_rng(random_state)
+    folds = _fold_split(X=X, y=y, n_splits=n_splits, rng=rng)
     distribution = initiate_distribution(dist=dist)
     d = distribution.d
-    kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     kappa_max = kappa_max if isinstance(kappa_max, list) else [kappa_max] * d
     loss = np.ones((n_splits, max(kappa_max) + 1, d)) * np.nan
-    if log:
+    if verbose > 0:
         logger.info(f"Starting tuning of kappa with {n_splits}-fold cross-validation")
-    for i, idx in enumerate(kf.split(X)):
+    for i, idx in enumerate(folds):
+        if verbose == 1:
+            logger.info(f"Fold {i+1}/{n_splits}")
         idx_train, idx_valid = idx
         X_train, y_train = X[idx_train], y[idx_train]
         X_valid, y_valid = X[idx_valid], y[idx_valid]
@@ -64,11 +141,11 @@ def tune_kappa(
         loss[i, 0, :] = gbm.dist.loss(y=y_valid, z=z_valid).sum()
 
         for k in range(1, max(kappa_max) + 1):
+            if verbose > 1:
+                logger.info(
+                    f"Fold {i+1}/{n_splits}, Boosting step {k}/{max(kappa_max)}"
+                )
             for j in range(d):
-                if log:
-                    logger.info(
-                        f"Fold {i+1}/{n_splits}, boosting step {k}/{max(kappa_max)}, parameter dimension {j+1}/{d}"
-                    )
                 if k < kappa_max[j]:
                     gbm.update(X=X_train, y=y_train, j=j)
                     z_valid[j] += gbm.eps[j] * gbm.trees[j][-1].predict(X_valid)
@@ -92,23 +169,32 @@ def tune_kappa(
     loss_delta[0, 1:] = loss_total[1:, 0] - loss_total[:-1, -1]
     for j in range(1, d):
         loss_delta[j, 1:] = loss_total[1:, j] - loss_total[1:, j - 1]
-    kappa = np.argmax(loss_delta > 0, axis=1) - 1
+    kappa = np.maximum(0, np.argmax(loss_delta > 0, axis=1) - 1)
     did_not_converge = (loss_delta > 0).sum(axis=1) == 0
     for j in range(d):
         if did_not_converge[j] and kappa_max[j] > 0:
-            if log:
+            if verbose > 0:
                 logger.warning(f"Tuning did not converge for dimension {j}")
             kappa[j] = kappa_max[j]
 
+    if verbose > 0:
+        logger.info(f"Finished tuning of kappa with {n_splits}-fold cross-validation")
     results = {"kappa": kappa, "loss": loss}
 
     return results
 
 
 if __name__ == "__main__":
-    rng = np.random.default_rng(seed=10)
-    n = 1000
+    from sklearn.model_selection import train_test_split
+
+    n = 100000
     p = 9
+    random_state = 11
+    dist = "normal"
+
+    rng = np.random.default_rng(seed=random_state)
+    distribution = initiate_distribution(dist=dist)
+
     X = np.concatenate([np.ones((1, n)), rng.normal(0, 1, (p - 1, n))]).T
     z0 = (
         1.5 * X[:, 1]
@@ -118,30 +204,34 @@ if __name__ == "__main__":
         + 0.45 * X[:, 4] * X[:, 5] ** 2
     )
     z1 = 1 + 0.02 * X[:, 2] + 0.5 * X[:, 1] * (X[:, 1] < 2) + 1.8 * (X[:, 5] > 0)
-    z2 = 1.2 * X[:, 3] + 0.3 * X[:, 2]
-    z = np.stack([z0, z1, z2])
-    distribution = initiate_distribution(dist="multivariate_normal")
-    y = distribution.simulate(z=z, random_state=5)
+    z = np.stack([z0, z1])
+    y = distribution.simulate(z=z, random_state=12)
+
+    X_train, X_test, y_train, y_test, z_train, z_test = train_test_split(
+        X, y, z.T, test_size=0.2, random_state=random_state
+    )
+    z_train = z_train.T
+    z_test = z_test.T
 
     # Set hyperparameters
-    kappa_max = 1000
-    max_depth = 1
-    min_samples_leaf = 2
-    eps = [0.5, 0.25, 0.1]
-    n_splits = 4
-    random_state = 5
+    kappa_max = [100, 0]
+    eps = 0.1
+    max_depth = 3
+    min_samples_leaf = 5
+    n_splits = 10
 
-    tuning_results = tune_kappa(
-        X=X,
-        y=y,
-        kappa_max=kappa_max,
+    # Tune kappa
+    kappa_uni = tune_kappa(
+        X=X_train,
+        y=y_train,
+        n_splits=n_splits,
         eps=eps,
         max_depth=max_depth,
         min_samples_leaf=min_samples_leaf,
-        dist="multivariate_normal",
-        n_splits=n_splits,
-        random_state=random_state,
-    )
+        kappa_max=kappa_max,
+        dist=dist,
+        random_state=13,
+        log=True,
+    )["kappa"]
 
-    kappa_opt = tuning_results["kappa"]
-    print(f"Optimal kappa: {kappa_opt}")
+    print(kappa_uni)

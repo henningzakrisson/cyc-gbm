@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from src.cyc_gbm import CycGBM
+from src.cyc_gbm import CycGBM, CycGLM
 from src.cyc_gbm.utils import tune_kappa
 from src.cyc_gbm.distributions import initiate_distribution
 
@@ -34,7 +34,7 @@ class GBMTests(unittest.TestCase):
         loss = gbm.dist.loss(y=y, z=gbm.predict(X)).sum()
 
         self.assertAlmostEqual(
-            first=54.96955230902564,
+            first=51.017764411696184,
             second=loss,
             places=5,
             msg="UniGBM Normal distribution loss not as expected",
@@ -64,7 +64,7 @@ class GBMTests(unittest.TestCase):
         loss = gbm.dist.loss(y=y, z=gbm.predict(X)).sum()
 
         self.assertAlmostEqual(
-            first=134.98811187268964,
+            first=131.5549875160215,
             second=loss,
             places=5,
             msg="UniGBM Gamma distribution sse not as expected",
@@ -75,7 +75,7 @@ class GBMTests(unittest.TestCase):
 
         :raises AssertionError: If the estimated number of boosting steps does not match the expecter number.
         """
-        expected_kappa = 36
+        expected_kappa = 35
         n = 1000
         rng = np.random.default_rng(seed=10)
         X0 = np.arange(0, n)
@@ -176,7 +176,7 @@ class GBMTests(unittest.TestCase):
         :raises AssertionError: If the estimated number of boosting steps does not match the expecter number.
         """
         n = 100
-        expected_kappa = [12, 16]
+        expected_kappa = [16, 15]
         rng = np.random.default_rng(seed=10)
         X0 = np.arange(0, n)
         X1 = np.arange(0, n)
@@ -207,7 +207,7 @@ class GBMTests(unittest.TestCase):
             self.assertEqual(
                 first=expected_kappa[j],
                 second=tuning_results["kappa"][j],
-                msg=f"CycGBM Tuning method not giving expected result for dimension {j}",
+                msg=f"CycGBM Tuning method not giving expected result for dimension {j} in normal distribution",
             )
 
     def test_beta_prime(self):
@@ -394,6 +394,41 @@ class GBMTests(unittest.TestCase):
                     second=feature_importances[j][feature],
                     places=5,
                     msg=f"CycGBM feature importance not as expected for feature {feature}, parameter {j}",
+                )
+
+    def test_cyc_glm(self):
+        """
+        Test method for the `CycGLM` class on a dataset where the target variable
+        follows a normal distribution.
+        :raises AssertionError: If the estimated parameters do not match the true ones
+        """
+        rng = np.random.default_rng(seed=11)
+        n = 10000
+        p = 3
+        X = np.concatenate([np.ones((1, n)), rng.normal(0, 1, (p - 1, n))]).T
+        beta_0 = np.array([0, 1, 2]) / 10
+        beta_1 = np.array([0, 2, 1]) / 10
+
+        z0 = beta_0 @ X.T
+        z1 = beta_1 @ X.T
+        z = np.stack([z0, z1])
+        distribution = initiate_distribution(dist="normal")
+        y = distribution.simulate(z=z, random_state=5)
+
+        max_iter = 10000
+        eps = 1e-7
+        tol = 1e-6
+        cyc_glm = CycGLM(dist="normal", max_iter=max_iter, eps=eps, tol=tol)
+        cyc_glm.fit(X, y)
+        beta_hat = cyc_glm.beta
+
+        for j in range(2):
+            for k in range(p):
+                self.assertAlmostEqual(
+                    first=beta_hat[j, k],
+                    second=beta_0[k] if j == 0 else beta_1[k],
+                    places=1,
+                    msg=f"CycGLM parameter estimate not as expected for parameter dimension {j}, covariate parameter {k}",
                 )
 
 
