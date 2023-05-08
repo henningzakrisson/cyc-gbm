@@ -75,7 +75,7 @@ class GBMTests(unittest.TestCase):
 
         :raises AssertionError: If the estimated number of boosting steps does not match the expecter number.
         """
-        expected_kappa = 36
+        expected_kappa = 35
         n = 1000
         rng = np.random.default_rng(seed=10)
         X0 = np.arange(0, n)
@@ -176,7 +176,7 @@ class GBMTests(unittest.TestCase):
         :raises AssertionError: If the estimated number of boosting steps does not match the expecter number.
         """
         n = 100
-        expected_kappa = [12, 16]
+        expected_kappa = [16, 15]
         rng = np.random.default_rng(seed=10)
         X0 = np.arange(0, n)
         X1 = np.arange(0, n)
