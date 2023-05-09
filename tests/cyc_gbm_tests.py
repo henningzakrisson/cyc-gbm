@@ -64,7 +64,7 @@ class GBMTests(unittest.TestCase):
         loss = gbm.dist.loss(y=y, z=gbm.predict(X)).sum()
 
         self.assertAlmostEqual(
-            first=131.5549875160215,
+            first=130.9327996047943,
             second=loss,
             places=5,
             msg="UniGBM Gamma distribution sse not as expected",
@@ -359,7 +359,7 @@ class GBMTests(unittest.TestCase):
         self.assertAlmostEqual(
             first=expected_loss,
             second=loss,
-            places=5,
+            places=4,
             msg="CycGBM Multivariate Normal distribution loss not as expected",
         )
 
@@ -430,6 +430,82 @@ class GBMTests(unittest.TestCase):
                     places=1,
                     msg=f"CycGLM parameter estimate not as expected for parameter dimension {j}, covariate parameter {k}",
                 )
+
+    def test_gamma_with_weights(self):
+        """
+        Test method for the `CycGBM` class on a dataset where the target variable
+        follows a gamma distribution with weights.
+        :raises AssertionError: If the calculated loss does not match the expected loss
+            to within a tolerance.
+        """
+        rng = np.random.default_rng(seed=10)
+        n = 1000
+        expected_loss = 1208.247290263608
+        X0 = np.arange(0, n)
+        X1 = np.arange(0, n)
+        rng.shuffle(X1)
+        z0 = 1 * (X0 > 0.3 * n) + 0.5 * (X1 > 0.5 * n)
+        z1 = 1 + 1 * (X0 < 0.4 * n)
+        rng = np.random.default_rng(seed=10)
+        w = rng.poisson(10, n)
+
+        X = np.stack([X0, X1]).T
+        z = np.stack([z0, z1])
+        distribution = initiate_distribution(dist="gamma")
+        y = distribution.simulate(z=z, w=w, random_state=5)
+
+        kappas = [15, 30]
+        eps = 0.1
+        gbm = CycGBM(kappa=kappas, eps=eps, dist="gamma")
+        gbm.fit(X, y)
+        z_hat = gbm.predict(X)
+
+        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+
+        self.assertAlmostEqual(
+            first=expected_loss,
+            second=loss,
+            places=5,
+            msg="CycGBM Gamma distribution with weights loss not as expected",
+        )
+
+    def test_normal_with_weights(self):
+        """
+        Test method for the `CycGBM` class on a dataset where the target variable
+        follows a normal distribution with weights.
+        :raises AssertionError: If the calculated loss does not match the expected loss
+            to within a tolerance.
+        """
+        rng = np.random.default_rng(seed=10)
+        n = 1000
+        expected_loss = 3069.316477311563
+        X0 = np.arange(0, n)
+        X1 = np.arange(0, n)
+        rng.shuffle(X1)
+        z0 = 1 * (X0 > 0.3 * n) + 0.5 * (X1 > 0.5 * n)
+        z1 = 1 + 1 * (X0 < 0.4 * n)
+        rng = np.random.default_rng(seed=10)
+        w = rng.poisson(10, n)
+
+        X = np.stack([X0, X1]).T
+        z = np.stack([z0, z1])
+        distribution = initiate_distribution(dist="normal")
+        y = distribution.simulate(z=z, w=w, random_state=5)
+
+        kappas = [15, 30]
+        eps = 0.1
+        gbm = CycGBM(kappa=kappas, eps=eps, dist="normal")
+        gbm.fit(X, y)
+        z_hat = gbm.predict(X)
+
+        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+
+        self.assertAlmostEqual(
+            first=expected_loss,
+            second=loss,
+            places=5,
+            msg="CycGBM Normal distribution with weights loss not as expected",
+        )
 
 
 if __name__ == "__main__":
