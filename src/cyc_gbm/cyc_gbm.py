@@ -51,7 +51,7 @@ class CycGBM:
         Adjust the initial values of the model for parameters not modeled by the GBM
 
         :param X: Input data matrix of shape (n_samples, n_features).
-        :param y: True response values for the input data, of shape (n_samples,).
+        :param y: True response values for the input data.
         :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
         """
         z = self.predict(X=X)
@@ -66,7 +66,7 @@ class CycGBM:
         Train the model on the given training data.
 
         :param X: Input data matrix of shape (n_samples, n_features).
-        :param y: True response values for the input data, of shape (n_samples,).
+        :param y: True response values for the input data.
         :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
         """
         if isinstance(w, float):
@@ -95,7 +95,7 @@ class CycGBM:
         Updates the current boosting model with one additional tree
 
         :param X: The training input data, shape (n_samples, n_features).
-        :param y: The target values for the training data, shape (n_samples,).
+        :param y: The target values for the training data.
         :param j: Parameter dimension to update
         :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
         """
