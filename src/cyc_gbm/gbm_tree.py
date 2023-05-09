@@ -30,7 +30,13 @@ class GBMTree(DecisionTreeRegressor):
         self.dist = dist
 
     def _adjust_node_values(
-        self, X: np.ndarray, y: np.ndarray, z: np.ndarray, j: int, node_index: int = 0
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        z: np.ndarray,
+        w: np.ndarray,
+        j: int,
+        node_index: int = 0,
     ) -> None:
         """
         Adjust the predicted node values of the node outputs to its optimal step size.
@@ -40,6 +46,7 @@ class GBMTree(DecisionTreeRegressor):
         :param X: The input training data for the model as a numpy array
         :param y: The output training data for the model as a numpy array
         :param z: The current parameter estimates
+        :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
         :param j: Parameter dimension to update
         :param node_index: The index of the node to update
         """
@@ -48,10 +55,12 @@ class GBMTree(DecisionTreeRegressor):
             return
         # Optimize node and update impurity
         g_0 = self.tree_.value[node_index][0][0]
-        g_opt = self.dist.opt_step(y=y, z=z, j=j, g_0=g_0)
+        g_opt = self.dist.opt_step(y=y, z=z, w=w, j=j, g_0=g_0)
         self.tree_.value[node_index] = g_opt
         e = np.eye(self.dist.d)[:, j : j + 1]  # Indicator vector
-        self.tree_.impurity[node_index] = self.dist.loss(y=y, z=z + e * g_opt).sum()
+        self.tree_.impurity[node_index] = self.dist.loss(
+            y=y, z=z + e * g_opt, w=w
+        ).sum()
 
         # Tend to the children
         feature = self.tree_.feature[node_index]
@@ -63,6 +72,7 @@ class GBMTree(DecisionTreeRegressor):
             X=X[index_left],
             y=y[index_left],
             z=z[:, index_left],
+            w=w[index_left],
             j=j,
             node_index=child_left,
         )
@@ -70,6 +80,7 @@ class GBMTree(DecisionTreeRegressor):
             X=X[~index_left],
             y=y[~index_left],
             z=z[:, ~index_left],
+            w=w[~index_left],
             j=j,
             node_index=child_right,
         )
@@ -83,7 +94,12 @@ class GBMTree(DecisionTreeRegressor):
         return self.tree_.compute_feature_importances(normalize=False)
 
     def fit_gradients(
-        self, X: np.ndarray, y: np.ndarray, z: np.ndarray, j: int
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        z: np.ndarray,
+        w: np.ndarray,
+        j: int,
     ) -> None:
         """
         Fits the GBMTree to the negative gradients and adjusts node values to minimize loss.
@@ -91,8 +107,9 @@ class GBMTree(DecisionTreeRegressor):
         :param X: The training input samples.
         :param y: The target values.
         :param z: The predicted parameter values from the previous iteration.
+        :param w: Weights for the training data, of shape (n_samples,).
         :param j: The index of the current iteration.
         """
-        g = self.dist.grad(y=y, z=z, j=j)
+        g = self.dist.grad(y=y, z=z, w=w, j=j)
         self.fit(X, -g)
-        self._adjust_node_values(X=X, y=y, z=z, j=j)
+        self._adjust_node_values(X=X, y=y, z=z, w=w, j=j)

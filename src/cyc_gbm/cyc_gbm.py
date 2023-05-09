@@ -44,28 +44,35 @@ class CycGBM:
         self.z0 = None
         self.trees = [[None] * self.kappa[j] for j in range(self.d)]
 
-    def _adjust_mle(self, X: np.ndarray, y: np.ndarray) -> None:
+    def _adjust_mle(
+        self, X: np.ndarray, y: np.ndarray, w: Union[np.ndarray, float] = 1
+    ) -> None:
         """
         Adjust the initial values of the model for parameters not modeled by the GBM
 
         :param X: Input data matrix of shape (n_samples, n_features).
         :param y: True response values for the input data, of shape (n_samples,).
+        :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
         """
         z = self.predict(X=X)
         for j in range(self.d):
             if self.kappa[j] == 0:
-                self.z0[j] += self.dist.opt_step(y=y, z=z, j=j)
+                self.z0[j] += self.dist.opt_step(y=y, z=z, w=w, j=j)
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> None:
+    def fit(
+        self, X: np.ndarray, y: np.ndarray, w: Union[np.ndarray, float] = 1.0
+    ) -> None:
         """
         Train the model on the given training data.
 
         :param X: Input data matrix of shape (n_samples, n_features).
         :param y: True response values for the input data, of shape (n_samples,).
+        :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
         """
-        self.z0 = self.dist.mle(y)[:, None]
+        if isinstance(w, float):
+            w = np.ones(len(y)) * w
+        self.z0 = self.dist.mle(y=y, w=w)[:, None]
         z = np.tile(self.z0, (1, len(y)))
-
         for k in range(0, max(self.kappa)):
             for j in range(self.d):
                 if k >= self.kappa[j]:
@@ -75,27 +82,32 @@ class CycGBM:
                     min_samples_leaf=self.min_samples_leaf[j],
                     dist=self.dist,
                 )
-                tree.fit_gradients(X=X, y=y, z=z, j=j)
+                tree.fit_gradients(X=X, y=y, z=z, w=w, j=j)
                 z[j] += self.eps[j] * tree.predict(X)
                 self.trees[j][k] = tree
 
-        self._adjust_mle(X=X, y=y)
+        self._adjust_mle(X=X, y=y, w=w)
 
-    def update(self, X: np.ndarray, y: np.ndarray, j: int) -> None:
+    def update(
+        self, X: np.ndarray, y: np.ndarray, j: int, w: Union[np.ndarray, float] = 1
+    ) -> None:
         """
         Updates the current boosting model with one additional tree
 
         :param X: The training input data, shape (n_samples, n_features).
         :param y: The target values for the training data, shape (n_samples,).
         :param j: Parameter dimension to update
+        :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
         """
+        if isinstance(w, float):
+            w = np.ones(len(y)) * w
         z = self.predict(X)
         tree = GBMTree(
             max_depth=self.max_depth[j],
             min_samples_leaf=self.min_samples_leaf[j],
             dist=self.dist,
         )
-        tree.fit_gradients(X=X, y=y, z=z, j=j)
+        tree.fit_gradients(X=X, y=y, z=z, w=w, j=j)
         self.trees[j] += [tree]
         self.kappa[j] += 1
 
@@ -141,24 +153,23 @@ class CycGBM:
 
 if __name__ == "__main__":
     rng = np.random.default_rng(seed=10)
-    n = 10000
-    p = 5
+    n = 1000
+    p = 9
     X = np.concatenate([np.ones((1, n)), rng.normal(0, 1, (p - 1, n))]).T
-    z0 = 1.5 * X[:, 1] + 2 * X[:, 2]
-    z1 = 1 + 1.2 * X[:, 1]
-    z = np.stack([z0, z1])
-    distribution = initiate_distribution(dist="normal")
+    z0 = (
+        1.5 * X[:, 1]
+        + 2 * X[:, 3]
+        - 0.65 * X[:, 2] ** 2
+        + 0.5 * np.abs(X[:, 3]) * np.sin(0.5 * X[:, 2])
+        + 0.45 * X[:, 4] * X[:, 5] ** 2
+    )
+    z1 = 1 + 0.02 * X[:, 2] + 0.5 * X[:, 1] * (X[:, 1] < 2) + 1.8 * (X[:, 5] > 0)
+    z2 = 0.2 * X[:, 3] + 0.03 * X[:, 2] ** 2
+    z = np.stack([z0, z1, z2])
+    distribution = initiate_distribution(dist="multivariate_normal")
     y = distribution.simulate(z=z, random_state=5)
 
-    kappa = 100
-    eps = 0.1
-    max_depth = 2
-    gbm = CycGBM(dist="normal", kappa=kappa, eps=eps, max_depth=max_depth)
+    kappa = [23, 17, 79]
+    eps = [0.5, 0.25, 0.1]
+    gbm = CycGBM(dist="multivariate_normal", kappa=kappa, eps=eps)
     gbm.fit(X, y)
-
-    feature_importances = gbm.feature_importances(j=0)
-    print(feature_importances.round(5))
-    feature_importances = gbm.feature_importances(j=1)
-    print(feature_importances.round(5))
-    feature_importances = gbm.feature_importances(j="all")
-    print(feature_importances.round(5))

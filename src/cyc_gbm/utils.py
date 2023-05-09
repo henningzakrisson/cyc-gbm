@@ -14,6 +14,7 @@ logger.handlers[0].setFormatter(formatter)
 def train_test_split(
     X: np.ndarray,
     y: np.ndarray,
+    w: Union[np.ndarray, None] = None,
     z: Union[np.ndarray, None] = None,
     test_size: float = 0.8,
     random_state: Union[int, None] = None,
@@ -25,11 +26,14 @@ def train_test_split(
     np.ndarray,
     Union[np.ndarray, None],
     Union[np.ndarray, None],
+    Union[np.ndarray, None],
+    Union[np.ndarray, None],
 ]:
     """Split X, y and z into a training set and a test set.
 
     :param X: The input data matrix of shape (n_samples, n_features).
     :param y: The target vector of shape (n_samples,).
+    :param w: The weights for the training data, of shape (n_samples,). Default is 1 for all samples.
     :param z: The parameter vector of shape (n_parameters, n_samples).
     :param test_size: The proportion of the dataset to include in the test split.
     :param random_state: The seed used by the random number generator.
@@ -46,26 +50,22 @@ def train_test_split(
     idx_train = idx[n_test:]
     X_train, X_test = X[idx_train], X[idx_test]
     y_train, y_test = y[idx_train], y[idx_test]
-    if z is None:
-        return X_train, X_test, y_train, y_test, None, None
-    else:
-        z_train, z_test = z[:, idx_train], z[:, idx_test]
-        return X_train, X_test, y_train, y_test, z_train, z_test
+    z_train, z_test = (
+        (z[:, idx_train], z[:, idx_test]) if z is not None else (None, None)
+    )
+    w_train, w_test = (w[idx_train], w[idx_test]) if w is not None else (None, None)
+    return X_train, X_test, y_train, y_test, z_train, z_test, w_train, w_test
 
 
 def _fold_split(
     X: np.ndarray,
-    y: np.ndarray,
-    z: Union[np.ndarray, None] = None,
     n_splits: int = 4,
     random_state: Union[int, None] = None,
     rng: Union[np.random.Generator, None] = None,
 ) -> List[Tuple[np.ndarray, np.ndarray]]:
-    """Split X, y and z into k folds.
+    """Split data into k folds.
 
     :param X: The input data matrix of shape (n_samples, n_features).
-    :param y: The target vector of shape (n_samples,).
-    :param z: The parameter vector of shape (n_parameters, n_samples).
     :param n_splits: The number of folds to use for k-fold cross-validation.
     :param random_state: The seed used by the random number generator.
     :param rng: The random number generator.
@@ -87,6 +87,7 @@ def _fold_split(
 def tune_kappa(
     X: np.ndarray,
     y: np.ndarray,
+    w: Union[np.ndarray, float] = 1.0,
     kappa_max: Union[int, List[int]] = 1000,
     eps: Union[float, List[float]] = 0.1,
     max_depth: Union[int, List[int]] = 2,
@@ -101,6 +102,7 @@ def tune_kappa(
 
     :param X: The input data matrix of shape (n_samples, n_features).
     :param y: The target vector of shape (n_samples,).
+    :param w: The weights for the training data, of shape (n_samples,). Default is 1 for all samples.
     :param kappa_max: The maximum value of the kappa parameter to test. Dimension-wise or same for all parameter dimensions.
     :param eps: The epsilon parameters for the CycGBM model.Dimension-wise or same for all parameter dimensions.
     :param max_depth: The maximum depth of the decision trees in the GBM model. Dimension-wise or same for all parameter dimensions.
@@ -113,9 +115,11 @@ def tune_kappa(
     :return: Dictionary containing 'kappa' as the optimal number of bossting steps and 'loss' as loss array over all folds.
 
     """
+    if isinstance(w, float):
+        w = np.ones(len(y)) * w
     if rng is None:
         rng = np.random.default_rng(random_state)
-    folds = _fold_split(X=X, y=y, n_splits=n_splits, rng=rng)
+    folds = _fold_split(X=X, n_splits=n_splits, rng=rng)
     distribution = initiate_distribution(dist=dist)
     d = distribution.d
     kappa_max = kappa_max if isinstance(kappa_max, list) else [kappa_max] * d
@@ -126,8 +130,8 @@ def tune_kappa(
         if verbose == 1:
             logger.info(f"Fold {i+1}/{n_splits}")
         idx_train, idx_valid = idx
-        X_train, y_train = X[idx_train], y[idx_train]
-        X_valid, y_valid = X[idx_valid], y[idx_valid]
+        X_train, y_train, w_train = X[idx_train], y[idx_train], w[idx_train]
+        X_valid, y_valid, w_valid = X[idx_valid], y[idx_valid], w[idx_valid]
 
         gbm = CycGBM(
             kappa=0,
@@ -136,9 +140,9 @@ def tune_kappa(
             min_samples_leaf=min_samples_leaf,
             dist=dist,
         )
-        gbm.fit(X_train, y_train)
+        gbm.fit(X_train, y_train, w_train)
         z_valid = gbm.predict(X_valid)
-        loss[i, 0, :] = gbm.dist.loss(y=y_valid, z=z_valid).sum()
+        loss[i, 0, :] = gbm.dist.loss(y=y_valid, z=z_valid, w=w_valid).sum()
 
         for k in range(1, max(kappa_max) + 1):
             if verbose > 1:
@@ -147,9 +151,9 @@ def tune_kappa(
                 )
             for j in range(d):
                 if k < kappa_max[j]:
-                    gbm.update(X=X_train, y=y_train, j=j)
+                    gbm.update(X=X_train, y=y_train, w=w_train, j=j)
                     z_valid[j] += gbm.eps[j] * gbm.trees[j][-1].predict(X_valid)
-                    loss[i, k, j] = gbm.dist.loss(y=y_valid, z=z_valid).sum()
+                    loss[i, k, j] = gbm.dist.loss(y=y_valid, z=z_valid, w=w_valid).sum()
                 else:
                     if j == 0:
                         loss[i, k, j] = loss[i, k - 1, j + 1]
