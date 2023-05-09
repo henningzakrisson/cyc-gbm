@@ -35,13 +35,14 @@ class CycGLM:
         self,
         X: np.ndarray,
         y: np.ndarray,
-        log: bool = False,
+        w: Union[np.ndarray, float] = 1,
     ) -> None:
         """
         Train the model on the given training data.
 
         :param X: Input data matrix of shape (n_samples, n_features).
         :param y: True response values for the input data, of shape (n_samples,).
+        :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
         """
         z0 = self.dist.mle(y)[:, None]
         z = np.tile(z0, (1, len(y)))
@@ -53,7 +54,7 @@ class CycGLM:
 
         for i in range(self.max_iter):
             for j in range(self.d):
-                g = self.dist.grad(y=y, z=z, j=j)
+                g = self.dist.grad(y=y, z=z, w=w, j=j)
                 beta_hat[i, j] = beta_hat[i - 1, j] - self.eps[j] * g @ X
                 # Update score
                 z[j] = beta_hat[i, j] @ X.T
