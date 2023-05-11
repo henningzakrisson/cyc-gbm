@@ -480,7 +480,7 @@ class GammaDistribution(Distribution):
         self, y: np.ndarray, z: np.ndarray, j: int, w: Union[np.ndarray, float] = 1.0
     ) -> np.ndarray:
         if j == 0:
-            return np.exp(-z[1]) * (1 - y * np.exp(-z[0]))
+            return np.exp(-z[1]) * (w - y * np.exp(-z[0]))
         elif j == 1:
             return (
                 w
