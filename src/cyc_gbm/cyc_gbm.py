@@ -1,6 +1,6 @@
 import numpy as np
 from typing import List, Union
-from src.cyc_gbm.distributions import initiate_distribution
+from src.cyc_gbm.distributions import initiate_distribution, Distribution
 from src.cyc_gbm.gbm_tree import GBMTree
 
 
@@ -15,16 +15,19 @@ class CycGBM:
         eps: Union[float, List[float]] = 0.1,
         max_depth: Union[int, List[int]] = 2,
         min_samples_leaf: Union[int, List[int]] = 20,
-        dist: str = "normal",
+        distribution: Union[str,Distribution] = "normal",
     ):
         """
         :param kappa: Number of boosting steps. Dimension-wise or global for all parameter dimensions.
         :param eps: Shrinkage factors, which scales the contribution of each tree. Dimension-wise or global for all parameter dimensions.
         :param max_depth: Maximum depths of each decision tree. Dimension-wise or global for all parameter dimensions.
         :param min_samples_leaf: Minimum number of samples required at a leaf node. Dimension-wise or global for all parameter dimensions.
-        :param dist: distribution for losses and gradients
+        :param distribution: distribution for losses and gradients. String or Distribution object.
         """
-        self.dist = initiate_distribution(dist=dist)
+        if isinstance(distribution, str):
+            self.dist = initiate_distribution(distribution=distribution)
+        else:
+            self.dist = distribution
         self.d = self.dist.d
         self.kappa = (
             kappa
@@ -80,7 +83,7 @@ class CycGBM:
                 tree = GBMTree(
                     max_depth=self.max_depth[j],
                     min_samples_leaf=self.min_samples_leaf[j],
-                    dist=self.dist,
+                    distribution=self.dist,
                 )
                 tree.fit_gradients(X=X, y=y, z=z, w=w, j=j)
                 z[j] += self.eps[j] * tree.predict(X)
@@ -105,7 +108,7 @@ class CycGBM:
         tree = GBMTree(
             max_depth=self.max_depth[j],
             min_samples_leaf=self.min_samples_leaf[j],
-            dist=self.dist,
+            distribution=self.dist,
         )
         tree.fit_gradients(X=X, y=y, z=z, w=w, j=j)
         self.trees[j] += [tree]
@@ -166,10 +169,10 @@ if __name__ == "__main__":
     z1 = 1 + 0.02 * X[:, 2] + 0.5 * X[:, 1] * (X[:, 1] < 2) + 1.8 * (X[:, 5] > 0)
     z2 = 0.2 * X[:, 3] + 0.03 * X[:, 2] ** 2
     z = np.stack([z0, z1, z2])
-    distribution = initiate_distribution(dist="multivariate_normal")
+    distribution = initiate_distribution(distribution="multivariate_normal")
     y = distribution.simulate(z=z, random_state=5)
 
     kappa = [23, 17, 79]
     eps = [0.5, 0.25, 0.1]
-    gbm = CycGBM(dist="multivariate_normal", kappa=kappa, eps=eps)
+    gbm = CycGBM(distribution="multivariate_normal", kappa=kappa, eps=eps)
     gbm.fit(X, y)

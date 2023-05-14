@@ -25,11 +25,11 @@ class GBMTests(unittest.TestCase):
         z_0 = 10 * (X[:, 0] > 0.3 * n) + 5 * (X[:, 1] > 0.5 * n)
         z_1 = np.ones(n) * np.log(1.5)
         z = np.stack([z_0, z_1])
-        dist = initiate_distribution(dist="normal")
+        dist = initiate_distribution(distribution="normal")
         y = dist.simulate(z, random_state=10)
 
         kappa = [100, 0]
-        gbm = CycGBM(dist="normal", kappa=kappa)
+        gbm = CycGBM(distribution="normal", kappa=kappa)
         gbm.fit(X, y)
         loss = gbm.dist.loss(y=y, z=gbm.predict(X)).sum()
 
@@ -54,12 +54,12 @@ class GBMTests(unittest.TestCase):
         z_0 = 0.1 * (1 + 10 * (X[:, 0] > 0) + 5 * (X[:, 1] > 0))
         z_1 = np.ones(n) * np.log(1)
         z = np.stack([z_0, z_1])
-        dist = initiate_distribution(dist="gamma")
+        dist = initiate_distribution(distribution="gamma")
         y = dist.simulate(z, random_state=10)
 
         kappa = [100, 0]
         eps = 0.1
-        gbm = CycGBM(dist="gamma", kappa=kappa, eps=eps)
+        gbm = CycGBM(distribution="gamma", kappa=kappa, eps=eps)
         gbm.fit(X, y)
         loss = gbm.dist.loss(y=y, z=gbm.predict(X)).sum()
 
@@ -157,7 +157,7 @@ class GBMTests(unittest.TestCase):
 
         kappas = [15, 30]
         eps = 0.1
-        gbm = CycGBM(kappa=kappas, eps=eps, dist="gamma")
+        gbm = CycGBM(kappa=kappas, eps=eps, distribution="gamma")
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
@@ -199,7 +199,7 @@ class GBMTests(unittest.TestCase):
             eps=eps,
             max_depth=max_depth,
             min_samples_leaf=min_samples_leaf,
-            dist="normal",
+            distribution="normal",
             n_splits=4,
             random_state=random_state,
         )
@@ -243,7 +243,7 @@ class GBMTests(unittest.TestCase):
             eps=eps,
             max_depth=max_depth,
             min_samples_leaf=min_samples_leaf,
-            dist="beta_prime",
+            distribution="beta_prime",
         )
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
@@ -278,7 +278,7 @@ class GBMTests(unittest.TestCase):
 
         kappa = 100
         eps = 0.001
-        gbm = CycGBM(dist="inv_gauss", kappa=kappa)
+        gbm = CycGBM(distribution="inv_gauss", kappa=kappa)
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
         loss = gbm.dist.loss(y=y, z=z_hat).sum()
@@ -305,12 +305,12 @@ class GBMTests(unittest.TestCase):
         z0 = -1 + 0.004 * np.minimum(2, X[:, 0]) ** 2 + 2.2 * np.minimum(0.5, X[:, 1])
         z1 = -2 + 0.3 * (X[:, 1] > 0) + 0.2 * np.abs(X[:, 1]) * (X[:, 0] > 0)
         z = np.stack([z0, z1])
-        distribution = initiate_distribution(dist="neg_bin")
+        distribution = initiate_distribution(distribution="neg_bin")
         y = distribution.simulate(z=z, random_state=5)
 
         kappa = 100
         eps = 0.01
-        gbm = CycGBM(dist="neg_bin", kappa=kappa)
+        gbm = CycGBM(distribution="neg_bin", kappa=kappa)
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
         loss = gbm.dist.loss(y=y, z=z_hat).sum()
@@ -346,12 +346,12 @@ class GBMTests(unittest.TestCase):
         z1 = 1 + 0.02 * X[:, 2] + 0.5 * X[:, 1] * (X[:, 1] < 2) + 1.8 * (X[:, 5] > 0)
         z2 = 0.2 * X[:, 3] + 0.03 * X[:, 2] ** 2
         z = np.stack([z0, z1, z2])
-        distribution = initiate_distribution(dist="multivariate_normal")
+        distribution = initiate_distribution(distribution="multivariate_normal")
         y = distribution.simulate(z=z, random_state=5)
 
         kappa = [23, 17, 79]
         eps = [0.5, 0.25, 0.1]
-        gbm = CycGBM(dist="multivariate_normal", kappa=kappa, eps=eps)
+        gbm = CycGBM(distribution="multivariate_normal", kappa=kappa, eps=eps)
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
         loss = gbm.dist.loss(y=y, z=z_hat).sum()
@@ -372,13 +372,13 @@ class GBMTests(unittest.TestCase):
         z0 = 1.5 * X[:, 1] + 2 * X[:, 2]
         z1 = 1 + 1.2 * X[:, 1]
         z = np.stack([z0, z1])
-        distribution = initiate_distribution(dist="normal")
+        distribution = initiate_distribution(distribution="normal")
         y = distribution.simulate(z=z, random_state=5)
 
         kappa = 100
         eps = 0.1
         max_depth = 2
-        gbm = CycGBM(dist="normal", kappa=kappa, eps=eps, max_depth=max_depth)
+        gbm = CycGBM(distribution="normal", kappa=kappa, eps=eps, max_depth=max_depth)
         gbm.fit(X, y)
 
         feature_importances = {j: gbm.feature_importances(j=j) for j in [0, 1, "all"]}
@@ -412,13 +412,13 @@ class GBMTests(unittest.TestCase):
         z0 = beta_0 @ X.T
         z1 = beta_1 @ X.T
         z = np.stack([z0, z1])
-        distribution = initiate_distribution(dist="normal")
+        distribution = initiate_distribution(distribution="normal")
         y = distribution.simulate(z=z, random_state=5)
 
         max_iter = 10000
         eps = 1e-7
         tol = 1e-6
-        cyc_glm = CycGLM(dist="normal", max_iter=max_iter, eps=eps, tol=tol)
+        cyc_glm = CycGLM(distribution="normal", max_iter=max_iter, eps=eps, tol=tol)
         cyc_glm.fit(X, y)
         beta_hat = cyc_glm.beta
 
@@ -451,12 +451,12 @@ class GBMTests(unittest.TestCase):
 
         X = np.stack([X0, X1]).T
         z = np.stack([z0, z1])
-        distribution = initiate_distribution(dist="gamma")
+        distribution = initiate_distribution(distribution="gamma")
         y = distribution.simulate(z=z, w=w, random_state=5)
 
         kappas = [15, 30]
         eps = 0.1
-        gbm = CycGBM(kappa=kappas, eps=eps, dist="gamma")
+        gbm = CycGBM(kappa=kappas, eps=eps, distribution="gamma")
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
@@ -489,12 +489,12 @@ class GBMTests(unittest.TestCase):
 
         X = np.stack([X0, X1]).T
         z = np.stack([z0, z1])
-        distribution = initiate_distribution(dist="normal")
+        distribution = initiate_distribution(distribution="normal")
         y = distribution.simulate(z=z, w=w, random_state=5)
 
         kappas = [15, 30]
         eps = 0.1
-        gbm = CycGBM(kappa=kappas, eps=eps, dist="normal")
+        gbm = CycGBM(kappa=kappas, eps=eps, distribution="normal")
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 

@@ -1,6 +1,6 @@
 import numpy as np
 from typing import List, Union
-from src.cyc_gbm.distributions import initiate_distribution
+from src.cyc_gbm.distributions import initiate_distribution, Distribution
 
 
 class CycGLM:
@@ -13,7 +13,7 @@ class CycGLM:
         max_iter: int = 1000,
         tol: float = 1e-5,
         eps: Union[List[float], float] = 1e-7,
-        dist: str = "normal",
+        distribution: Union[str,Distribution] = "normal",
     ):
         """
         Initialize the model.
@@ -21,10 +21,13 @@ class CycGLM:
         :param max_iter: Maximum number of iterations.
         :param tol: Tolerance for convergence.
         :param eps: Learning rate.
-        :param dist: distribution for losses and gradients
+        :param distribution: distribution for losses and gradients
         :param dist: distribution for losses and gradients
         """
-        self.dist = initiate_distribution(dist=dist)
+        if isinstance(distribution, str):
+            self.dist = initiate_distribution(distribution=distribution)
+        else:
+            self.dist = distribution
         self.d = self.dist.d
         self.max_iter = max_iter
         self.tol = tol
@@ -92,13 +95,13 @@ if __name__ == "__main__":
     z0 = 2 + 4 * X[:, 1]
     z1 = 1 + 0.2 * X[:, 2]
     z = np.stack([z0, z1])
-    distribution = initiate_distribution(dist="normal")
+    distribution = initiate_distribution(distribution="normal")
     y = distribution.simulate(z=z, random_state=5)
 
     max_iter = 10000
     eps = 1e-5
     tol = 1e-5
-    glm = CycGLM(max_iter=max_iter, eps=eps, tol=tol, dist="normal")
+    glm = CycGLM(max_iter=max_iter, eps=eps, tol=tol, distribution="normal")
     glm.fit(X, y)
 
     loss_glm = distribution.loss(y=y, z=glm.predict(X)).mean()
