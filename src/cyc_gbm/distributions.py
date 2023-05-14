@@ -169,8 +169,12 @@ class MultivariateNormalDistribution(Distribution):
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
     ) -> np.ndarray:
-        mu = w * z[0]
-        s2 = w * np.exp(z[1])
+        if np.any(w != 1):
+            raise NotImplementedError(
+                "Weighted loss not implemented for multivariate normal distribution"
+            )
+        mu = z[0]
+        s2 = np.exp(z[1])
         rho = self.sigm(z[2])
 
         mu_term = (
@@ -184,15 +188,19 @@ class MultivariateNormalDistribution(Distribution):
     def grad(
         self, y: np.ndarray, z: np.ndarray, j: int, w: Union[np.ndarray, float] = 1.0
     ) -> np.ndarray:
+        if np.any(w != 1):
+            raise NotImplementedError(
+                "Weighted loss not implemented for multivariate normal distribution"
+            )
         if j == 0:
-            mu = w * z[0]
-            s2 = w * np.exp(z[1])
+            mu = z[0]
+            s2 = np.exp(z[1])
             rho = self.sigm(z[2])
 
             return (1 / (s2 * (1 + rho))) * (2 * mu - y[:, 0] - y[:, 1])
         elif j == 1:
-            mu = w * z[0]
-            s2 = w * np.exp(z[1])
+            mu = z[0]
+            s2 = np.exp(z[1])
             rho = self.sigm(z[2])
 
             mu_term = (
@@ -207,8 +215,8 @@ class MultivariateNormalDistribution(Distribution):
             return grad
 
         elif j == 2:
-            mu = w * z[0]
-            s2 = w * np.exp(z[1])
+            mu = z[0]
+            s2 = np.exp(z[1])
             rho = self.sigm(z[2])
 
             m_1 = (y[:, 0] - mu) ** 2 + (y[:, 1] - mu) ** 2
@@ -223,10 +231,12 @@ class MultivariateNormalDistribution(Distribution):
 
     def mme(self, y: np.ndarray, w: Union[np.ndarray, float] = 1.0) -> np.ndarray:
         # Return the mean, variance and correlation of a 2d normal distribution
-        if isinstance(w, float):
-            w = np.array([w] * len(y))
-        mu = y.sum() / w.sum()
-        s2 = sum((y[0] - mu) ** 2 + (y[1] - mu) ** 2) / 2 * w.sum()
+        if np.any(w != 1):
+            raise NotImplementedError(
+                "Weighted loss not implemented for multivariate normal distribution"
+            )
+        mu = y.mean()
+        s2 = np.mean((y[0] - mu) ** 2 + (y[1] - mu) ** 2)
         rho = np.corrcoef(y.T)[0, 1]
         return np.array([mu, np.log(s2), self.sigm_inv(rho)])
 
@@ -237,10 +247,14 @@ class MultivariateNormalDistribution(Distribution):
         random_state: Union[int, None] = None,
         rng: Union[np.random.Generator, None] = None,
     ) -> np.ndarray:
+        if np.any(w != 1):
+            raise NotImplementedError(
+                "Weighted loss not implemented for multivariate normal distribution"
+            )
         if rng is None:
             rng = np.random.default_rng(seed=random_state)
-        mu = w * np.stack([z[0]] * 2)
-        s2 = w * np.exp(z[1])
+        mu = np.stack([z[0]] * 2)
+        s2 = np.exp(z[1])
         rho = self.sigm(z[2])
         Sigma = np.stack([np.stack([s2, s2 * rho]), np.stack([s2 * rho, s2])])
 
@@ -254,11 +268,15 @@ class MultivariateNormalDistribution(Distribution):
     def moment(
         self, z: np.ndarray, k: int, w: Union[np.ndarray, float] = 1.0
     ) -> np.ndarray:
+        if np.any(w != 1):
+            raise NotImplementedError(
+                "Weighted loss not implemented for multivariate normal distribution"
+            )
         if k == 1:
-            return w * np.array([z[0], z[0]])
+            return np.array([z[0], z[0]])
         elif k == 2:
             rho = self.sigm(z[2])
-            s2 = w * np.exp(z[1])
+            s2 = np.exp(z[1])
             return np.stack([np.stack([s2, s2 * rho]), np.stack([s2 * rho, s2])])
 
 
@@ -277,25 +295,25 @@ class NormalDistribution(Distribution):
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
     ) -> np.ndarray:
         return (
-            np.log(w)
+            0.5 * np.log(w)
             + z[1]
-            + 1 / (2 * w**2) * np.exp(-2 * z[1]) * (y - w * z[0]) ** 2
+            + 1 / (2 * w) * np.exp(-2 * z[1]) * (y - w * z[0]) ** 2
         )
 
     def grad(
         self, y: np.ndarray, z: np.ndarray, j: int, w: Union[np.ndarray, float] = 1.0
     ) -> np.ndarray:
         if j == 0:
-            return -np.exp(-2 * z[1]) * (y - z[0]) / (w**2)
+            return -np.exp(-2 * z[1]) * (y - w * z[0])
         elif j == 1:
-            return 1 - np.exp(-2 * z[1]) * (y - z[0]) ** 2 / (w**2)
+            return 1 - np.exp(-2 * z[1]) * (y - w * z[0]) ** 2 / w
 
     def mme(self, y: np.ndarray, w: Union[np.ndarray, float] = 1.0) -> np.ndarray:
-        if isinstance(w, float):
+        if not isinstance(w, np.ndarray):
             w = np.array([w] * len(y))
         mean = y.sum() / w.sum()
-        var = sum((y - mean) ** 2) / w.sum()
-        return np.array([mean, np.log(var**0.5)])
+        log_sigma = 0.5 * np.log(((y - w * mean) ** 2 / w).mean())
+        return np.array([mean, log_sigma])
 
     def simulate(
         self,
@@ -324,7 +342,7 @@ class NegativeBinomialDistribution(Distribution):
     ):
         """Initialize a negative binomial distribution object.
 
-        Parameterization: z[0] = mu, z[1] = log(theta), where E[X] = w*mu, Var(X) = w*mu*(1+mu/theta)
+        Parameterization: z[0] = np.log(mu), z[1] = log(theta), where E[X] = w*mu, Var(X) = w*mu*(1+mu/theta)
         """
         self.d = 2
 
@@ -377,10 +395,8 @@ class NegativeBinomialDistribution(Distribution):
     ) -> np.ndarray:
         if rng is None:
             rng = np.random.default_rng(seed=random_state)
-        mu = np.exp(z[0])
-        theta = np.exp(z[1])
-        p = theta / (mu + theta)
-        r = w * theta
+        p = np.exp(z[1]) / (np.exp(z[0]) + np.exp(z[1]))
+        r = w * np.exp(z[1])
         y = rng.negative_binomial(r, p)
         return y.astype(float)
 
@@ -407,30 +423,37 @@ class InverseGaussianDistribution(Distribution):
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
     ) -> np.ndarray:
+        if np.any(w != 1):
+            raise NotImplementedError(
+                "Weighted loss not implemented for InverseGaussianDistribution"
+            )
         return (
-            np.exp(z[1])
-            * (y * np.exp(-2 * z[0]) - 2 * w * np.exp(-z[0]) + w**2 * y ** (-1))
+            np.exp(z[1]) * (y * np.exp(-2 * z[0]) - 2 * np.exp(-z[0]) + y ** (-1))
             - z[1]
-            - 2 * np.log(w)
         )
 
     def grad(
         self, y: np.ndarray, z: np.ndarray, j: int, w: Union[np.ndarray, float] = 1.0
     ) -> np.ndarray:
+        if np.any(w != 1):
+            raise NotImplementedError(
+                "Weighted loss not implemented for InverseGaussianDistribution"
+            )
         if j == 0:
-            return 2 * w * np.exp(z[1] - z[0]) * (1 - y * np.exp(-z[0]) / w)
+            return 2 * np.exp(z[1] - z[0]) * (1 - y * np.exp(-z[0]))
         elif j == 1:
             return (
-                np.exp(z[1])
-                * (y * np.exp(-2 * z[0]) - 2 * w * np.exp(-z[0]) + w**2 * y ** (-1))
+                np.exp(z[1]) * (y * np.exp(-2 * z[0]) - 2 * np.exp(-z[0]) + y ** (-1))
                 - 1
             )
 
     def mme(self, y: np.ndarray, w: Union[np.ndarray, float] = 1.0) -> np.ndarray:
-        if isinstance(w, float):
-            w = np.array([w] * len(y))
-        mean = y.sum() / w.sum()
-        var = sum((y - mean) ** 2) / w.sum()
+        if np.any(w != 1):
+            raise NotImplementedError(
+                "Weighted loss not implemented for InverseGaussianDistribution"
+            )
+        mean = y.mean()
+        var = np.mean((y - mean) ** 2)
         z0 = np.log(mean)
         z1 = 3 * np.log(mean) - np.log(var)
         return np.array([z0, z1])
@@ -442,17 +465,25 @@ class InverseGaussianDistribution(Distribution):
         random_state: Union[int, None] = None,
         rng: Union[np.random.Generator, None] = None,
     ) -> np.ndarray:
+        if np.any(w != 1):
+            raise NotImplementedError(
+                "Weighted loss not implemented for InverseGaussianDistribution"
+            )
         if rng is None:
             rng = np.random.default_rng(seed=random_state)
-        return rng.wald(w * np.exp(z[0]), w**2 * np.exp(z[1]))
+        return rng.wald(np.exp(z[0]), np.exp(z[1]))
 
     def moment(
         self, z: np.ndarray, k: int, w: Union[np.ndarray, float] = 1.0
     ) -> np.ndarray:
+        if np.any(w != 1):
+            raise NotImplementedError(
+                "Weighted loss not implemented for InverseGaussianDistribution"
+            )
         if k == 1:
-            return w * np.exp(z[0])
+            return np.exp(z[0])
         elif k == 2:
-            return w * np.exp(3 * z[0] - z[1])
+            return np.exp(3 * z[0] - z[1])
 
 
 @inherit_docstrings
@@ -480,7 +511,7 @@ class GammaDistribution(Distribution):
         self, y: np.ndarray, z: np.ndarray, j: int, w: Union[np.ndarray, float] = 1.0
     ) -> np.ndarray:
         if j == 0:
-            return np.exp(-z[1]) * (1 - y * np.exp(-z[0]))
+            return np.exp(-z[1]) * (w - y * np.exp(-z[0]))
         elif j == 1:
             return (
                 w
@@ -499,9 +530,9 @@ class GammaDistribution(Distribution):
         if isinstance(w, float):
             w = np.array([w] * len(y))
         mean = y.sum() / w.sum()
-        var = sum((y - mean) ** 2) / w.sum()
+        var = sum((y - y.mean()) ** 2) / w.sum()
         z0 = np.log(mean)
-        z1 = np.log(var) - 2 * np.log(mean)
+        z1 = 2 * z0 - np.log(var - np.exp(z0))
 
         return np.array([z0, z1])
 
@@ -542,63 +573,58 @@ class BetaPrimeDistribution(Distribution):
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
     ) -> np.ndarray:
-        return (
-            (w * np.exp(z[0]) + w * np.exp(z[1]) + w**2 * np.exp(z[0] + z[1]))
-            * np.log(y + 1)
-            - w * np.exp(z[0]) * (w * np.exp(z[1]) + 1) * np.log(y)
-            + loggamma(w * np.exp(z[0]) * (w * np.exp(z[1]) + 1))
-            + loggamma(w * np.exp(z[1]) + 2)
-            - loggamma(
-                w * np.exp(z[0]) + w * np.exp(z[1]) + w**2 * np.exp(z[0] + z[1]) + 2
+        if np.any(np.any(w != 1)):
+            raise NotImplementedError(
+                "Weighted loss not implemented for BetaPrimeDistribution"
             )
+        return (
+            (np.exp(z[0]) + np.exp(z[1]) + np.exp(z[0] + z[1])) * np.log(y + 1)
+            - np.exp(z[0]) * (np.exp(z[1]) + 1) * np.log(y)
+            + loggamma(np.exp(z[0]) * (np.exp(z[1]) + 1))
+            + loggamma(np.exp(z[1]) + 2)
+            - loggamma(np.exp(z[0]) + np.exp(z[1]) + np.exp(z[0] + z[1]) + 2)
         )
 
     def grad(
         self, y: np.ndarray, z: np.ndarray, j: int, w: Union[np.ndarray, float] = 1.0
     ) -> np.ndarray:
+        if np.any(w != 1):
+            raise NotImplementedError(
+                "Weighted loss not implemented for BetaPrimeDistribution"
+            )
         if j == 0:
             return (
-                w
-                * np.exp(z[0])
-                * (1 + w * np.exp(z[1]))
+                np.exp(z[0])
+                * (1 + np.exp(z[1]))
                 * (
-                    polygamma(0, w * np.exp(z[0]) * (1 + w * np.exp(z[1])))
+                    polygamma(0, np.exp(z[0]) * (1 + np.exp(z[1])))
                     - polygamma(
                         0,
-                        w * np.exp(z[0])
-                        + w * np.exp(z[1])
-                        + w**2 * np.exp(z[0] + z[1])
-                        + 2,
+                        np.exp(z[0]) + np.exp(z[1]) + np.exp(z[0] + z[1]) + 2,
                     )
                     + np.log((1 + y) / y)
                 )
             )
         elif j == 1:
-            return (
-                w
-                * np.exp(z[1])
-                * (
-                    w * np.exp(z[0]) * np.log((y + 1) / y)
-                    + np.log(y + 1)
-                    + w
-                    * np.exp(z[0])
-                    * polygamma(0, w * np.exp(z[0]) * (w * np.exp(z[1]) + 1))
-                    + polygamma(0, w * np.exp(z[1]) + 2)
-                    - (w * np.exp(z[0]) + 1)
-                    * polygamma(
-                        0,
-                        w * np.exp(z[0]) * (w * np.exp(z[1]) + 1)
-                        + w * np.exp(z[1])
-                        + 2,
-                    )
+            return np.exp(z[1]) * (
+                np.exp(z[0]) * np.log((y + 1) / y)
+                + np.log(y + 1)
+                + np.exp(z[0]) * polygamma(0, np.exp(z[0]) * (np.exp(z[1]) + 1))
+                + polygamma(0, np.exp(z[1]) + 2)
+                - (np.exp(z[0]) + 1)
+                * polygamma(
+                    0,
+                    np.exp(z[0]) * (np.exp(z[1]) + 1) + np.exp(z[1]) + 2,
                 )
             )
 
     def mme(self, y: np.ndarray, w: Union[np.ndarray, float] = 1.0) -> np.ndarray:
-        if isinstance(w, float):
-            w = np.array([w] * len(y))
-        mean = y.sum() / w.sum()
-        var = sum((y - mean) ** 2) / w.sum()
+        if np.any(w != 1):
+            raise NotImplementedError(
+                "Weighted loss not implemented for BetaPrimeDistribution"
+            )
+        mean = y.mean()
+        var = np.mean((y - mean) ** 2)
         z0 = np.log(mean)
         z1 = np.log(mean) + np.log(1 + mean) - np.log(var)
 
@@ -611,22 +637,30 @@ class BetaPrimeDistribution(Distribution):
         random_state: Union[int, None] = None,
         rng: Union[np.random.Generator, None] = None,
     ) -> np.ndarray:
+        if np.any(w != 1):
+            raise NotImplementedError(
+                "Weighted loss not implemented for BetaPrimeDistribution"
+            )
         if rng is None:
             rng = np.random.default_rng(seed=random_state)
         mu = np.exp(z[0])
         v = np.exp(z[1])
-        alpha = w * mu * (1 + w * v)
-        beta = w * v + 2
+        alpha = mu * (1 + v)
+        beta = v + 2
         y0 = rng.beta(alpha, beta)
         return y0 / (1 - y0)
 
     def moment(
         self, z: np.ndarray, k: int, w: Union[np.ndarray, float] = 1.0
     ) -> np.ndarray:
+        if np.any(w != 1):
+            raise NotImplementedError(
+                "Weighted loss not implemented for BetaPrimeDistribution"
+            )
         if k == 1:
-            return w * np.exp(z[0])
+            return np.exp(z[0])
         elif k == 2:
-            return w * np.exp(z[0] - z[1]) * (1 + np.exp(z[0]))
+            return np.exp(z[0] - z[1]) * (1 + np.exp(z[0]))
 
 
 def initiate_distribution(
