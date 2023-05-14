@@ -277,25 +277,25 @@ class NormalDistribution(Distribution):
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
     ) -> np.ndarray:
         return (
-            np.log(w)
+            0.5 * np.log(w)
             + z[1]
-            + 1 / (2 * w**2) * np.exp(-2 * z[1]) * (y - w * z[0]) ** 2
+            + 1 / (2 * w) * np.exp(-2 * z[1]) * (y - w * z[0]) ** 2
         )
 
     def grad(
         self, y: np.ndarray, z: np.ndarray, j: int, w: Union[np.ndarray, float] = 1.0
     ) -> np.ndarray:
         if j == 0:
-            return -np.exp(-2 * z[1]) * (y - z[0]) / (w**2)
+            return -np.exp(-2 * z[1]) * (y - w * z[0])
         elif j == 1:
-            return 1 - np.exp(-2 * z[1]) * (y - z[0]) ** 2 / (w**2)
+            return 1 - np.exp(-2 * z[1]) * (y - w * z[0]) ** 2 / w
 
     def mme(self, y: np.ndarray, w: Union[np.ndarray, float] = 1.0) -> np.ndarray:
-        if isinstance(w, float):
+        if not isinstance(w, np.ndarray):
             w = np.array([w] * len(y))
         mean = y.sum() / w.sum()
-        var = sum((y - mean) ** 2) / w.sum()
-        return np.array([mean, np.log(var**0.5)])
+        log_sigma = 0.5 * np.log(((y - w * mean) ** 2 / w).mean())
+        return np.array([mean, log_sigma])
 
     def simulate(
         self,
