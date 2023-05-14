@@ -199,7 +199,7 @@ class GBMTests(unittest.TestCase):
             eps=eps,
             max_depth=max_depth,
             min_samples_leaf=min_samples_leaf,
-            dist="normal",
+            distribution="normal",
             n_splits=4,
             random_state=random_state,
         )
