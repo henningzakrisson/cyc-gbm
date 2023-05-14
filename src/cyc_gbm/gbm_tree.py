@@ -9,7 +9,7 @@ class GBMTree(DecisionTreeRegressor):
 
     :param max_depth: The maximum depth of the tree.
     :param min_samples_leaf: The minimum number of samples required to be at a leaf node.
-    :param dist: The distribution function used for calculating the gradients.
+    :param distribution: The distribution function used for calculating the gradients.
 
     """
 
@@ -17,17 +17,17 @@ class GBMTree(DecisionTreeRegressor):
         self,
         max_depth: int,
         min_samples_leaf: int,
-        dist: Distribution,
+        distribution: Distribution,
     ):
         """
         Constructs a new GBMTree instance.
 
         :param max_depth: The maximum depth of the tree.
         :param min_samples_leaf: The minimum number of samples required to be at a leaf node.
-        :param dist: The distribution used for calculating the gradients and losses
+        :param distribution: The distribution used for calculating the gradients and losses
         """
         super().__init__(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
-        self.dist = dist
+        self.distribution = distribution
 
     def _adjust_node_values(
         self,
@@ -55,10 +55,10 @@ class GBMTree(DecisionTreeRegressor):
             return
         # Optimize node and update impurity
         g_0 = self.tree_.value[node_index][0][0]
-        g_opt = self.dist.opt_step(y=y, z=z, w=w, j=j, g_0=g_0)
+        g_opt = self.distribution.opt_step(y=y, z=z, w=w, j=j, g_0=g_0)
         self.tree_.value[node_index] = g_opt
-        e = np.eye(self.dist.d)[:, j : j + 1]  # Indicator vector
-        self.tree_.impurity[node_index] = self.dist.loss(
+        e = np.eye(self.distribution.d)[:, j : j + 1]  # Indicator vector
+        self.tree_.impurity[node_index] = self.distribution.loss(
             y=y, z=z + e * g_opt, w=w
         ).sum()
 
@@ -110,6 +110,6 @@ class GBMTree(DecisionTreeRegressor):
         :param w: Weights for the training data, of shape (n_samples,).
         :param j: The index of the current iteration.
         """
-        g = self.dist.grad(y=y, z=z, w=w, j=j)
+        g = self.distribution.grad(y=y, z=z, w=w, j=j)
         self.fit(X, -g)
         self._adjust_node_values(X=X, y=y, z=z, w=w, j=j)

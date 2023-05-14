@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Union, Type
+from typing import Union, Type, Callable
 from src.cyc_gbm.exceptions import UnknownDistributionError
 from scipy.special import loggamma, polygamma
 from scipy.optimize import minimize
@@ -97,7 +97,7 @@ class Distribution:
         :param w: The weights of the observations. Default is 1.0.
         :return: The maximum likelihood estimator of the parameters.
         """
-        z_0 = self.mme(y=y)
+        z_0 = self.mme(y=y, w = w)
         to_min = lambda z: self.loss(y=y, z=z, w=w).sum()
         z_opt = minimize(to_min, z_0)["x"]
         return z_opt
@@ -663,32 +663,106 @@ class BetaPrimeDistribution(Distribution):
             return np.exp(z[0] - z[1]) * (1 + np.exp(z[0]))
 
 
+@inherit_docstrings
+class CustomDistribution(Distribution):
+    def __init__(
+        self,
+        loss: Callable[[np.ndarray, np.ndarray, Union[np.ndarray, float]], np.ndarray],
+        grad: Callable[
+            [np.ndarray, np.ndarray, int, Union[np.ndarray, float]], np.ndarray
+        ],
+        mme: Callable[[np.ndarray, Union[np.ndarray, float]], np.ndarray],
+        simulate: Callable[
+            [
+                np.ndarray,
+                Union[np.ndarray, float],
+                Union[int, None],
+                Union[np.random.Generator, None],
+            ],
+            np.ndarray,
+        ],
+        moment: Callable[[np.ndarray, int, Union[np.ndarray, float]], np.ndarray],
+        d: int,
+    ):
+        """
+        Initialize a custom distribution object.
+
+        :param loss: A function that computes the loss.
+        :param grad: A function that computes the gradient of the loss.
+        :param mme: A function that computes the method of moments estimator.
+        :param simulate: A function that simulates data from the distribution.
+        :param moment: A function that computes the kth moment of the distribution.
+        :param d: The dimension of the distribution.
+        """
+        self.loss = loss
+        self.grad = grad
+        self.mme = mme
+        self.simulate = simulate
+        self.moment = moment
+        self.d = d
+
+
 def initiate_distribution(
-    dist: str,
+    distribution: str = "custom",
+    loss: Union[
+        None, Callable[[np.ndarray, np.ndarray, Union[np.ndarray, float]], np.ndarray]
+    ] = None,
+    grad: Union[
+        None,
+        Callable[[np.ndarray, np.ndarray, int, Union[np.ndarray, float]], np.ndarray],
+    ] = None,
+    mme: Union[
+        None, Callable[[np.ndarray, Union[np.ndarray, float]], np.ndarray]
+    ] = None,
+    simulate: Union[
+        None,
+        Callable[
+            [
+                np.ndarray,
+                Union[np.ndarray, float],
+                Union[int, None],
+                Union[np.random.Generator, None],
+            ],
+            np.ndarray,
+        ],
+    ] = None,
+    moment: Union[
+        None, Callable[[np.ndarray, int, Union[np.ndarray, float]], np.ndarray]
+    ] = None,
+    d: Union[None, int] = None,
 ) -> Distribution:
     """
     Returns a probability distribution object based on the distribution name.
 
-    :param dist: A string representing the name of the distribution to create.
-                 Valid values are "normal", "gamma", or "beta_prime".
+    :param distribution: A string representing the name of the distribution to create.
+    :param loss: A function that computes the loss. Only used if dist == "custom".
+    :param grad: A function that computes the gradient of the loss. Only used if dist == "custom".
+    :param mme: A function that computes the method of moments estimator. Only used if dist == "custom".
+    :param simulate: A function that simulates data from the distribution. Only used if dist == "custom".
+    :param moment: A function that computes the kth moment of the distribution. Only used if dist == "custom".
+    :param d: The dimension of the distribution. Only used if dist == "custom".
     :return: A probability distribution object based on the distribution name.
     :raises UnknownDistribution: If the input distribution name is not recognized.
     """
-    if dist == "normal":
+    if distribution == "normal":
         return NormalDistribution()
-    if dist == "gamma":
+    if distribution == "gamma":
         return GammaDistribution()
-    if dist == "beta_prime":
+    if distribution == "beta_prime":
         return BetaPrimeDistribution()
-    if dist == "inv_gauss":
+    if distribution == "inv_gauss":
         return InverseGaussianDistribution()
-    if dist == "neg_bin":
+    if distribution == "neg_bin":
         return NegativeBinomialDistribution()
-    if dist == "multivariate_normal":
+    if distribution == "multivariate_normal":
         return MultivariateNormalDistribution()
+    if distribution == "custom":
+        return CustomDistribution(
+            loss=loss, grad=grad, mme=mme, simulate=simulate, moment=moment, d=d
+        )
     raise UnknownDistributionError("Unknown distribution")
 
 
 if __name__ == "__main__":
-    normal_dist = initiate_distribution(dist="normal")
+    normal_dist = initiate_distribution(distribution="normal")
     print(normal_dist.loss.__doc__)

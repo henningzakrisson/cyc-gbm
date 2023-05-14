@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Union, List, Dict, Tuple
 from src.cyc_gbm import CycGBM
-from src.cyc_gbm.distributions import initiate_distribution
+from src.cyc_gbm.distributions import initiate_distribution, Distribution
 import logging
 
 logger = logging.getLogger(__name__)
@@ -92,7 +92,7 @@ def tune_kappa(
     eps: Union[float, List[float]] = 0.1,
     max_depth: Union[int, List[int]] = 2,
     min_samples_leaf: Union[int, List[int]] = 20,
-    dist: str = "normal",
+    distribution: Union[str,Distribution] = "normal",
     n_splits: int = 4,
     random_state: Union[int, None] = None,
     rng: Union[np.random.Generator, None] = None,
@@ -120,7 +120,8 @@ def tune_kappa(
     if rng is None:
         rng = np.random.default_rng(random_state)
     folds = _fold_split(X=X, n_splits=n_splits, rng=rng)
-    distribution = initiate_distribution(dist=dist)
+    if isinstance(distribution, str):
+        distribution = initiate_distribution(distribution=distribution)
     d = distribution.d
     kappa_max = kappa_max if isinstance(kappa_max, list) else [kappa_max] * d
     loss = np.ones((n_splits, max(kappa_max) + 1, d)) * np.nan
@@ -138,7 +139,7 @@ def tune_kappa(
             eps=eps,
             max_depth=max_depth,
             min_samples_leaf=min_samples_leaf,
-            dist=dist,
+            distribution=distribution,
         )
         gbm.fit(X_train, y_train, w_train)
         z_valid = gbm.predict(X_valid)
@@ -197,7 +198,7 @@ if __name__ == "__main__":
     dist = "normal"
 
     rng = np.random.default_rng(seed=random_state)
-    distribution = initiate_distribution(dist=dist)
+    distribution = initiate_distribution(distribution=dist)
 
     X = np.concatenate([np.ones((1, n)), rng.normal(0, 1, (p - 1, n))]).T
     z0 = (
