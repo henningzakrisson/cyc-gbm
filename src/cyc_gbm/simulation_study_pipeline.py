@@ -22,6 +22,7 @@ logger.handlers[0].setFormatter(formatter)
 # TODO: Test the ability to load specifications from configuration file
 # TODO: Replace the simulation function with the one with configuration file
 # TODO: Try to reduce function headers
+# TODO: Try to shorten everything and tidy up
 # TODO: Allow for different hyperparameters for different distributions
 # TODO: Save log file
 # TODO: Add weight capability
