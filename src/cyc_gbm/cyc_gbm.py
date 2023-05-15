@@ -15,7 +15,7 @@ class CycGBM:
         eps: Union[float, List[float]] = 0.1,
         max_depth: Union[int, List[int]] = 2,
         min_samples_leaf: Union[int, List[int]] = 20,
-        distribution: Union[str,Distribution] = "normal",
+        distribution: Union[str, Distribution] = "normal",
     ):
         """
         :param kappa: Number of boosting steps. Dimension-wise or global for all parameter dimensions.

@@ -13,7 +13,7 @@ class CycGLM:
         max_iter: int = 1000,
         tol: float = 1e-5,
         eps: Union[List[float], float] = 1e-7,
-        distribution: Union[str,Distribution] = "normal",
+        distribution: Union[str, Distribution] = "normal",
     ):
         """
         Initialize the model.

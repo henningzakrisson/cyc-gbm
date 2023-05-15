@@ -97,7 +97,7 @@ class Distribution:
         :param w: The weights of the observations. Default is 1.0.
         :return: The maximum likelihood estimator of the parameters.
         """
-        z_0 = self.mme(y=y, w = w)
+        z_0 = self.mme(y=y, w=w)
         to_min = lambda z: self.loss(y=y, z=z, w=w).sum()
         z_opt = minimize(to_min, z_0)["x"]
         return z_opt

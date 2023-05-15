@@ -92,7 +92,7 @@ def tune_kappa(
     eps: Union[float, List[float]] = 0.1,
     max_depth: Union[int, List[int]] = 2,
     min_samples_leaf: Union[int, List[int]] = 20,
-    distribution: Union[str,Distribution] = "normal",
+    distribution: Union[str, Distribution] = "normal",
     n_splits: int = 4,
     random_state: Union[int, None] = None,
     rng: Union[np.random.Generator, None] = None,
