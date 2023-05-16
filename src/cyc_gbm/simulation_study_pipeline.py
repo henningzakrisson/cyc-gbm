@@ -45,9 +45,12 @@ def simulation_study_from_config(
     p = config.get("p", 9)
     dists = config.get("dists", ["normal"])
     models = config.get("models", ["intercept", "cyc-glm", "uni-gbm", "cyc-gbm"])
-    parameter_functions = config.get(
-        "parameter_functions", {"normal": lambda X: np.stack([X[:, 0], X[:, 0]])}
-    )
+    parameter_functions = {}
+    for distribution, parameter_function in config.get(
+        "parameter_functions", {}
+    ).items():
+        exec(parameter_function, globals())
+        parameter_functions[distribution] = eval("z")
     random_seed = config.get("random_seed")
     rng = config.get("rng")
     output_path = config.get("output_path")
@@ -251,7 +254,7 @@ def _save_data(
             "gbm_parameters": gbm_parameters,
             "verbose": verbose,
         }
-        with open(f"{output_path}/run_{run_id}/config.yaml", "w") as file:
+        with open(f"{output_path}/run_{run_id}/simulation_config.yaml", "w") as file:
             yaml.dump(config_dict, file)
         np.savez(
             f"{output_path}/run_{run_id}/{dist}/simulation", **simulation_results[dist]
@@ -740,58 +743,5 @@ def _run_cyc_gbm_model(
 
 
 if __name__ == "__main__":
-    n = 1000
-    p = 3
-    dists = ["normal"]
-    random_seed = 123
-
-    def parameter_function(X):
-        z0 = 0 + 0.2 * X[:, 1] + 0.3 * (X[:, 2] > 0)
-        z1 = 0.5 + 0.04 * X[:, 2] ** 2 + 0.5 * (X[:, 2] > 0)
-        return np.stack([z0, z1])
-
-    parameter_functions = {"normal": parameter_function}
-
-    # GBM hyperparameters
-    kappa_max = 1000
-    eps_gbm = 0.01
-    max_depth = 2
-    min_samples_leaf = 10
-    n_splits = 2
-
-    # GLM hyperparameters
-    max_iter = 1000
-    eps_glm = 1e-5
-    tol = 0.001
-
-    # Simulation parameters
-    output_path = "../../data/results/simulation"
-    # models = ["intercept", "cyc-glm", "uni-gbm", "cyc-gbm"]
-    models = ["intercept", "uni-gbm"]
-    verbose = 1
-
-    simulation_study_results = simulation_study(
-        n=n,
-        p=p,
-        dists=dists,
-        models=models,
-        parameter_functions=parameter_functions,
-        random_seed=random_seed,
-        output_path=output_path,
-        output_figures=True,
-        figure_format="png",
-        test_size=0.2,
-        glm_parameters={
-            "max_iter": max_iter,
-            "eps": eps_glm,
-            "tol": tol,
-        },
-        gbm_parameters={
-            "kappa_max": kappa_max,
-            "eps": eps_gbm,
-            "max_depth": max_depth,
-            "min_samples_leaf": min_samples_leaf,
-            "n_splits": n_splits,
-        },
-        verbose=verbose,
-    )
+    config_file = "../../config/simulation_config.yaml"
+    simulation_study_from_config(config_file=config_file)
