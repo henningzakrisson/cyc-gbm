@@ -1,8 +1,10 @@
+from typing import Callable, Type, Union
+
 import numpy as np
-from typing import Union, Type, Callable
-from src.cyc_gbm.exceptions import UnknownDistributionError
-from scipy.special import loggamma, polygamma
 from scipy.optimize import minimize
+from scipy.special import loggamma, polygamma
+
+from src.cyc_gbm.exceptions import UnknownDistributionError
 
 
 def inherit_docstrings(cls: Type) -> Type:
