@@ -37,3 +37,27 @@ class SimulationLogger(logging.Logger):
     def log_info(self, msg: str, verbose: int = 0):
         if verbose <= self.verbose:
             self.info(msg)
+
+    def append_format_level(self, level_msg):
+        """Append the level to the message.
+
+        :param level_msg: The level to append to the message.
+        """
+        formatter = self.handlers[0].formatter
+        format_msg = formatter._fmt.split("[%(message)s]")[0]
+        format_msg += f"[{level_msg}][%(message)s]"
+        formatter = logging.Formatter(format_msg, datefmt="%Y-%m-%d %H:%M")
+        self.handlers[0].setFormatter(formatter)
+        if len(self.handlers) > 1:
+            self.handlers[1].setFormatter(formatter)
+
+    def remove_format_level(self):
+        """Remove one level from the message."""
+        formatter = self.handlers[0].formatter
+        # Remove the last level from the message by finding the second to last occurance of "["
+        format_msg = formatter._fmt.rsplit("[", 2)[0]
+        format_msg += "[%(message)s]"
+        formatter = logging.Formatter(format_msg, datefmt="%Y-%m-%d %H:%M")
+        self.handlers[0].setFormatter(formatter)
+        if len(self.handlers) > 1:
+            self.handlers[1].setFormatter(formatter)

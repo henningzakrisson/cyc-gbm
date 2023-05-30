@@ -12,8 +12,8 @@ from src.cyc_gbm.distributions import initiate_distribution, Distribution
 from src.cyc_gbm.tune_kappa import tune_kappa
 from src.cyc_gbm.utils import SimulationLogger
 
-# TODO: Add hierarchical logger (stating dist-model-etc)
-# TODO: Save log file
+
+# TODO: Restructure pipeline so everything happens inside the distribution loop
 # TODO: Try to shorten everything and tidy up
 # TODO: Allow for different hyperparameters for different distributions
 # TODO: Save data during run
@@ -55,20 +55,16 @@ def simulation_study(
     losses = {}
 
     for dist in config["dists"]:
-        logger.log_info(f"Running models for distribution: {dist}")
+        logger.append_format_level(dist)
         distribution = initiate_distribution(distribution=dist)
-        z_hat[dist] = _get_model_predictions(
+        z_hat[dist], losses[dist] = _calculate_model_losses(
             simulation_result=simulation_results[dist],
             distribution=distribution,
             rng=rng,
             config=config,
+            logger=logger,
         )
-        losses[dist] = _get_model_losses(
-            simulation_result=simulation_results[dist],
-            z_hat=z_hat[dist],
-            distribution=distribution,
-        )
-        logger.log_info(f"Finished running models for distribution: {dist}")
+        logger.remove_format_level()
 
     if output_path is not None:
         logger.log_info(f"Saving results")
@@ -221,19 +217,21 @@ def train_test_split(
     return X_train, X_test, y_train, y_test, z_train, z_test, w_train, w_test
 
 
-def _get_model_predictions(
+def _calculate_model_losses(
     simulation_result: Dict[str, np.ndarray],
     distribution: Distribution,
     rng: np.random.Generator,
     config: Dict[str, Any] = None,
-) -> Dict[str, Dict[str, np.ndarray]]:
+    logger: Union[None, SimulationLogger] = None,
+) -> Tuple[Dict[str, Dict[str, np.ndarray]], Dict[str, Dict[str, np.ndarray]]]:
     """Get the predictions from the models.
 
     :param simulation_result: The simulation result.
     :param distribution: The distribution.
     :param rng: The random number generator.
     :param config: The configuration.
-    :return: A dictionary with the predictions.
+    :param logger: The logger.
+    :return: A dictionary with the predictions and a dictionary with the losses.
     """
 
     X_train = simulation_result["train"]["X"]
@@ -246,6 +244,8 @@ def _get_model_predictions(
     z_hat["test"]["true"] = simulation_result["test"]["z"]
 
     for model in config["models"]:
+        logger.append_format_level(model)
+        logger.log_info("Running model")
         if model == "intercept":
             z_hat_train, z_hat_test = _run_intercept_model(
                 X_train=X_train,
@@ -271,6 +271,7 @@ def _get_model_predictions(
                 cyclical=False,
                 parameters=config["gbm_parameters"],
                 verbose=config["verbose"],
+                logger=logger,
             )
         elif model == "cyc-gbm":
             z_hat_train, z_hat_test = _run_gbm_model(
@@ -282,13 +283,21 @@ def _get_model_predictions(
                 cyclical=True,
                 parameters=config["gbm_parameters"],
                 verbose=config["verbose"],
+                logger=logger,
             )
         else:
             raise ValueError(f"Model {model} not recognized.")
         z_hat["train"][model] = z_hat_train
         z_hat["test"][model] = z_hat_test
+        losses["train"][model] = distribution.loss(
+            z=z_hat_train, y=simulation_result["train"]["y"]
+        ).mean()
+        losses["test"][model] = distribution.loss(
+            z=z_hat_test, y=simulation_result["test"]["y"]
+        ).mean()
+        logger.remove_format_level()
 
-    return z_hat
+    return z_hat, losses
 
 
 def _run_intercept_model(
@@ -346,6 +355,7 @@ def _run_gbm_model(
     cyclical: bool,
     parameters: Dict[str, Union[float, int, List[float], List[int]]],
     verbose: int,
+    logger: Union[None, SimulationLogger] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Run univariate GBM model.
 
@@ -356,6 +366,7 @@ def _run_gbm_model(
     :param rng: Random number generator for the cross-validation.
     :param parameters: Dictionary of parameters.
     :param verbose: Verbosity level.
+    :param logger: Simulation logger.
     :return: Tuple of training and test predictions.
     """
 
@@ -378,6 +389,7 @@ def _run_gbm_model(
         n_splits=n_splits,
         rng=rng,
         verbose=verbose,
+        logger=logger,
     )["kappa"]
     gbm = CycGBM(
         distribution=distribution,
@@ -390,28 +402,6 @@ def _run_gbm_model(
     z_hat_train = gbm.predict(X=X_train)
     z_hat_test = gbm.predict(X=X_test)
     return z_hat_train, z_hat_test
-
-
-def _get_model_losses(
-    simulation_result: Dict[str, np.ndarray],
-    z_hat: Dict[str, Dict[str, np.ndarray]],
-    distribution: Distribution,
-):
-    """Calculate the losses for all models.
-
-    :param simulation_result: The simulation result.
-    :param z_hat: The predicted z values.
-    :param distribution: The distribution.
-    :return: A dictionary with the losses.
-    """
-
-    losses = {"train": {}, "test": {}}
-    for data_set in ["train", "test"]:
-        for model in z_hat[data_set].keys():
-            losses[data_set][model] = distribution.loss(
-                z=z_hat[data_set][model], y=simulation_result[data_set]["y"]
-            ).mean()
-    return losses
 
 
 def _save_data(
