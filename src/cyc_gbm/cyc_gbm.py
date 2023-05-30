@@ -1,6 +1,8 @@
-import numpy as np
 from typing import List, Union
-from src.cyc_gbm.distributions import initiate_distribution, Distribution
+
+import numpy as np
+
+from src.cyc_gbm.distributions import Distribution, initiate_distribution
 from src.cyc_gbm.gbm_tree import GBMTree
 
 

@@ -1,0 +1,43 @@
+# Simulation setup
+n: 1000
+p: 3
+random_seed: 123
+test_size: 0.2
+
+# Distribution setup
+dists:
+- normal
+- gamma
+parameter_functions:
+  normal: |
+    def z(X):
+        z0 = 0 + 0.2 * X[:, 1] + 0.3 * (X[:, 2] > 0)
+        z1 = 0.5 + 0.04 * X[:, 2] ** 2 + 0.5 * (X[:, 2] > 0)
+        return np.stack([z0,z1])
+  gamma: |
+    def z(X):
+        z0 = 0 + 0.2 * X[:, 1] + 0.3 * (X[:, 2] > 0)
+        z1 = 0.5 + 0.04 * X[:, 2] ** 2 + 0.5 * (X[:, 2] > 0)
+        return np.stack([z0,z1])
+
+# Model setup
+models:
+- intercept
+- uni-gbm
+- cyc-gbm
+glm_parameters:
+  eps: 1.0e-05
+  max_iter: 1000
+  tol: 0.001
+gbm_parameters:
+  eps: 0.01
+  kappa_max: 1000
+  max_depth: 2
+  min_samples_leaf: 10
+  n_splits: 2
+
+# Output setup
+output_figures: true
+output_path: ../../data/results/simulation
+figure_format: png
+verbose: 1

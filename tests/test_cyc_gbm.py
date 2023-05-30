@@ -1,8 +1,9 @@
 import unittest
+
 import numpy as np
 
 from src.cyc_gbm import CycGBM, CycGLM
-from src.cyc_gbm.utils import tune_kappa
+from src.cyc_gbm.tune_kappa import tune_kappa
 from src.cyc_gbm.distributions import initiate_distribution
 
 
