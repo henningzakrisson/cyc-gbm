@@ -54,7 +54,7 @@ class SimulationLogger(logging.Logger):
     def remove_format_level(self):
         """Remove one level from the message."""
         formatter = self.handlers[0].formatter
-        # Remove the last level from the message by finding the second to last occurance of "["
+        # Split on the second to last occurence of a bracket
         format_msg = formatter._fmt.rsplit("[", 2)[0]
         format_msg += "[%(message)s]"
         formatter = logging.Formatter(format_msg, datefmt="%Y-%m-%d %H:%M")

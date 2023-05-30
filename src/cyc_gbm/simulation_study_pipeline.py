@@ -13,10 +13,7 @@ from src.cyc_gbm.tune_kappa import tune_kappa
 from src.cyc_gbm.utils import SimulationLogger
 
 
-# TODO: Restructure pipeline so everything happens inside the distribution loop
-# TODO: Try to shorten everything and tidy up
 # TODO: Allow for different hyperparameters for different distributions
-# TODO: Save data during run
 # TODO: Add weight capability
 # TODO: Add real data capability
 
@@ -30,9 +27,9 @@ def simulation_study(
     :param config_file: The configuration file.
     :return: The results of the simulation study.
     """
+    # Save config data
     with open(config_file, "r") as file:
         config = yaml.safe_load(file)
-
     output_path = config["output_path"]
     run_id = _get_run_id(output_path=output_path)
     if output_path is not None:
@@ -42,40 +39,62 @@ def simulation_study(
         verbose=config["verbose"],
         output_path=output_path,
     )
-
-    logger.log_info(f"Simulating data")
     rng = np.random.default_rng(config["random_seed"])
-    simulation_results = _simulate_all_data(
-        config=config,
-        rng=rng,
-    )
-    logger.log_info("Finished simulating data")
 
+    # Set up simulation
+    n = config["n"]
+    p = config["p"]
+    X = np.hstack([np.ones((n, 1)), rng.standard_normal((n, p - 1))])
+    parameter_functions = {}
+    for distribution, parameter_function in config["parameter_functions"].items():
+        exec(parameter_function, globals())
+        parameter_functions[distribution] = eval("z")
+
+    simulation_results = {}
     z_hat = {}
     losses = {}
 
+    logger.log_info(f"Starting simulation study")
     for dist in config["dists"]:
         logger.append_format_level(dist)
+
+        logger.log_info(f"Simulating data")
         distribution = initiate_distribution(distribution=dist)
-        z_hat[dist], losses[dist] = _calculate_model_losses(
+        simulation_results[dist] = _simulate_data(
+            X=X,
+            distribution=distribution,
+            parameter_function=parameter_functions[dist],
+            rng=rng,
+            test_size=config["test_size"],
+        )
+
+        logger.log_info(f"Running models")
+        z_hat[dist] = _get_model_predictions(
             simulation_result=simulation_results[dist],
             distribution=distribution,
             rng=rng,
             config=config,
             logger=logger,
         )
-        logger.remove_format_level()
-
-    if output_path is not None:
-        logger.log_info(f"Saving results")
-        _save_data(
-            simulation_results=simulation_results,
-            run_id=run_id,
-            z_hat=z_hat,
-            losses=losses,
-            config=config,
-            config_file=config_file,
+        logger.log_info(f"Calculating losses")
+        losses[dist] = _get_model_losses(
+            simulation_result=simulation_results[dist],
+            z_hat=z_hat[dist],
+            distribution=distribution,
         )
+
+        if output_path is not None:
+            logger.log_info(f"Saving results")
+            _save_data(
+                simulation_result=simulation_results[dist],
+                run_id=run_id,
+                z_hat=z_hat[dist],
+                losses=losses[dist],
+                config=config,
+                config_file=config_file,
+                dist=dist,
+            )
+        logger.remove_format_level()
     logger.log_info(f"Finished simulation study")
     return {"losses": losses, "z": z_hat}
 
@@ -200,7 +219,6 @@ def train_test_split(
     :param rng: The random number generator.
     :return: X_train, X_test, y_train, y_test, z_train, z_test
     """
-    # Split X, y and z into a training set and a test set
     if rng is None:
         rng = np.random.default_rng(random_state)
     n_samples = X.shape[0]
@@ -217,13 +235,13 @@ def train_test_split(
     return X_train, X_test, y_train, y_test, z_train, z_test, w_train, w_test
 
 
-def _calculate_model_losses(
-    simulation_result: Dict[str, np.ndarray],
+def _get_model_predictions(
+    simulation_result: Dict[str, Dict[str, np.ndarray]],
     distribution: Distribution,
     rng: np.random.Generator,
     config: Dict[str, Any] = None,
     logger: Union[None, SimulationLogger] = None,
-) -> Tuple[Dict[str, Dict[str, np.ndarray]], Dict[str, Dict[str, np.ndarray]]]:
+) -> Dict[str, Dict[str, np.ndarray]]:
     """Get the predictions from the models.
 
     :param simulation_result: The simulation result.
@@ -239,7 +257,6 @@ def _calculate_model_losses(
     y_train = simulation_result["train"]["y"]
 
     z_hat = {"train": {}, "test": {}}
-    losses = {"train": {}, "test": {}}
     z_hat["train"]["true"] = simulation_result["train"]["z"]
     z_hat["test"]["true"] = simulation_result["test"]["z"]
 
@@ -289,15 +306,9 @@ def _calculate_model_losses(
             raise ValueError(f"Model {model} not recognized.")
         z_hat["train"][model] = z_hat_train
         z_hat["test"][model] = z_hat_test
-        losses["train"][model] = distribution.loss(
-            z=z_hat_train, y=simulation_result["train"]["y"]
-        ).mean()
-        losses["test"][model] = distribution.loss(
-            z=z_hat_test, y=simulation_result["test"]["y"]
-        ).mean()
         logger.remove_format_level()
 
-    return z_hat, losses
+    return z_hat
 
 
 def _run_intercept_model(
@@ -404,81 +415,91 @@ def _run_gbm_model(
     return z_hat_train, z_hat_test
 
 
+def _get_model_losses(
+    simulation_result: Dict[str, Dict[str, np.ndarray]],
+    z_hat: Dict[str, Dict[str, np.ndarray]],
+    distribution: Distribution,
+) -> Dict[str, Dict[str, Dict[str, np.ndarray]]]:
+    """Get the model losses.
+
+    :param simulation_result: The simulation results.
+    :param z_hat: The model predictions.
+    :param distribution: The distribution object.
+    :return: The model losses.
+    """
+    losses = {"train": {}, "test": {}}
+    for model in z_hat["train"].keys():
+        for data_set in ["train", "test"]:
+            losses[data_set][model] = distribution.loss(
+                y=simulation_result[data_set]["y"], z=z_hat[data_set][model]
+            )
+    return losses
+
+
 def _save_data(
-    simulation_results: Dict[str, Dict[str, np.ndarray]],
-    z_hat: Dict[str, Dict[str, Dict[str, np.ndarray]]],
+    dist: str,
+    simulation_result: Dict[str, Dict[str, np.ndarray]],
+    z_hat: Dict[str, Dict[str, np.ndarray]],
     losses: Dict[str, Dict[str, Dict[str, np.ndarray]]],
     run_id: int,
     config: Dict[str, Any],
     config_file: str,
 ):
-    """Save the data from the simulation study.
-
-    :param simulation_results: The simulation results.
-    :param z_hat: The model predictions.
-    :param losses: The model losses.
-    :param run_id: The run id.
-    :param config: The configuration.
-    :param config_file: The configuration file.
-    """
     output_path = config["output_path"]
-    for dist in z_hat.keys():
-        os.makedirs(f"{output_path}/run_{run_id}/{dist}")
-        shutil.copy(config_file, f"{output_path}/run_{run_id}")
-        np.savez(
-            f"{output_path}/run_{run_id}/{dist}/simulation", **simulation_results[dist]
-        )
-        np.savez(f"{output_path}/run_{run_id}/{dist}/z_hat", **z_hat[dist])
-        np.savez(f"{output_path}/run_{run_id}/{dist}/losses", **losses[dist])
+    shutil.copy(config_file, f"{output_path}/run_{run_id}")
+    os.makedirs(f"{output_path}/run_{run_id}/{dist}")
+    np.savez(f"{output_path}/run_{run_id}/{dist}/simulation", **simulation_result)
+    np.savez(f"{output_path}/run_{run_id}/{dist}/z_hat", **z_hat)
+    np.savez(f"{output_path}/run_{run_id}/{dist}/losses", **losses)
 
     if config["output_figures"]:
         _save_output_figures(
-            simulation_results=simulation_results,
+            simulation_result=simulation_result,
             z_hat=z_hat,
-            output_path=output_path,
-            run_id=run_id,
-            figure_format=config["figure_format"],
+            output_path=f"{output_path}/run_{run_id}/{dist}",
+            dist=dist,
         )
 
 
 def _save_output_figures(
-    simulation_results: Dict[str, Dict[str, np.ndarray]],
-    z_hat: Dict[str, Dict[str, Dict[str, np.ndarray]]],
+    simulation_result: Dict[str, Dict[str, np.ndarray]],
+    z_hat: Dict[str, Dict[str, np.ndarray]],
     output_path: str,
-    run_id: int,
+    dist: str,
     figure_format: str = "png",
 ):
     """Save the output figures.
 
     :param output_path: The output path.
-    :param run_id: The run id.
-    :param simulation_results: The simulation results.
+    :param simulation_result: The simulation results.
     :param z_hat: The predicted z values.
+    :param dist: The distribution.
     :param figure_format: The figure format.
+
     """
-    for dist in z_hat.keys():
-        figure_path = f"{output_path}/run_{run_id}/{dist}/figures"
-        os.makedirs(figure_path)
-        fig_simulation = _create_simulation_plots(
-            z=simulation_results[dist]["train"]["z"],
-            y=simulation_results[dist]["train"]["y"],
-            distribution=initiate_distribution(distribution=dist),
-        )
-        fig_results = _create_result_plots(
-            z_hat=z_hat[dist]["test"],
-            distribution=initiate_distribution(distribution=dist),
-        )
-        for figure_name, figure in [
-            ("simulation", fig_simulation),
-            ("results", fig_results),
-        ]:
-            if figure_format == "tikz":
-                tikzplotlib.save(
-                    f"{figure_path}/{figure_name}.tex",
-                    figure=figure,
-                )
-            else:
-                figure.savefig(f"{figure_path}/{figure_name}.{figure_format}")
+
+    figure_path = f"{output_path}/figures"
+    os.makedirs(figure_path)
+    fig_simulation = _create_simulation_plots(
+        z=simulation_result["train"]["z"],
+        y=simulation_result["train"]["y"],
+        distribution=initiate_distribution(distribution=dist),
+    )
+    fig_results = _create_result_plots(
+        z_hat=z_hat["test"],
+        distribution=initiate_distribution(distribution=dist),
+    )
+    for figure_name, figure in [
+        ("simulation", fig_simulation),
+        ("results", fig_results),
+    ]:
+        if figure_format == "tikz":
+            tikzplotlib.save(
+                f"{figure_path}/{figure_name}.tex",
+                figure=figure,
+            )
+        else:
+            figure.savefig(f"{figure_path}/{figure_name}.{figure_format}")
 
 
 def _create_simulation_plots(

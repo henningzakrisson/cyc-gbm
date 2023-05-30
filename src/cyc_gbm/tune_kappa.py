@@ -87,9 +87,7 @@ def tune_kappa(
     kappa_max = kappa_max if isinstance(kappa_max, list) else [kappa_max] * d
     loss = np.ones((n_splits, max(kappa_max) + 1, d)) * np.nan
     if verbose > 0:
-        logger.log_info(
-            f"Starting tuning of kappa with {n_splits}-fold cross-validation"
-        )
+        logger.log_info(f"Tuning kappa with {n_splits}-fold cross-validation")
     for i, idx in enumerate(folds):
         if verbose == 1:
             logger.log_info(f"Fold {i+1}/{n_splits}")
@@ -145,10 +143,6 @@ def tune_kappa(
                 logger.warning(f"Tuning did not converge for dimension {j}")
             kappa[j] = kappa_max[j]
 
-    if verbose > 0:
-        logger.log_info(
-            f"Finished tuning of kappa with {n_splits}-fold cross-validation"
-        )
     results = {"kappa": kappa, "loss": loss}
 
     return results
