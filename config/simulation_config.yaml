@@ -6,14 +6,8 @@ test_size: 0.2
 
 # Distribution setup
 dists:
-- normal
 - gamma
 parameter_functions:
-  normal: |
-    def z(X):
-        z0 = 0 + 0.2 * X[:, 1] + 0.3 * (X[:, 2] > 0)
-        z1 = 0.5 + 0.04 * X[:, 2] ** 2 + 0.5 * (X[:, 2] > 0)
-        return np.stack([z0,z1])
   gamma: |
     def z(X):
         z0 = 0 + 0.2 * X[:, 1] + 0.3 * (X[:, 2] > 0)
@@ -23,22 +17,9 @@ parameter_functions:
 # Model setup
 models:
 - intercept
-- uni-gbm
-- cyc-glm
-
+- cyc-gbm
 # Hyperparameters
 hyper_parameters:
-  normal:
-    glm:
-      eps: 1.0e-05
-      max_iter: 1000
-      tol: 0.001
-    gbm:
-      eps: 0.01
-      kappa_max: 1000
-      max_depth: 2
-      min_samples_leaf: 10
-      n_splits: 2
   gamma:
     glm:
       eps: 1.0e-05

@@ -3,7 +3,7 @@ from typing import Union
 import os
 
 
-class SimulationLogger():
+class SimulationLogger:
     """Logger for the simulation study."""
 
     def __init__(
