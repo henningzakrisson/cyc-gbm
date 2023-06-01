@@ -10,7 +10,7 @@ import shutil
 from src.cyc_gbm import CycGBM, CycGLM
 from src.cyc_gbm.distributions import initiate_distribution, Distribution
 from src.cyc_gbm.tune_kappa import tune_kappa
-from src.cyc_gbm.utils import SimulationLogger
+from src.cyc_gbm.logger import SimulationLogger
 
 
 # TODO: Add weight capability
@@ -54,11 +54,11 @@ def simulation_study(
     z_hat = {}
     losses = {}
 
-    logger.log(f"Starting simulation study")
+    logger.log(f"starting simulation study")
     for dist in config["dists"]:
         logger.append_format_level(dist)
 
-        logger.log(f"Simulating data")
+        logger.log(f"simulating data")
         distribution = initiate_distribution(distribution=dist)
         simulation_results[dist] = _simulate_data(
             X=X,
@@ -68,7 +68,7 @@ def simulation_study(
             test_size=config["test_size"],
         )
 
-        logger.log(f"Running models")
+        logger.log(f"running models")
         z_hat[dist] = _get_model_predictions(
             simulation_result=simulation_results[dist],
             models=config["models"],
@@ -77,7 +77,7 @@ def simulation_study(
             hyper_parameters=config['hyper_parameters'][dist],
             logger=logger,
         )
-        logger.log(f"Calculating losses")
+        logger.log(f"calculating losses")
         losses[dist] = _get_model_losses(
             simulation_result=simulation_results[dist],
             z_hat=z_hat[dist],
@@ -85,7 +85,7 @@ def simulation_study(
         )
 
         if output_path is not None:
-            logger.log(f"Saving results")
+            logger.log(f"saving results")
             _save_data(
                 simulation_result=simulation_results[dist],
                 run_id=run_id,
@@ -96,7 +96,7 @@ def simulation_study(
                 dist=dist,
             )
         logger.remove_format_level()
-    logger.log(f"Finished simulation study")
+    logger.log(f"finished simulation study")
     return {"losses": losses, "z": z_hat}
 
 
@@ -265,7 +265,7 @@ def _get_model_predictions(
 
     for model in models:
         logger.append_format_level(model)
-        logger.log("Running model")
+        logger.log("running model")
         if model == "intercept":
             z_hat_train, z_hat_test = _run_intercept_model(
                 X_train=X_train,

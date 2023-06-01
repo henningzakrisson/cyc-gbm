@@ -5,7 +5,7 @@ import numpy as np
 
 from src.cyc_gbm import CycGBM
 from src.cyc_gbm.distributions import initiate_distribution, Distribution
-from src.cyc_gbm.utils import SimulationLogger
+from src.cyc_gbm.logger import SimulationLogger
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
