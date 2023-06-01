@@ -13,7 +13,6 @@ from src.cyc_gbm.tune_kappa import tune_kappa
 from src.cyc_gbm.utils import SimulationLogger
 
 
-# TODO: Allow for different hyperparameters for different distributions
 # TODO: Add weight capability
 # TODO: Add real data capability
 
@@ -31,6 +30,7 @@ def simulation_study(
     with open(config_file, "r") as file:
         config = yaml.safe_load(file)
     output_path = config["output_path"]
+    os.makedirs(output_path, exist_ok=True)
     run_id = _get_run_id(output_path=output_path)
     if output_path is not None:
         os.makedirs(f"{output_path}/run_{run_id}")
@@ -54,11 +54,11 @@ def simulation_study(
     z_hat = {}
     losses = {}
 
-    logger.log_info(f"Starting simulation study")
+    logger.log(f"Starting simulation study")
     for dist in config["dists"]:
         logger.append_format_level(dist)
 
-        logger.log_info(f"Simulating data")
+        logger.log(f"Simulating data")
         distribution = initiate_distribution(distribution=dist)
         simulation_results[dist] = _simulate_data(
             X=X,
@@ -68,15 +68,16 @@ def simulation_study(
             test_size=config["test_size"],
         )
 
-        logger.log_info(f"Running models")
+        logger.log(f"Running models")
         z_hat[dist] = _get_model_predictions(
             simulation_result=simulation_results[dist],
+            models=config["models"],
             distribution=distribution,
             rng=rng,
-            config=config,
+            hyper_parameters=config['hyper_parameters'][dist],
             logger=logger,
         )
-        logger.log_info(f"Calculating losses")
+        logger.log(f"Calculating losses")
         losses[dist] = _get_model_losses(
             simulation_result=simulation_results[dist],
             z_hat=z_hat[dist],
@@ -84,7 +85,7 @@ def simulation_study(
         )
 
         if output_path is not None:
-            logger.log_info(f"Saving results")
+            logger.log(f"Saving results")
             _save_data(
                 simulation_result=simulation_results[dist],
                 run_id=run_id,
@@ -95,7 +96,7 @@ def simulation_study(
                 dist=dist,
             )
         logger.remove_format_level()
-    logger.log_info(f"Finished simulation study")
+    logger.log(f"Finished simulation study")
     return {"losses": losses, "z": z_hat}
 
 
@@ -237,17 +238,19 @@ def train_test_split(
 
 def _get_model_predictions(
     simulation_result: Dict[str, Dict[str, np.ndarray]],
+    models: List[str],
     distribution: Distribution,
     rng: np.random.Generator,
-    config: Dict[str, Any] = None,
+    hyper_parameters: Dict[str, Union[int,float]],
     logger: Union[None, SimulationLogger] = None,
 ) -> Dict[str, Dict[str, np.ndarray]]:
     """Get the predictions from the models.
 
     :param simulation_result: The simulation result.
+    :param models: The models to use.
     :param distribution: The distribution.
     :param rng: The random number generator.
-    :param config: The configuration.
+    :param hyper_parameters: The hyper parameters (for gbm and glm).
     :param logger: The logger.
     :return: A dictionary with the predictions and a dictionary with the losses.
     """
@@ -260,9 +263,9 @@ def _get_model_predictions(
     z_hat["train"]["true"] = simulation_result["train"]["z"]
     z_hat["test"]["true"] = simulation_result["test"]["z"]
 
-    for model in config["models"]:
+    for model in models:
         logger.append_format_level(model)
-        logger.log_info("Running model")
+        logger.log("Running model")
         if model == "intercept":
             z_hat_train, z_hat_test = _run_intercept_model(
                 X_train=X_train,
@@ -276,7 +279,7 @@ def _get_model_predictions(
                 y_train=y_train,
                 X_test=X_test,
                 distribution=distribution,
-                parameters=config["glm_parameters"],
+                parameters=hyper_parameters['glm'],
             )
         elif model == "uni-gbm":
             z_hat_train, z_hat_test = _run_gbm_model(
@@ -286,8 +289,7 @@ def _get_model_predictions(
                 distribution=distribution,
                 rng=rng,
                 cyclical=False,
-                parameters=config["gbm_parameters"],
-                verbose=config["verbose"],
+                parameters=hyper_parameters['gbm'],
                 logger=logger,
             )
         elif model == "cyc-gbm":
@@ -298,8 +300,7 @@ def _get_model_predictions(
                 distribution=distribution,
                 rng=rng,
                 cyclical=True,
-                parameters=config["gbm_parameters"],
-                verbose=config["verbose"],
+                parameters=hyper_parameters['gbm'],
                 logger=logger,
             )
         else:
@@ -365,7 +366,6 @@ def _run_gbm_model(
     rng: np.random.Generator,
     cyclical: bool,
     parameters: Dict[str, Union[float, int, List[float], List[int]]],
-    verbose: int,
     logger: Union[None, SimulationLogger] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Run univariate GBM model.
@@ -376,7 +376,6 @@ def _run_gbm_model(
     :param distribution: Distribution object.
     :param rng: Random number generator for the cross-validation.
     :param parameters: Dictionary of parameters.
-    :param verbose: Verbosity level.
     :param logger: Simulation logger.
     :return: Tuple of training and test predictions.
     """
@@ -399,7 +398,6 @@ def _run_gbm_model(
         min_samples_leaf=min_samples_leaf,
         n_splits=n_splits,
         rng=rng,
-        verbose=verbose,
         logger=logger,
     )["kappa"]
     gbm = CycGBM(
