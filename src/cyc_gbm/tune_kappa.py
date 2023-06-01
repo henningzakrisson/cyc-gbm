@@ -5,7 +5,7 @@ import numpy as np
 
 from src.cyc_gbm import CycGBM
 from src.cyc_gbm.distributions import initiate_distribution, Distribution
-from src.cyc_gbm.utils import SimulationLogger
+from src.cyc_gbm.logger import SimulationLogger
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -53,7 +53,6 @@ def tune_kappa(
     n_splits: int = 4,
     random_state: Union[int, None] = None,
     rng: Union[np.random.Generator, None] = None,
-    verbose: int = 0,
     logger: Union[SimulationLogger, None] = None,
 ) -> Dict[str, Union[List[int], np.ndarray]]:
     """Tunes the kappa parameter of a CycGBM model using k-fold cross-validation.
@@ -69,7 +68,6 @@ def tune_kappa(
     :param n_splits: The number of folds to use for k-fold cross-validation.
     :param random_state: The random state to use for the k-fold split.
     :param rng: The random number generator.
-    :param verbose: The verbosity level of the logger. 0: no logging, 1: fold logging, 2: tree logging.
     :param logger: The simulation logger to use for logging.
     :return: Dictionary containing 'kappa' as the optimal number of bossting steps and 'loss' as loss array over all folds.
 
@@ -86,11 +84,9 @@ def tune_kappa(
     d = distribution.d
     kappa_max = kappa_max if isinstance(kappa_max, list) else [kappa_max] * d
     loss = np.ones((n_splits, max(kappa_max) + 1, d)) * np.nan
-    if verbose > 0:
-        logger.log_info(f"Tuning kappa with {n_splits}-fold cross-validation")
+    logger.log(f"Tuning kappa with {n_splits}-fold cross-validation", verbose = 1)
     for i, idx in enumerate(folds):
-        if verbose == 1:
-            logger.log_info(f"Fold {i+1}/{n_splits}")
+        logger.log(f"Fold {i+1}/{n_splits}", verbose=1)
         idx_train, idx_valid = idx
         X_train, y_train, w_train = X[idx_train], y[idx_train], w[idx_train]
         X_valid, y_valid, w_valid = X[idx_valid], y[idx_valid], w[idx_valid]
@@ -107,10 +103,9 @@ def tune_kappa(
         loss[i, 0, :] = gbm.dist.loss(y=y_valid, z=z_valid, w=w_valid).sum()
 
         for k in range(1, max(kappa_max) + 1):
-            if verbose > 1:
-                logger.log_info(
-                    f"Fold {i+1}/{n_splits}, Boosting step {k}/{max(kappa_max)}"
-                )
+            logger.log(
+                f"Fold {i+1}/{n_splits}, Boosting step {k}/{max(kappa_max)}", verbose=2
+            )
             for j in range(d):
                 if k < kappa_max[j]:
                     gbm.update(X=X_train, y=y_train, w=w_train, j=j)
@@ -139,8 +134,7 @@ def tune_kappa(
     did_not_converge = (loss_delta > 0).sum(axis=1) == 0
     for j in range(d):
         if did_not_converge[j] and kappa_max[j] > 0:
-            if verbose > 0:
-                logger.warning(f"Tuning did not converge for dimension {j}")
+            logger.warning(f"Tuning did not converge for dimension {j}", verbose=1)
             kappa[j] = kappa_max[j]
 
     results = {"kappa": kappa, "loss": loss}

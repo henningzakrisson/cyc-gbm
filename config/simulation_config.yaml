@@ -24,17 +24,32 @@ parameter_functions:
 models:
 - intercept
 - uni-gbm
-- cyc-gbm
-glm_parameters:
-  eps: 1.0e-05
-  max_iter: 1000
-  tol: 0.001
-gbm_parameters:
-  eps: 0.01
-  kappa_max: 1000
-  max_depth: 2
-  min_samples_leaf: 10
-  n_splits: 2
+- cyc-glm
+
+# Hyperparameters
+hyper_parameters:
+  normal:
+    glm:
+      eps: 1.0e-05
+      max_iter: 1000
+      tol: 0.001
+    gbm:
+      eps: 0.01
+      kappa_max: 1000
+      max_depth: 2
+      min_samples_leaf: 10
+      n_splits: 2
+  gamma:
+    glm:
+      eps: 1.0e-05
+      max_iter: 1000
+      tol: 0.001
+    gbm:
+      eps: 0.01
+      kappa_max: 1000
+      max_depth: 2
+      min_samples_leaf: 10
+      n_splits: 2
 
 # Output setup
 output_figures: true
