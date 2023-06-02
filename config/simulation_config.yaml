@@ -1,5 +1,5 @@
 # Simulation setup
-n: 1000
+n: 50000
 p: 3
 random_seed: 123
 test_size: 0.2
@@ -10,7 +10,7 @@ dists:
 parameter_functions:
   gamma: |
     def z(X):
-        z0 = 0 + 0.2 * X[:, 1] + 0.3 * (X[:, 2] > 0)
+        z0 = 2 + 0.2 * X[:, 1] + 0.3 * (X[:, 2] > 0)
         z1 = 0.5 + 0.04 * X[:, 2] ** 2 + 0.5 * (X[:, 2] > 0)
         return np.stack([z0,z1])
 
