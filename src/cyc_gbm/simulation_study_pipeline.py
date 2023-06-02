@@ -74,7 +74,7 @@ def simulation_study(
             models=config["models"],
             distribution=distribution,
             rng=rng,
-            hyper_parameters=config['hyper_parameters'][dist],
+            hyper_parameters=config["hyper_parameters"][dist],
             logger=logger,
         )
         logger.log(f"calculating losses")
@@ -241,7 +241,7 @@ def _get_model_predictions(
     models: List[str],
     distribution: Distribution,
     rng: np.random.Generator,
-    hyper_parameters: Dict[str, Union[int,float]],
+    hyper_parameters: Dict[str, Union[int, float]],
     logger: Union[None, SimulationLogger] = None,
 ) -> Dict[str, Dict[str, np.ndarray]]:
     """Get the predictions from the models.
@@ -279,7 +279,7 @@ def _get_model_predictions(
                 y_train=y_train,
                 X_test=X_test,
                 distribution=distribution,
-                parameters=hyper_parameters['glm'],
+                parameters=hyper_parameters["glm"],
             )
         elif model == "uni-gbm":
             z_hat_train, z_hat_test = _run_gbm_model(
@@ -289,7 +289,7 @@ def _get_model_predictions(
                 distribution=distribution,
                 rng=rng,
                 cyclical=False,
-                parameters=hyper_parameters['gbm'],
+                parameters=hyper_parameters["gbm"],
                 logger=logger,
             )
         elif model == "cyc-gbm":
@@ -300,7 +300,7 @@ def _get_model_predictions(
                 distribution=distribution,
                 rng=rng,
                 cyclical=True,
-                parameters=hyper_parameters['gbm'],
+                parameters=hyper_parameters["gbm"],
                 logger=logger,
             )
         else:

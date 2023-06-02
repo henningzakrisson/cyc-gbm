@@ -84,7 +84,7 @@ def tune_kappa(
     d = distribution.d
     kappa_max = kappa_max if isinstance(kappa_max, list) else [kappa_max] * d
     loss = np.ones((n_splits, max(kappa_max) + 1, d)) * np.nan
-    logger.log(f"Tuning kappa with {n_splits}-fold cross-validation", verbose = 1)
+    logger.log(f"Tuning kappa with {n_splits}-fold cross-validation", verbose=1)
     for i, idx in enumerate(folds):
         logger.log(f"Fold {i+1}/{n_splits}", verbose=1)
         idx_train, idx_valid = idx
