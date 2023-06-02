@@ -121,6 +121,10 @@ def tune_kappa(
                 + [loss[i, k, j] >= loss[i, k, j - 1] for j in range(1, d)]
             ):
                 loss[i, k + 1 :, :] = loss[i, k, -1]
+                logger.log(
+                    msg=f"tuning converged after {k} steps",
+                    verbose=1,
+                )
                 break
 
             if k == max(kappa_max):

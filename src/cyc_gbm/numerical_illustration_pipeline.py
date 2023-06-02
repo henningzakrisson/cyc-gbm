@@ -1,21 +1,19 @@
 import os
+import shutil
 from typing import List, Union, Callable, Tuple, Dict, Any
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import tikzplotlib
 import yaml
-import shutil
-import pandas as pd
 
 from src.cyc_gbm import CycGBM, CycGLM
 from src.cyc_gbm.distributions import initiate_distribution, Distribution
 from src.cyc_gbm.tune_kappa import tune_kappa
 from src.cyc_gbm.logger import CycGBMLogger
 
-
 # TODO: Add real data capability
-# TODO: Add progress to logger
 
 
 def numerical_illustration(
@@ -161,7 +159,7 @@ def _load_data(
         z_test,
         w_train,
         w_test,
-    ) = train_test_split(X=X, y=y, w=w, test_size=config["test_size"], rng=rng)
+    ) = _train_test_split(X=X, y=y, w=w, test_size=config["test_size"], rng=rng)
     data = {
         "train": {
             "X": X_train,
@@ -208,7 +206,7 @@ def _simulate_data(
         z_test,
         w_train,
         w_test,
-    ) = train_test_split(X=X, y=y, z=z, w=w, test_size=test_size, rng=rng)
+    ) = _train_test_split(X=X, y=y, z=z, w=w, test_size=test_size, rng=rng)
     simulation_result = {
         "train": {
             "X": X_train,
@@ -226,7 +224,7 @@ def _simulate_data(
     return simulation_result
 
 
-def train_test_split(
+def _train_test_split(
     X: np.ndarray,
     y: np.ndarray,
     w: Union[np.ndarray, None] = None,
