@@ -13,7 +13,6 @@ from src.cyc_gbm.tune_kappa import tune_kappa
 from src.cyc_gbm.logger import SimulationLogger
 
 
-# TODO: Add weight capability
 # TODO: Add real data capability
 
 
@@ -171,21 +170,31 @@ def _simulate_data(
     :param test_size: The size of the test set.
     :return: A dictionary with the simulated data.
     """
+    w = np.ones(X.shape[0])
     z = parameter_function(X)
-    y = distribution.simulate(z, rng=rng)
-    X_train, X_test, y_train, y_test, z_train, z_test, _, _ = train_test_split(
-        X=X, y=y, z=z, test_size=test_size, rng=rng
-    )
+    y = distribution.simulate(z, w=w, rng=rng)
+    (
+        X_train,
+        X_test,
+        y_train,
+        y_test,
+        z_train,
+        z_test,
+        w_train,
+        w_test,
+    ) = train_test_split(X=X, y=y, z=z, w=w, test_size=test_size, rng=rng)
     simulation_result = {
         "train": {
             "X": X_train,
             "y": y_train,
             "z": z_train,
+            "w": w_train,
         },
         "test": {
             "X": X_test,
             "y": y_test,
             "z": z_test,
+            "w": w_test,
         },
     }
     return simulation_result
@@ -257,6 +266,7 @@ def _get_model_predictions(
 
     X_train = simulation_result["train"]["X"]
     X_test = simulation_result["test"]["X"]
+    w_train = simulation_result["train"]["w"]
     y_train = simulation_result["train"]["y"]
 
     z_hat = {"train": {}, "test": {}}
@@ -270,6 +280,7 @@ def _get_model_predictions(
             z_hat_train, z_hat_test = _run_intercept_model(
                 X_train=X_train,
                 y_train=y_train,
+                w_train=w_train,
                 X_test=X_test,
                 distribution=distribution,
             )
@@ -277,6 +288,7 @@ def _get_model_predictions(
             z_hat_train, z_hat_test = _run_glm_model(
                 X_train=X_train,
                 y_train=y_train,
+                w_train=w_train,
                 X_test=X_test,
                 distribution=distribution,
                 parameters=hyper_parameters["glm"],
@@ -285,6 +297,7 @@ def _get_model_predictions(
             z_hat_train, z_hat_test = _run_gbm_model(
                 X_train=X_train,
                 y_train=y_train,
+                w_train=w_train,
                 X_test=X_test,
                 distribution=distribution,
                 rng=rng,
@@ -296,6 +309,7 @@ def _get_model_predictions(
             z_hat_train, z_hat_test = _run_gbm_model(
                 X_train=X_train,
                 y_train=y_train,
+                w_train=w_train,
                 X_test=X_test,
                 distribution=distribution,
                 rng=rng,
@@ -315,18 +329,20 @@ def _get_model_predictions(
 def _run_intercept_model(
     X_train: np.ndarray,
     y_train: np.ndarray,
+    w_train: np.ndarray,
     X_test: np.ndarray,
     distribution: Distribution,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Run intercept model.
 
     :param X_train: Training covariates.
-    :param X_test: Test covariates.
     :param y_train: Training response.
+    :param w_train: Training weights.
+    :param X_test: Test covariates.
     :param distribution: Distribution object.
     :return: Tuple of training and test predictions.
     """
-    z0 = distribution.mle(y=y_train)
+    z0 = distribution.mle(y=y_train, w=w_train)
     z_hat_train = np.tile(z0, (len(X_train), 1)).T
     z_hat_test = np.tile(z0, (len(X_test), 1)).T
     return z_hat_train, z_hat_test
@@ -335,6 +351,7 @@ def _run_intercept_model(
 def _run_glm_model(
     X_train: np.ndarray,
     y_train: np.ndarray,
+    w_train: np.ndarray,
     X_test: np.ndarray,
     distribution: Distribution,
     parameters: Dict[str, Union[float, int, List[float]]],
@@ -342,8 +359,9 @@ def _run_glm_model(
     """Run cyclic GLM model.
 
     :param X_train: Training covariates.
-    :param X_test: Test covariates.
     :param y_train: Training response.
+    :param w_train: Training weights.
+    :param X_test: Test covariates.
     :param distribution: Distribution object.
     :param parameters: Dictionary of parameters.
     :return: Tuple of training and test predictions.
@@ -352,7 +370,7 @@ def _run_glm_model(
     eps = parameters["eps"]
     tol = parameters["tol"]
     glm = CycGLM(distribution=distribution, max_iter=max_iter, eps=eps, tol=tol)
-    glm.fit(X=X_train, y=y_train)
+    glm.fit(X=X_train, y=y_train, w=w_train)
     z_hat_train = glm.predict(X=X_train)
     z_hat_test = glm.predict(X=X_test)
     return z_hat_train, z_hat_test
@@ -361,6 +379,7 @@ def _run_glm_model(
 def _run_gbm_model(
     X_train: np.ndarray,
     y_train: np.ndarray,
+    w_train: np.ndarray,
     X_test: np.ndarray,
     distribution: Distribution,
     rng: np.random.Generator,
@@ -371,8 +390,9 @@ def _run_gbm_model(
     """Run univariate GBM model.
 
     :param X_train: Training covariates.
-    :param X_test: Test covariates.
     :param y_train: Training response.
+    :param w_train: Training weights.
+    :param X_test: Test covariates.
     :param distribution: Distribution object.
     :param rng: Random number generator for the cross-validation.
     :param parameters: Dictionary of parameters.
@@ -391,6 +411,7 @@ def _run_gbm_model(
     kappa = tune_kappa(
         X=X_train,
         y=y_train,
+        w=w_train,
         distribution=distribution,
         kappa_max=kappa_max if cyclical else [kappa_max, 0],
         eps=eps,
@@ -407,7 +428,7 @@ def _run_gbm_model(
         max_depth=max_depth,
         min_samples_leaf=min_samples_leaf,
     )
-    gbm.fit(X=X_train, y=y_train)
+    gbm.fit(X=X_train, y=y_train, w=w_train)
     z_hat_train = gbm.predict(X=X_train)
     z_hat_test = gbm.predict(X=X_test)
     return z_hat_train, z_hat_test
@@ -429,7 +450,9 @@ def _get_model_losses(
     for model in z_hat["train"].keys():
         for data_set in ["train", "test"]:
             losses[data_set][model] = distribution.loss(
-                y=simulation_result[data_set]["y"], z=z_hat[data_set][model]
+                y=simulation_result[data_set]["y"],
+                z=z_hat[data_set][model],
+                w=simulation_result[data_set]["w"],
             )
     return losses
 
@@ -481,10 +504,12 @@ def _save_output_figures(
     fig_simulation = _create_simulation_plots(
         z=simulation_result["train"]["z"],
         y=simulation_result["train"]["y"],
+        w=simulation_result["train"]["w"],
         distribution=initiate_distribution(distribution=dist),
     )
     fig_results = _create_result_plots(
         z_hat=z_hat["test"],
+        w=simulation_result["test"]["w"],
         distribution=initiate_distribution(distribution=dist),
     )
     for figure_name, figure in [
@@ -503,6 +528,7 @@ def _save_output_figures(
 def _create_simulation_plots(
     z: np.ndarray,
     y: np.ndarray,
+    w: np.ndarray,
     distribution: Distribution,
 ) -> plt.Figure:
     """
@@ -510,6 +536,7 @@ def _create_simulation_plots(
 
     :param z: Array of parameters.
     :param y: Array of outcomes.
+    :param w: Array of weights.
     :param distribution: Distribution object.
     :return: Figure with plots.
     """
@@ -524,13 +551,13 @@ def _create_simulation_plots(
     window = n // 100
     for moment_order in [1, 2]:
         axs[1 + moment_order].set_title(f"Moment {moment_order}")
-        moment = distribution.moment(z=z, k=moment_order)
+        moment = distribution.moment(z=z, w=w, k=moment_order)
         sort_order = np.argsort(moment)
 
         if moment_order == 1:
             empirical_moment = _moving_average(y[sort_order], window)
         else:
-            mean = distribution.moment(z=z, k=1)
+            mean = distribution.moment(z=z, w=w, k=1)
             empirical_moment = _moving_variance(y[sort_order], mean[sort_order], window)
         axs[1 + moment_order].plot(moment[sort_order], label="True")
         axs[1 + moment_order].plot(empirical_moment, label="Empirical")
@@ -562,6 +589,7 @@ def _moving_variance(y: np.ndarray, mean: np.ndarray, window: int = 100):
 
 def _create_result_plots(
     z_hat: Dict[str, np.ndarray],
+    w: np.ndarray,
     distribution: Distribution,
 ) -> plt.Figure:
     """
@@ -586,11 +614,11 @@ def _create_result_plots(
 
     for moment_order in [1, 2]:
         axs[1 + moment_order].set_title(f"Moment {moment_order}")
-        moment = distribution.moment(z=z_hat["true"], k=moment_order)
+        moment = distribution.moment(z=z_hat["true"], w=w, k=moment_order)
         sort_order = np.argsort(moment)
         for model in z_hat.keys():
             axs[1 + moment_order].plot(
-                distribution.moment(z=z_hat[model], k=moment_order)[sort_order],
+                distribution.moment(z=z_hat[model], w=w, k=moment_order)[sort_order],
                 label=model,
             )
         axs[1 + moment_order].legend()
