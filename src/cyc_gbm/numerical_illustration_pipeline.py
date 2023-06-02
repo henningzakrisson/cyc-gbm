@@ -16,7 +16,6 @@ from src.cyc_gbm.logger import CycGBMLogger
 
 # TODO: Add real data capability
 # TODO: Add progress to logger
-# TODO: Remove the real data files (by using gitignore)
 
 def numerical_illustration(
     config_file: str,
