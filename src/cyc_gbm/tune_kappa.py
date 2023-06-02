@@ -5,7 +5,7 @@ import numpy as np
 
 from src.cyc_gbm import CycGBM
 from src.cyc_gbm.distributions import initiate_distribution, Distribution
-from src.cyc_gbm.logger import SimulationLogger
+from src.cyc_gbm.logger import CycGBMLogger
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -53,7 +53,7 @@ def tune_kappa(
     n_splits: int = 4,
     random_state: Union[int, None] = None,
     rng: Union[np.random.Generator, None] = None,
-    logger: Union[SimulationLogger, None] = None,
+    logger: Union[CycGBMLogger, None] = None,
 ) -> Dict[str, Union[List[int], np.ndarray]]:
     """Tunes the kappa parameter of a CycGBM model using k-fold cross-validation.
 
@@ -73,7 +73,7 @@ def tune_kappa(
 
     """
     if logger is None:
-        logger = SimulationLogger()
+        logger = CycGBMLogger()
     if isinstance(w, float):
         w = np.ones(len(y)) * w
     if rng is None:

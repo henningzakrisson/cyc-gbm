@@ -3,12 +3,13 @@ from typing import Union
 import os
 
 
-class SimulationLogger:
+class CycGBMLogger:
     """Logger for the simulation study."""
 
     def __init__(
         self,
         run_id: int = 0,
+        data_type: str = "simulation",
         verbose: int = 0,
         output_path: Union[str, None] = None,
     ):
@@ -23,7 +24,8 @@ class SimulationLogger:
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(logging.StreamHandler())
         formatter = logging.Formatter(
-            f"[%(asctime)s][run_{run_id}][%(message)s]", datefmt="%Y-%m-%d %H:%M"
+            f"[%(asctime)s][{data_type}][run_{run_id}][%(message)s]",
+            datefmt="%Y-%m-%d %H:%M",
         )
         self.logger.handlers[0].setFormatter(formatter)
 

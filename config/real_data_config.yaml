@@ -1,0 +1,33 @@
+# Simulation setup
+n: 50000
+p: 3
+random_seed: 123
+test_size: 0.2
+
+# Distribution setup
+dists:
+- gamma
+
+# Model setup
+models:
+- intercept
+- cyc-gbm
+# Hyperparameters
+hyper_parameters:
+  gamma:
+    glm:
+      eps: 1.0e-05
+      max_iter: 1000
+      tol: 0.001
+    gbm:
+      eps: 0.01
+      kappa_max: 1000
+      max_depth: 2
+      min_samples_leaf: 10
+      n_splits: 2
+
+# Output setup
+output_figures: true
+output_path: ../../data/results/simulation
+figure_format: png
+verbose: 1
