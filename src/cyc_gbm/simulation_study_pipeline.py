@@ -171,9 +171,9 @@ def _simulate_data(
     :param test_size: The size of the test set.
     :return: A dictionary with the simulated data.
     """
+    w = np.ones(X.shape[0])
     z = parameter_function(X)
-    y = distribution.simulate(z, rng=rng)
-    w = rng.choice([1,15], size=(len(y),), p = [0.8,0.2])
+    y = distribution.simulate(z, w=w, rng=rng)
     (
         X_train,
         X_test,
