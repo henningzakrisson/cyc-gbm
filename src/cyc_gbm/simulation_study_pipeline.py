@@ -173,7 +173,7 @@ def _simulate_data(
     """
     z = parameter_function(X)
     y = distribution.simulate(z, rng=rng)
-    w = rng.choice([1,15], size=(len(y),), p = [0.8,0.2])
+    w = rng.choice([1, 15], size=(len(y),), p=[0.8, 0.2])
     (
         X_train,
         X_test,
@@ -615,7 +615,7 @@ def _create_result_plots(
 
     for moment_order in [1, 2]:
         axs[1 + moment_order].set_title(f"Moment {moment_order}")
-        moment = distribution.moment(z=z_hat["true"], w=w,k=moment_order)
+        moment = distribution.moment(z=z_hat["true"], w=w, k=moment_order)
         sort_order = np.argsort(moment)
         for model in z_hat.keys():
             axs[1 + moment_order].plot(
