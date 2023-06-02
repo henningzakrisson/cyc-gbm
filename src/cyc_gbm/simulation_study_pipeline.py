@@ -13,7 +13,6 @@ from src.cyc_gbm.tune_kappa import tune_kappa
 from src.cyc_gbm.logger import SimulationLogger
 
 
-# TODO: Add weight capability
 # TODO: Add real data capability
 
 
