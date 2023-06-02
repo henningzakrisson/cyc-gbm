@@ -25,14 +25,14 @@ hyper_parameters:
       max_iter: 1000
       tol: 0.001
     gbm:
-      eps: 0.01
-      kappa_max: 10
+      eps: 0.1
+      kappa_max: 50
       max_depth: 2
-      min_samples_leaf: 10
-      n_splits: 2
+      min_samples_leaf: 20
+      n_splits: 10
 
 # Output setup
 output_figures: true
 output_path: ../../data/results/real_data
 figure_format: png
-verbose: 1
+verbose: 2

@@ -2,6 +2,8 @@ import logging
 from typing import Union
 import os
 
+import numpy as np
+
 
 class CycGBMLogger:
     """Logger for the simulation study."""
@@ -20,6 +22,7 @@ class CycGBMLogger:
         :param output_path: The path to the output directory.
         """
         self.verbose = verbose
+        self.last_progress = 0
         self.logger = logging.Logger("simulation_logger")
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(logging.StreamHandler())
@@ -47,9 +50,18 @@ class CycGBMLogger:
         :param total_steps: The total number of steps.
         :param verbose: The verbosity level.
         """
+        # Check if progress has been made
+        new_progress = np.floor(10 * step / total_steps) / 10
+        if new_progress > self.last_progress:
+            self.last_progress = new_progress
+            msg = f"progress: {int(new_progress * 100)}%"
 
-        if verbose <= self.verbose:
-            self.logger.info(msg)
+            if verbose <= self.verbose:
+                self.logger.info(msg)
+
+    def reset_progress(self):
+        """Reset the progress."""
+        self.last_progress = 0
 
     def append_format_level(self, level_msg):
         """Append the level to the message.
