@@ -1,0 +1,38 @@
+# Data setup
+data: real
+data_sets:
+  - claim_amounts
+input_paths:
+  claim_amounts: ../../data/cas_data/claim_amounts.csv
+
+# Data split setup
+random_seed: 123
+test_size: 0.2
+
+# Distribution setup
+dists:
+  claim_amounts: gamma
+
+# Model setup
+models:
+- intercept
+- cyc-gbm
+# Hyperparameters
+hyper_parameters:
+  claim_amounts:
+    glm:
+      eps: 1.0e-05
+      max_iter: 1000
+      tol: 0.001
+    gbm:
+      eps: 0.1
+      kappa_max: 50
+      max_depth: 2
+      min_samples_leaf: 20
+      n_splits: 10
+
+# Output setup
+output_figures: true
+output_path: ../../data/results/real_data
+figure_format: png
+verbose: 2

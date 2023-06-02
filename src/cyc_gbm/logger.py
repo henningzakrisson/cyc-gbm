@@ -2,13 +2,16 @@ import logging
 from typing import Union
 import os
 
+import numpy as np
 
-class SimulationLogger:
+
+class CycGBMLogger:
     """Logger for the simulation study."""
 
     def __init__(
         self,
         run_id: int = 0,
+        data_type: str = "simulation",
         verbose: int = 0,
         output_path: Union[str, None] = None,
     ):
@@ -19,11 +22,13 @@ class SimulationLogger:
         :param output_path: The path to the output directory.
         """
         self.verbose = verbose
+        self.last_progress = 0
         self.logger = logging.Logger("simulation_logger")
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(logging.StreamHandler())
         formatter = logging.Formatter(
-            f"[%(asctime)s][run_{run_id}][%(message)s]", datefmt="%Y-%m-%d %H:%M"
+            f"[%(asctime)s][{data_type}][run_{run_id}][%(message)s]",
+            datefmt="%Y-%m-%d %H:%M",
         )
         self.logger.handlers[0].setFormatter(formatter)
 
@@ -37,6 +42,26 @@ class SimulationLogger:
     def log(self, msg: str, verbose: int = 0):
         if verbose <= self.verbose:
             self.logger.info(msg)
+
+    def log_progress(self, step: int, total_steps: int, verbose: int = 0):
+        """Log the progress of the simulation.
+
+        :param step: The current step.
+        :param total_steps: The total number of steps.
+        :param verbose: The verbosity level.
+        """
+        # Check if progress has been made
+        new_progress = np.floor(10 * step / total_steps) / 10
+        if new_progress > self.last_progress:
+            self.last_progress = new_progress
+            msg = f"progress: {int(new_progress * 100)}%"
+
+            if verbose <= self.verbose:
+                self.logger.info(msg)
+
+    def reset_progress(self):
+        """Reset the progress."""
+        self.last_progress = 0
 
     def append_format_level(self, level_msg):
         """Append the level to the message.
