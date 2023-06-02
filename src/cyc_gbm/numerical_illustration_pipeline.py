@@ -17,6 +17,7 @@ from src.cyc_gbm.logger import CycGBMLogger
 # TODO: Add real data capability
 # TODO: Add progress to logger
 
+
 def numerical_illustration(
     config_file: str,
 ) -> Dict[str, Dict[str, Dict[str, Dict[str, np.ndarray]]]]:
@@ -151,9 +152,16 @@ def _load_data(
     w = df.pop("w").to_numpy()
     X = df.to_numpy()
 
-    X_train, X_test, y_train, y_test, z_train,z_test,w_train, w_test= train_test_split(
-        X=X, y=y, w=w, test_size=config["test_size"], rng=rng
-    )
+    (
+        X_train,
+        X_test,
+        y_train,
+        y_test,
+        z_train,
+        z_test,
+        w_train,
+        w_test,
+    ) = train_test_split(X=X, y=y, w=w, test_size=config["test_size"], rng=rng)
     data = {
         "train": {
             "X": X_train,
@@ -547,7 +555,7 @@ def _save_output_figures(
 
 
 def _create_data_plots(
-    z: Union[None,np.ndarray],
+    z: Union[None, np.ndarray],
     y: np.ndarray,
     w: np.ndarray,
     distribution: Distribution,
@@ -575,7 +583,7 @@ def _create_data_plots(
 
 
 def _create_simulated_data_plots(
-    z: Union[None,np.ndarray],
+    z: Union[None, np.ndarray],
     y: np.ndarray,
     w: np.ndarray,
     distribution: Distribution,
@@ -618,7 +626,7 @@ def _create_simulated_data_plots(
 
 
 def _create_real_data_plots(
-        y: np.ndarray,
+    y: np.ndarray,
 ) -> plt.Figure:
     """
     Create plots for the real data.
@@ -639,10 +647,10 @@ def _create_real_data_plots(
         else:
             mean = empirical_moment
             empirical_moment = _moving_variance(y[sort_order], mean[sort_order], window)
-        axs[moment_order-1].set_title(f"Moment {moment_order}")
-        axs[moment_order-1].plot(empirical_moment, label="Empirical")
-        axs[moment_order-1].legend()
-        axs[moment_order-1].set_xlim([window, n - window])
+        axs[moment_order - 1].set_title(f"Moment {moment_order}")
+        axs[moment_order - 1].plot(empirical_moment, label="Empirical")
+        axs[moment_order - 1].legend()
+        axs[moment_order - 1].set_xlim([window, n - window])
 
     return fig
 
@@ -689,7 +697,7 @@ def _create_result_plots(
         if "true" in z_hat.keys():
             sort_order = np.argsort(z_hat["true"][parameter, :])
         else:
-            sort_order = np.argsort(y/w)
+            sort_order = np.argsort(y / w)
         for model in z_hat.keys():
             axs[parameter].plot(
                 z_hat[model][parameter, sort_order],
@@ -701,9 +709,11 @@ def _create_result_plots(
     for moment_order in [1, 2]:
         axs[1 + moment_order].set_title(f"Moment {moment_order}")
         if "true" in z_hat.keys():
-            sort_order = np.argsort(distribution.moment(z=z_hat["true"], w=w, k=moment_order))
+            sort_order = np.argsort(
+                distribution.moment(z=z_hat["true"], w=w, k=moment_order)
+            )
         else:
-            sort_order = np.argsort(y/w)
+            sort_order = np.argsort(y / w)
         for model in z_hat.keys():
             axs[1 + moment_order].plot(
                 distribution.moment(z=z_hat[model], w=w, k=moment_order)[sort_order],
