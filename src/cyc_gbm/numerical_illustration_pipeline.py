@@ -16,7 +16,6 @@ from src.cyc_gbm.logger import CycGBMLogger
 
 # TODO: Add real data capability
 # TODO: Add progress to logger
-# TODO: Add fold-wise warnings for non-convergence to logger
 # TODO: Remove the real data files (by using gitignore)
 
 def numerical_illustration(
@@ -153,18 +152,20 @@ def _load_data(
     w = df.pop("w").to_numpy()
     X = df.to_numpy()
 
-    X_train, X_test, y_train, y_test, _,_,w_train, w_test= train_test_split(
+    X_train, X_test, y_train, y_test, z_train,z_test,w_train, w_test= train_test_split(
         X=X, y=y, w=w, test_size=config["test_size"], rng=rng
     )
     data = {
         "train": {
             "X": X_train,
             "y": y_train,
+            "z": z_train,
             "w": w_train,
         },
         "test": {
             "X": X_test,
             "y": y_test,
+            "z": z_test,
             "w": w_test,
         },
     }
@@ -288,7 +289,7 @@ def _get_model_predictions(
     y_train = data["train"]["y"]
 
     z_hat = {"train": {}, "test": {}}
-    if "z" in data["train"]:
+    if data["train"]["z"] is not None:
         z_hat["train"]["true"] = data["train"]["z"]
         z_hat["test"]["true"] = data["test"]["z"]
 
@@ -499,7 +500,6 @@ def _save_data(
             z_hat=z_hat,
             output_path=f"{output_path}/run_{run_id}/{data_set}",
             distribution=distribution,
-            data_set=data_set,
         )
 
 
@@ -508,7 +508,6 @@ def _save_output_figures(
     z_hat: Dict[str, Dict[str, np.ndarray]],
     output_path: str,
     distribution: Distribution,
-    data_set: str,
     figure_format: str = "png",
 ):
     """Save the output figures.
@@ -531,6 +530,7 @@ def _save_output_figures(
     )
     fig_results = _create_result_plots(
         z_hat=z_hat["test"],
+        y=data["test"]["y"],
         w=data["test"]["w"],
         distribution=distribution,
     )
@@ -548,19 +548,47 @@ def _save_output_figures(
 
 
 def _create_data_plots(
-    z: np.ndarray,
+    z: Union[None,np.ndarray],
     y: np.ndarray,
     w: np.ndarray,
     distribution: Distribution,
 ) -> plt.Figure:
     """
-    Create plots of the simulated data.
+    Create plots for the data.
 
     :param z: Array of parameters.
     :param y: Array of outcomes.
     :param w: Array of weights.
     :param distribution: Distribution object.
     :return: Figure with plots.
+    """
+    if z is not None:
+        return _create_simulated_data_plots(
+            z=z,
+            y=y,
+            w=w,
+            distribution=distribution,
+        )
+    else:
+        return _create_real_data_plots(
+            y=y,
+        )
+
+
+def _create_simulated_data_plots(
+    z: Union[None,np.ndarray],
+    y: np.ndarray,
+    w: np.ndarray,
+    distribution: Distribution,
+) -> plt.Figure:
+    """
+    Create plots for the simulated data.
+
+    :param z: True parameters.
+    :param y: Outcomes.
+    :param w: Data weights.
+    :param distribution: Distribution object.
+    :return: A figure with plots.
     """
     n = len(y)
     fig, axs = plt.subplots(2, 2, figsize=(10, 5))
@@ -569,6 +597,7 @@ def _create_data_plots(
         axs[parameter].set_title(f"Parameter {parameter}")
         sort_order = np.argsort(z[parameter, :])
         axs[parameter].plot(z[parameter, sort_order])
+        axs[parameter].set_xlim([0, n])
 
     window = n // 100
     for moment_order in [1, 2]:
@@ -584,6 +613,37 @@ def _create_data_plots(
         axs[1 + moment_order].plot(moment[sort_order], label="True")
         axs[1 + moment_order].plot(empirical_moment, label="Empirical")
         axs[1 + moment_order].legend()
+        axs[1 + moment_order].set_xlim([window, n - window])
+
+    return fig
+
+
+def _create_real_data_plots(
+        y: np.ndarray,
+) -> plt.Figure:
+    """
+    Create plots for the real data.
+
+    :param y: Outcomes.
+    :return: A figure with plots.
+    """
+    n = len(y)
+    fig, axs = plt.subplots(1, 2, figsize=(10, 3))
+    axs = axs.flatten()
+
+    window = n // 100
+    for moment_order in [1, 2]:
+        sort_order = np.argsort(y)
+
+        if moment_order == 1:
+            empirical_moment = _moving_average(y[sort_order], window)
+        else:
+            mean = empirical_moment
+            empirical_moment = _moving_variance(y[sort_order], mean[sort_order], window)
+        axs[moment_order-1].set_title(f"Moment {moment_order}")
+        axs[moment_order-1].plot(empirical_moment, label="Empirical")
+        axs[moment_order-1].legend()
+        axs[moment_order-1].set_xlim([window, n - window])
 
     return fig
 
@@ -598,7 +658,7 @@ def _moving_average(y: np.ndarray, window: int = 100):
     return np.convolve(y, np.ones(window), mode="same") / window
 
 
-def _moving_variance(y: np.ndarray, mean: np.ndarray, window: int = 100):
+def _moving_variance(y: np.ndarray, mean: np.ndarray, window: int = 100) -> object:
     """Compute moving variance of y with window size window.
 
     :param y: Array of values.
@@ -611,6 +671,7 @@ def _moving_variance(y: np.ndarray, mean: np.ndarray, window: int = 100):
 
 def _create_result_plots(
     z_hat: Dict[str, np.ndarray],
+    y: np.ndarray,
     w: np.ndarray,
     distribution: Distribution,
 ) -> plt.Figure:
@@ -626,24 +687,31 @@ def _create_result_plots(
 
     for parameter in [0, 1]:
         axs[parameter].set_title(f"Parameter {parameter}")
-        sort_order = np.argsort(z_hat["true"][parameter, :])
+        if "true" in z_hat.keys():
+            sort_order = np.argsort(z_hat["true"][parameter, :])
+        else:
+            sort_order = np.argsort(y/w)
         for model in z_hat.keys():
             axs[parameter].plot(
                 z_hat[model][parameter, sort_order],
                 label=model,
             )
         axs[parameter].legend()
+        axs[parameter].set_xlim([0, len(y)])
 
     for moment_order in [1, 2]:
         axs[1 + moment_order].set_title(f"Moment {moment_order}")
-        moment = distribution.moment(z=z_hat["true"], w=w, k=moment_order)
-        sort_order = np.argsort(moment)
+        if "true" in z_hat.keys():
+            sort_order = np.argsort(distribution.moment(z=z_hat["true"], w=w, k=moment_order))
+        else:
+            sort_order = np.argsort(y/w)
         for model in z_hat.keys():
             axs[1 + moment_order].plot(
                 distribution.moment(z=z_hat[model], w=w, k=moment_order)[sort_order],
                 label=model,
             )
         axs[1 + moment_order].legend()
+        axs[1 + moment_order].set_xlim([0, len(y)])
 
     return fig
 

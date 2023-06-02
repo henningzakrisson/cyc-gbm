@@ -40,6 +40,17 @@ class CycGBMLogger:
         if verbose <= self.verbose:
             self.logger.info(msg)
 
+    def log_progress(self, step: int, total_steps: int, verbose: int = 0):
+        """Log the progress of the simulation.
+
+        :param step: The current step.
+        :param total_steps: The total number of steps.
+        :param verbose: The verbosity level.
+        """
+
+        if verbose <= self.verbose:
+            self.logger.info(msg)
+
     def append_format_level(self, level_msg):
         """Append the level to the message.
 

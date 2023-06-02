@@ -118,12 +118,18 @@ def tune_kappa(
                         loss[i, k, j] = loss[i, k, j - 1]
 
             # Stop if no improvement was made
-            if np.all(
+            if k != max(kappa_max) and np.all(
                 [loss[i, k, 0] >= loss[i, k - 1, 1]]
                 + [loss[i, k, j] >= loss[i, k, j - 1] for j in range(1, d)]
             ):
                 loss[i, k + 1 :, :] = loss[i, k, -1]
                 break
+
+            if k == max(kappa_max):
+                logger.log(
+                    f"Tuning did not converge on fold {i+1}/{n_splits}",
+                    verbose=1,
+                )
 
     loss_total = loss.sum(axis=0)
     loss_delta = np.zeros((d, max(kappa_max) + 1))
@@ -134,7 +140,7 @@ def tune_kappa(
     did_not_converge = (loss_delta > 0).sum(axis=1) == 0
     for j in range(d):
         if did_not_converge[j] and kappa_max[j] > 0:
-            logger.warning(f"Tuning did not converge for dimension {j}", verbose=1)
+            logger.log(f"Tuning did not converge for dimension {j}", verbose=1)
             kappa[j] = kappa_max[j]
 
     results = {"kappa": kappa, "loss": loss}
