@@ -1,6 +1,9 @@
 # Data setup
+data: real
+data_sets:
+  - claim_amounts
 input_paths:
-  - ../../data/cas_data/claim_amounts.csv
+  claim_amounts: ../../data/cas_data/claim_amounts.csv
 
 # Data split setup
 random_seed: 123
@@ -8,7 +11,7 @@ test_size: 0.2
 
 # Distribution setup
 dists:
-- gamma
+  claim_amounts: gamma
 
 # Model setup
 models:
@@ -16,7 +19,7 @@ models:
 - cyc-gbm
 # Hyperparameters
 hyper_parameters:
-  gamma:
+  claim_amounts:
     glm:
       eps: 1.0e-05
       max_iter: 1000
@@ -30,6 +33,6 @@ hyper_parameters:
 
 # Output setup
 output_figures: true
-output_path: ../../data/results/simulation
+output_path: ../../data/results/real_data
 figure_format: png
 verbose: 1

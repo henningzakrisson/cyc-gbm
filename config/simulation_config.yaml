@@ -1,9 +1,11 @@
+# Data setup
+data: simulation
+
 # Simulation setup
 n: 1000
 p: 3
 random_seed: 123
 test_size: 0.2
-data: simulation
 
 # Distribution setup
 dists:

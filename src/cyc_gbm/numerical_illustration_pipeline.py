@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import tikzplotlib
 import yaml
 import shutil
+import pandas as pd
 
 from src.cyc_gbm import CycGBM, CycGLM
 from src.cyc_gbm.distributions import initiate_distribution, Distribution
@@ -14,6 +15,8 @@ from src.cyc_gbm.logger import CycGBMLogger
 
 
 # TODO: Add real data capability
+# TODO: Add progress to logger
+# TODO: Add fold-wise warnings for non-convergence to logger
 # TODO: Remove the real data files (by using gitignore)
 
 def numerical_illustration(
@@ -58,9 +61,24 @@ def numerical_illustration(
                 rng=rng,
                 test_size=config["test_size"],
             )
-            logger.remove_format_level()
             dists[data_set] = data_set
-
+            logger.remove_format_level()
+    elif config["data"] == "real":
+        logger.log(f"initiating data load")
+        data = {}
+        dists = {}
+        for data_set in config["data_sets"]:
+            logger.append_format_level(data_set)
+            logger.log(f"loading data")
+            data[data_set] = _load_data(
+                config=config,
+                data_set=data_set,
+                rng=rng,
+            )
+            dists[data_set] = config["dists"][data_set]
+            logger.remove_format_level()
+    else:
+        raise ValueError(f"Data type {config['data']} not supported.")
 
     z_hat = {}
     losses = {}
@@ -125,36 +143,32 @@ def _get_run_id(output_path: Union[str, None]) -> int:
         )
 
 
-def _simulate_all_data(
+def _load_data(
     config: Dict[str, Any],
+    data_set: str,
     rng: np.random.Generator,
 ) -> Dict[str, Dict[str, np.ndarray]]:
-    """Simulate data from all distributions and parameter functions.
+    df = pd.read_csv(config["input_paths"][data_set])
+    y = df.pop("y").to_numpy()
+    w = df.pop("w").to_numpy()
+    X = df.to_numpy()
 
-    :param config: The configuration.
-    :param rng: The random number generator.
-    :return: The simulated data.
-    """
-    n = config["n"]
-    p = config["p"]
-    dists = config["dists"]
-    parameter_functions = {}
-    for distribution, parameter_function in config["parameter_functions"].items():
-        exec(parameter_function, globals())
-        parameter_functions[distribution] = eval("z")
-
-    X = np.hstack([np.ones((n, 1)), rng.standard_normal((n, p - 1))])
-    simulation_results = {dist: {} for dist in dists}
-    for dist in dists:
-        distribution = initiate_distribution(distribution=dist)
-        simulation_results[dist] = _simulate_data(
-            X=X,
-            distribution=distribution,
-            parameter_function=parameter_functions[dist],
-            rng=rng,
-            test_size=config["test_size"],
-        )
-    return simulation_results
+    X_train, X_test, y_train, y_test, _,_,w_train, w_test= train_test_split(
+        X=X, y=y, w=w, test_size=config["test_size"], rng=rng
+    )
+    data = {
+        "train": {
+            "X": X_train,
+            "y": y_train,
+            "w": w_train,
+        },
+        "test": {
+            "X": X_test,
+            "y": y_test,
+            "w": w_test,
+        },
+    }
+    return data
 
 
 def _simulate_data(
@@ -274,8 +288,9 @@ def _get_model_predictions(
     y_train = data["train"]["y"]
 
     z_hat = {"train": {}, "test": {}}
-    z_hat["train"]["true"] = data["train"]["z"]
-    z_hat["test"]["true"] = data["test"]["z"]
+    if "z" in data["train"]:
+        z_hat["train"]["true"] = data["train"]["z"]
+        z_hat["test"]["true"] = data["test"]["z"]
 
     for model in models:
         logger.append_format_level(model)
@@ -512,7 +527,7 @@ def _save_output_figures(
         z=data["train"]["z"],
         y=data["train"]["y"],
         w=data["train"]["w"],
-        distribution=distribution
+        distribution=distribution,
     )
     fig_results = _create_result_plots(
         z_hat=z_hat["test"],
@@ -634,5 +649,5 @@ def _create_result_plots(
 
 
 if __name__ == "__main__":
-    config_file = "../../config/simulation_config.yaml"
+    config_file = "../../config/real_data_config.yaml"
     numerical_illustration(config_file=config_file)
