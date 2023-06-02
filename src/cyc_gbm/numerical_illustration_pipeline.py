@@ -13,8 +13,6 @@ from src.cyc_gbm.distributions import initiate_distribution, Distribution
 from src.cyc_gbm.tune_kappa import tune_kappa
 from src.cyc_gbm.logger import CycGBMLogger
 
-# TODO: Add real data capability
-
 
 def numerical_illustration(
     config_file: str,
