@@ -16,16 +16,14 @@ from src.cyc_gbm.logger import CycGBMLogger
 # TODO: Add real data capability
 # TODO: Remove the real data files (by using gitignore)
 
-
 def numerical_illustration(
     config_file: str,
 ) -> Dict[str, Dict[str, Dict[str, Dict[str, np.ndarray]]]]:
     """Run a study from a configuration file.
 
     :param config_file: The configuration file.
-    :return: The results of the simulation study as a dictionary.
+    :return: The results of the numerical illustration study as a dictionary.
     """
-    # Save config data
     with open(config_file, "r") as file:
         config = yaml.safe_load(file)
     output_path = config["output_path"]
@@ -35,74 +33,77 @@ def numerical_illustration(
         os.makedirs(f"{output_path}/run_{run_id}")
     logger = CycGBMLogger(
         run_id=run_id,
-        data_type="simulation",
+        data_type=config["data"],
         verbose=config["verbose"],
         output_path=output_path,
     )
     rng = np.random.default_rng(config["random_seed"])
 
-    if config["data_type"] == "simulation":
-        # Set up simulation
+    if config["data"] == "simulation":
+        logger.log(f"initiating simulation")
         n = config["n"]
         p = config["p"]
         X = np.hstack([np.ones((n, 1)), rng.standard_normal((n, p - 1))])
-        parameter_functions = {}
-        for distribution, parameter_function in config["parameter_functions"].items():
+        data = {}
+        dists = {}
+        for data_set, parameter_function in config["parameter_functions"].items():
+            logger.append_format_level(data_set)
+            logger.log("simulating data")
             exec(parameter_function, globals())
-            parameter_functions[distribution] = eval("z")
+            parameter_function = eval("z")
+            data[data_set] = _simulate_data(
+                X=X,
+                dist=data_set,
+                parameter_function=parameter_function,
+                rng=rng,
+                test_size=config["test_size"],
+            )
+            logger.remove_format_level()
+            dists[data_set] = data_set
 
-    simulation_results = {}
+
     z_hat = {}
     losses = {}
 
-    logger.log(f"starting simulation study")
-    for dist in config["dists"]:
-        logger.append_format_level(dist)
-
-        logger.log(f"simulating data")
-        distribution = initiate_distribution(distribution=dist)
-        simulation_results[dist] = _simulate_data(
-            X=X,
-            distribution=distribution,
-            parameter_function=parameter_functions[dist],
-            rng=rng,
-            test_size=config["test_size"],
-        )
-
+    logger.log(f"initiating model training")
+    for data_set, dist in dists.items():
+        logger.append_format_level(data_set)
         logger.log(f"running models")
-        z_hat[dist] = _get_model_predictions(
-            simulation_result=simulation_results[dist],
+        distribution = initiate_distribution(distribution=dist)
+        z_hat[data_set] = _get_model_predictions(
+            data=data[data_set],
             models=config["models"],
             distribution=distribution,
             rng=rng,
-            hyper_parameters=config["hyper_parameters"][dist],
+            hyper_parameters=config["hyper_parameters"][data_set],
             logger=logger,
         )
         logger.log(f"calculating losses")
-        losses[dist] = _get_model_losses(
-            simulation_result=simulation_results[dist],
-            z_hat=z_hat[dist],
+        losses[data_set] = _get_model_losses(
+            data=data[data_set],
+            z_hat=z_hat[data_set],
             distribution=distribution,
         )
 
         if output_path is not None:
             logger.log(f"saving results")
             _save_data(
-                simulation_result=simulation_results[dist],
+                data=data[data_set],
                 run_id=run_id,
-                z_hat=z_hat[dist],
-                losses=losses[dist],
+                z_hat=z_hat[data_set],
+                losses=losses[data_set],
                 config=config,
                 config_file=config_file,
-                dist=dist,
+                distribution=distribution,
+                data_set=data_set,
             )
         logger.remove_format_level()
-    logger.log(f"finished simulation study")
-    return {"simulation_results": simulation_results, "losses": losses, "z": z_hat}
+    logger.log(f"finished numerical illustration")
+    return {"data": data, "losses": losses, "z": z_hat}
 
 
 def _get_run_id(output_path: Union[str, None]) -> int:
-    """Get the run id for the simulation study.
+    """Get the id for the run.
     The run id is the largest run id in the output path plus one.
 
     :param output_path: The output path.
@@ -159,7 +160,7 @@ def _simulate_all_data(
 def _simulate_data(
     X: np.ndarray,
     parameter_function: Callable[[np.ndarray], np.ndarray],
-    distribution: Distribution,
+    dist: str,
     rng: np.random.Generator,
     test_size: float,
 ) -> Dict[str, Dict[str, np.ndarray]]:
@@ -167,13 +168,14 @@ def _simulate_data(
 
     :param X: The covariates.
     :param parameter_function: The parameter function to use.
-    :param distribution: The distribution to simulate from.
+    :param dist: The distribution to simulate from.
     :param rng: The random number generator.
     :param test_size: The size of the test set.
     :return: A dictionary with the simulated data.
     """
     w = np.ones(X.shape[0])
     z = parameter_function(X)
+    distribution = initiate_distribution(distribution=dist)
     y = distribution.simulate(z, w=w, rng=rng)
     (
         X_train,
@@ -248,7 +250,7 @@ def train_test_split(
 
 
 def _get_model_predictions(
-    simulation_result: Dict[str, Dict[str, np.ndarray]],
+    data: Dict[str, Dict[str, np.ndarray]],
     models: List[str],
     distribution: Distribution,
     rng: np.random.Generator,
@@ -257,7 +259,7 @@ def _get_model_predictions(
 ) -> Dict[str, Dict[str, np.ndarray]]:
     """Get the predictions from the models.
 
-    :param simulation_result: The simulation result.
+    :param data: The data.
     :param models: The models to use.
     :param distribution: The distribution.
     :param rng: The random number generator.
@@ -266,14 +268,14 @@ def _get_model_predictions(
     :return: A dictionary with the predictions and a dictionary with the losses.
     """
 
-    X_train = simulation_result["train"]["X"]
-    X_test = simulation_result["test"]["X"]
-    w_train = simulation_result["train"]["w"]
-    y_train = simulation_result["train"]["y"]
+    X_train = data["train"]["X"]
+    X_test = data["test"]["X"]
+    w_train = data["train"]["w"]
+    y_train = data["train"]["y"]
 
     z_hat = {"train": {}, "test": {}}
-    z_hat["train"]["true"] = simulation_result["train"]["z"]
-    z_hat["test"]["true"] = simulation_result["test"]["z"]
+    z_hat["train"]["true"] = data["train"]["z"]
+    z_hat["test"]["true"] = data["test"]["z"]
 
     for model in models:
         logger.append_format_level(model)
@@ -398,7 +400,7 @@ def _run_gbm_model(
     :param distribution: Distribution object.
     :param rng: Random number generator for the cross-validation.
     :param parameters: Dictionary of parameters.
-    :param logger: Simulation logger.
+    :param logger: Custom CycGBM logger.
     :return: Tuple of training and test predictions.
     """
 
@@ -437,13 +439,13 @@ def _run_gbm_model(
 
 
 def _get_model_losses(
-    simulation_result: Dict[str, Dict[str, np.ndarray]],
+    data: Dict[str, Dict[str, np.ndarray]],
     z_hat: Dict[str, Dict[str, np.ndarray]],
     distribution: Distribution,
 ) -> Dict[str, Dict[str, Dict[str, np.ndarray]]]:
     """Get the model losses.
 
-    :param simulation_result: The simulation results.
+    :param data: The input data.
     :param z_hat: The model predictions.
     :param distribution: The distribution object.
     :return: The model losses.
@@ -452,16 +454,17 @@ def _get_model_losses(
     for model in z_hat["train"].keys():
         for data_set in ["train", "test"]:
             losses[data_set][model] = distribution.loss(
-                y=simulation_result[data_set]["y"],
+                y=data[data_set]["y"],
                 z=z_hat[data_set][model],
-                w=simulation_result[data_set]["w"],
+                w=data[data_set]["w"],
             )
     return losses
 
 
 def _save_data(
-    dist: str,
-    simulation_result: Dict[str, Dict[str, np.ndarray]],
+    distribution: Distribution,
+    data_set: str,
+    data: Dict[str, Dict[str, np.ndarray]],
     z_hat: Dict[str, Dict[str, np.ndarray]],
     losses: Dict[str, Dict[str, Dict[str, np.ndarray]]],
     run_id: int,
@@ -470,31 +473,33 @@ def _save_data(
 ):
     output_path = config["output_path"]
     shutil.copy(config_file, f"{output_path}/run_{run_id}")
-    os.makedirs(f"{output_path}/run_{run_id}/{dist}")
-    np.savez(f"{output_path}/run_{run_id}/{dist}/simulation", **simulation_result)
-    np.savez(f"{output_path}/run_{run_id}/{dist}/z_hat", **z_hat)
-    np.savez(f"{output_path}/run_{run_id}/{dist}/losses", **losses)
+    os.makedirs(f"{output_path}/run_{run_id}/{data_set}")
+    np.savez(f"{output_path}/run_{run_id}/{data_set}/data", **data)
+    np.savez(f"{output_path}/run_{run_id}/{data_set}/z_hat", **z_hat)
+    np.savez(f"{output_path}/run_{run_id}/{data_set}/losses", **losses)
 
     if config["output_figures"]:
         _save_output_figures(
-            simulation_result=simulation_result,
+            data=data,
             z_hat=z_hat,
-            output_path=f"{output_path}/run_{run_id}/{dist}",
-            dist=dist,
+            output_path=f"{output_path}/run_{run_id}/{data_set}",
+            distribution=distribution,
+            data_set=data_set,
         )
 
 
 def _save_output_figures(
-    simulation_result: Dict[str, Dict[str, np.ndarray]],
+    data: Dict[str, Dict[str, np.ndarray]],
     z_hat: Dict[str, Dict[str, np.ndarray]],
     output_path: str,
-    dist: str,
+    distribution: Distribution,
+    data_set: str,
     figure_format: str = "png",
 ):
     """Save the output figures.
 
     :param output_path: The output path.
-    :param simulation_result: The simulation results.
+    :param data: The data.
     :param z_hat: The predicted z values.
     :param dist: The distribution.
     :param figure_format: The figure format.
@@ -503,19 +508,19 @@ def _save_output_figures(
 
     figure_path = f"{output_path}/figures"
     os.makedirs(figure_path)
-    fig_simulation = _create_simulation_plots(
-        z=simulation_result["train"]["z"],
-        y=simulation_result["train"]["y"],
-        w=simulation_result["train"]["w"],
-        distribution=initiate_distribution(distribution=dist),
+    fig_data = _create_data_plots(
+        z=data["train"]["z"],
+        y=data["train"]["y"],
+        w=data["train"]["w"],
+        distribution=distribution
     )
     fig_results = _create_result_plots(
         z_hat=z_hat["test"],
-        w=simulation_result["test"]["w"],
-        distribution=initiate_distribution(distribution=dist),
+        w=data["test"]["w"],
+        distribution=distribution,
     )
     for figure_name, figure in [
-        ("simulation", fig_simulation),
+        ("data", fig_data),
         ("results", fig_results),
     ]:
         if figure_format == "tikz":
@@ -527,7 +532,7 @@ def _save_output_figures(
             figure.savefig(f"{figure_path}/{figure_name}.{figure_format}")
 
 
-def _create_simulation_plots(
+def _create_data_plots(
     z: np.ndarray,
     y: np.ndarray,
     w: np.ndarray,

@@ -1,6 +1,8 @@
-# Simulation setup
-n: 50000
-p: 3
+# Data setup
+input_paths:
+  - ../../data/cas_data/claim_amounts.csv
+
+# Data split setup
 random_seed: 123
 test_size: 0.2
 
