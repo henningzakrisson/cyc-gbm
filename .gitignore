@@ -7,3 +7,4 @@
 /src/cyc_gbm/__pycache__/
 /data/
 /notebooks/
+.DS_STORE
