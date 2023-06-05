@@ -2,8 +2,8 @@
 data: simulation
 
 # Simulation setup
-n: 1000
-p: 3
+n: 100000
+p: 9
 random_seed: 123
 test_size: 0.2
 
@@ -13,30 +13,33 @@ dists:
 parameter_functions:
   gamma: |
     def z(X):
-        z0 = 2 + 0.2 * X[:, 1] + 0.3 * (X[:, 2] > 0)
-        z1 = 0.5 + 0.04 * X[:, 2] ** 2 + 0.5 * (X[:, 2] > 0)
+        z0 = -1 + 0.5*X[:,1] - 0.25*X[:,2]**2 + 0.5*np.abs(X[:,3])*np.sin(2*X[:,3]) * 0.25*X[:,4]*X[:,5]+0.125*X[:,5]**2*X[:,6]
+        z1 = 2 + 0.3*X[:,2]+0.02*np.abs(X[:,1])
         return np.stack([z0,z1])
 
 # Model setup
 models:
 - intercept
+- cyc-glm
+- uni-gbm
 - cyc-gbm
 # Hyperparameters
 hyper_parameters:
   gamma:
     glm:
-      eps: 1.0e-05
+      eps: 0.00001
       max_iter: 1000
       tol: 0.001
     gbm:
-      eps: 0.01
+      eps: 0.1
       kappa_max: 1000
-      max_depth: 2
-      min_samples_leaf: 10
+      max_depth: 3
+      min_samples_leaf: 5
       n_splits: 2
 
 # Output setup
-output_figures: true
+output_figures: false
+copy_data: true
 output_path: ../../data/results/simulation
 figure_format: png
-verbose: 1
+verbose: 2
