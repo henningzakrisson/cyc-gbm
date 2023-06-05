@@ -103,7 +103,6 @@ def tune_kappa(
         loss[i, 0, :] = gbm.dist.loss(y=y_valid, z=z_valid, w=w_valid).sum()
 
         for k in range(1, max(kappa_max) + 1):
-            logger.log_progress(step=k, total_steps=max(kappa_max) + 1, verbose=2)
             for j in range(d):
                 if k < kappa_max[j]:
                     gbm.update(X=X_train, y=y_train, w=w_train, j=j)
@@ -132,6 +131,7 @@ def tune_kappa(
                     msg="tuning did not converge",
                     verbose=1,
                 )
+            logger.log_progress(step=k, total_steps=max(kappa_max) + 1, verbose=2)
         logger.reset_progress()
         logger.remove_format_level()
 

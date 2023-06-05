@@ -41,7 +41,7 @@ def numerical_illustration(
         logger.log(f"initiating simulation")
         n = config["n"]
         p = config["p"]
-        X = np.hstack([np.ones((n, 1)), rng.standard_normal((n, p - 1))])
+        X = rng.standard_normal((n, p))
         data = {}
         dists = {}
         for data_set, parameter_function in config["parameter_functions"].items():
@@ -393,7 +393,7 @@ def _run_glm_model(
     :return: Tuple of training and test predictions.
     """
     max_iter = parameters["max_iter"]
-    eps = parameters["eps"]
+    eps = float(parameters["eps"])
     tol = parameters["tol"]
     glm = CycGLM(distribution=distribution, max_iter=max_iter, eps=eps, tol=tol)
     glm.fit(X=X_train, y=y_train, w=w_train, logger=logger)
@@ -751,5 +751,5 @@ def _create_result_plots(
 
 if __name__ == "__main__":
     config_path = "../../config"
-    config_file = "real_data_config.yaml"
+    config_file = "simulation_config.yaml"
     numerical_illustration(config_file=f"{config_path}/{config_file}")

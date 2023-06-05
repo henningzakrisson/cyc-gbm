@@ -1,0 +1,114 @@
+# Data setup
+data: simulation
+
+# Simulation setup
+n: 100000
+p: 9
+random_seed: 123
+test_size: 0.2
+
+# Distribution setup
+dists:
+- gamma
+- beta_prime
+- inv_gauss
+- normal
+- neg_bin
+- multivariate_normal
+parameter_functions:
+  gamma: |
+    def z(X):
+        z0 = -1 + 0.5*X[:,1] - 0.25*X[:,2]**2 + 0.5*np.abs(X[:,3])*np.sin(2*X[:,3]) * 0.25*X[:,4]*X[:,5]+0.125*X[:,5]**2*X[:,6]
+        z1 = 2 + 0.3*X[:,2]+0.02*np.abs(X[:,1])
+        return np.stack([z0,z1])
+  beta_prime: |
+    def z(X):
+        z0 = 2 + 2*np.sin(0.2*X[:,1]) + 0.05*X[:,2]*X[:,5]
+        z1 = -0.5 + 0.1*X[:,1] + np.minimum(1, 5*np.abs(X[:,2])) + 0.05*X[:,5]*X[:,2]
+        return np.stack([z0,z1])
+  inv_gauss: |
+    def z(X):
+        z0 = 0.003*X[:,1]*X[:,2]*X[:,3] + 0.3*np.abs(X[:,4])
+        z1 = 1 + 0.3*(X[:,1]>0) + 0.5*X[:,2]*(X[:,5]>0)
+        return np.stack([z0,z1])
+  normal: |
+    def z(X):
+        z0 = 1.5*X[:,1] + 2*X[:,3] - 0.65*X[:,2]**2 + 0.5*np.abs(X[:,3])*np.sin(0.5*X[:,2]) + 0.45*X[:,4]*X[:,5]**2
+        z1 = 1 + 0.02*X[:,2] + 0.5*X[:,1]*(X[:,1]<2) + 1.8*(X[:,5]>0)
+        return np.stack([z0,z1])
+  neg_bin: |
+    def z(X):
+        z0 = -1 + 0.004*np.minimum(2, X[:,4])**2 + 2.2*np.minimum(0.5, X[:,1]) + np.sin(0.3*X[:,2])
+        z1 = -2 + 0.3*(X[:,1] > 0) + 0.2*np.abs(X[:,2])*(X[:,5] > 0) + 0.2*X[:,3]
+        return np.stack([z0,z1])
+
+# Model setup
+models:
+- intercept
+- cyc-glm
+- uni-gbm
+- cyc-gbm
+# Hyperparameters
+hyper_parameters:
+  gamma:
+    glm:
+      eps: 1e-5
+      max_iter: 1000
+      tol: 0.01
+    gbm:
+      eps: 0.1
+      kappa_max: 1000
+      max_depth: 3
+      min_samples_leaf: 5
+      n_splits: 10
+  beta_prime:
+    glm:
+      eps: 1e-5
+      max_iter: 1000
+      tol: 0.01
+    gbm:
+      eps: 0.2
+      kappa_max: 100
+      max_depth: 3
+      min_samples_leaf: 5
+      n_splits: 10
+  inv_gauss:
+    glm:
+      eps: 1e-6
+      max_iter: 1000
+      tol: 0.01
+    gbm:
+      eps: 0.01
+      kappa_max: 500
+      max_depth: 3
+      min_samples_leaf: 4
+      n_splits: 10
+  normal:
+    glm:
+      eps: 1e-8
+      max_iter: 10000
+      tol: 0.01
+    gbm:
+      eps: 0.1
+      kappa_max: 250
+      max_depth: 3
+      min_samples_leaf: 5
+      n_splits: 10
+  neg_bin:
+    glm:
+      eps: 1e-6
+      max_iter: 10000
+      tol: 0.01
+    gbm:
+      eps: 0.1
+      kappa_max: 100
+      max_depth: 3
+      min_samples_leaf: 5
+      n_splits: 10
+
+# Output setup
+output_figures: true
+copy_data: true
+output_path: ../../data/results/simulation
+figure_format: png
+verbose: 2

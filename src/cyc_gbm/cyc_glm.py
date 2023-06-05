@@ -37,6 +37,7 @@ class CycGLM:
         self.tol = tol
         self.eps = eps if isinstance(eps, list) else [eps] * self.d
         self.beta = None
+        self.z0 = None
 
     def fit(
         self,
@@ -51,44 +52,40 @@ class CycGLM:
         :param X: Input data matrix of shape (n_samples, n_features).
         :param y: True response values for the input data, of shape (n_samples,).
         :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
+        :param logger: Logger object for logging training progress.
         """
         if logger is None:
             logger = CycGBMLogger(verbose=0)
-        z0 = self.dist.mle(y)[:, None]
-        z = np.tile(z0, (1, len(y)))
+        self.z0 = self.dist.mle(y)[:, None]
+        z = np.tile(self.z0, (1, X.shape[0]))
         p = X.shape[1]
 
-        beta_hat = np.zeros((self.max_iter, self.d, p))
-        for j in range(self.d):
-            beta_hat[0, j, 0] = z0[j]
+        beta = np.zeros((self.max_iter, self.d, p))
 
         logger.log("training", verbose=1)
         for i in range(self.max_iter):
             for j in range(self.d):
-                logger.log_progress(
-                    step=(i + 1) * (j + 1),
-                    total_steps=self.max_iter * self.d,
-                    verbose=2,
-                )
                 g = self.dist.grad(y=y, z=z, w=w, j=j)
-                beta_hat[i, j] = beta_hat[i - 1, j] - self.eps[j] * g @ X
+                beta[i, j] = beta[i - 1, j] - self.eps[j] * g @ X
                 # Update score
-                z[j] = beta_hat[i, j] @ X.T
+                z[j] = self.z0[j] + beta[i, j] @ X.T
 
+            # Check convergence
             if i > 0:
-                if (
-                    np.sum(
-                        np.abs(beta_hat[i] - beta_hat[i - 1]) / np.abs(beta_hat[i - 1])
-                    )
-                    < self.tol
-                ):
+                if np.allclose(beta[i], beta[i - 1], rtol=self.tol):
                     logger.log(f"Training converged after {i} iterations.", verbose=1)
                     break
+
+            logger.log_progress(
+                step=(i + 1),
+                total_steps=self.max_iter,
+                verbose=2,
+            )
 
         if i == self.max_iter - 1:
             logger.log("Warning: Maximum number of iterations reached.", verbose=1)
 
-        self.beta = beta_hat[i]
+        self.beta = beta[i]
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -97,9 +94,9 @@ class CycGLM:
         :param X: Input data matrix of shape (n_samples, n_features).
         :return: Predicted response of shape (n_samples,).
         """
-        z = np.zeros((self.d, X.shape[0]))
+        z = np.tile(self.z0, (1, X.shape[0]))
         for j in range(self.d):
-            z[j] = self.beta[j] @ X.T
+            z[j] += self.beta[j] @ X.T
 
         return z
 
