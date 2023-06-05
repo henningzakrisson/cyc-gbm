@@ -2,8 +2,10 @@
 data: real
 data_sets:
   - claim_amounts
+  - claim_counts
 input_paths:
   claim_amounts: ../../data/cas_data/claim_amounts.csv
+  claim_counts: ../../data/cas_data/claim_counts.csv
 
 # Data split setup
 random_seed: 123
@@ -12,6 +14,7 @@ test_size: 0.2
 # Distribution setup
 dists:
   claim_amounts: gamma
+  claim_counts: neg_bin
 
 # Model setup
 models:
@@ -23,8 +26,8 @@ models:
 hyper_parameters:
   claim_amounts:
     glm:
-      eps: 0.000000001
-      max_iter: 100
+      eps: 1e-13
+      max_iter: 1000
       tol: 0.001
     gbm:
       eps: 0.1
@@ -32,9 +35,20 @@ hyper_parameters:
       max_depth: 2
       min_samples_leaf: 20
       n_splits: 10
+  claim_counts:
+    glm:
+      eps: 1e-15
+      max_iter: 10000
+      tol: 0.01
+    gbm:
+      eps: 0.1
+      kappa_max: 50
+      max_depth: 3
+      min_samples_leaf: 20
+      n_splits: 10
 
 # Output setup
-output_figures: true
+output_figures: false
 copy_data: false
 output_path: ../../data/results/real_data
 figure_format: png

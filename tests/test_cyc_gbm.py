@@ -406,7 +406,7 @@ class GBMTests(unittest.TestCase):
         rng = np.random.default_rng(seed=11)
         n = 10000
         p = 3
-        X = np.concatenate([np.ones((1, n)), rng.normal(0, 1, (p - 1, n))]).T
+        X = rng.normal(0, 1, (n, p))
         beta_0 = np.array([0, 1, 2]) / 10
         beta_1 = np.array([0, 2, 1]) / 10
 
