@@ -1,10 +1,55 @@
-from typing import List, Union
+from typing import List, Union, Optional
 
 import numpy as np
 
 from src.cyc_gbm.distributions import Distribution, initiate_distribution
 from src.cyc_gbm.gbm_tree import GBMTree
 from src.cyc_gbm.logger import CycGBMLogger
+
+
+class Intercept:
+    """
+    Class for intercept models.
+    """
+
+    def __init__(self, distribution: Union[str, Distribution] = "normal"):
+        """
+        Initialize the model.
+
+        :param distribution: distribution for losses and gradients
+        """
+        if isinstance(distribution, str):
+            self.dist = initiate_distribution(distribution=distribution)
+        else:
+            self.dist = distribution
+        self.d = self.dist.d
+        self.z0 = None
+
+    def fit(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        w: Union[np.ndarray, float] = 1,
+        logger: Optional[CycGBMLogger] = None,
+    ) -> None:
+        """
+        Fit the model.
+
+        :param X: Input data matrix of shape (n_samples, n_features).
+        :param y: True response values for the input data.
+        :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
+        :param logger: Logger object.
+        """
+        self.z0 = self.dist.mle(y, w)
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """
+        Predict the response for the given input data.
+
+        :param X: Input data matrix of shape (n_samples, n_features).
+        :return: Predicted response of shape (n_samples,).
+        """
+        return np.tile(self.z0, (X.shape[0], 1)).T
 
 
 class CycGLM:
@@ -26,7 +71,6 @@ class CycGLM:
         :param tol: Tolerance for convergence.
         :param eps: Learning rate.
         :param distribution: distribution for losses and gradients
-        :param dist: distribution for losses and gradients
         """
         if isinstance(distribution, str):
             self.dist = initiate_distribution(distribution=distribution)
@@ -44,7 +88,7 @@ class CycGLM:
         X: np.ndarray,
         y: np.ndarray,
         w: Union[np.ndarray, float] = 1,
-        logger: Union[CycGBMLogger, None] = None,
+        logger: Optional[CycGBMLogger] = None,
     ) -> None:
         """
         Train the model on the given training data.
@@ -73,7 +117,7 @@ class CycGLM:
             # Check convergence
             if i > 0:
                 if np.allclose(beta[i], beta[i - 1], rtol=self.tol):
-                    logger.log(f"Training converged after {i} iterations.", verbose=1)
+                    logger.log(f"training converged after {i} iterations.", verbose=1)
                     break
 
             logger.log_progress(
@@ -83,7 +127,7 @@ class CycGLM:
             )
 
         if i == self.max_iter - 1:
-            logger.log("Warning: Maximum number of iterations reached.", verbose=1)
+            logger.log("training did not converge.", verbose=1)
 
         self.beta = beta[i]
 

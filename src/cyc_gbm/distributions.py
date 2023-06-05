@@ -1,10 +1,26 @@
-from typing import Callable, Type, Union
+from typing import Callable, Type, Union, Optional
 
 import numpy as np
 from scipy.optimize import minimize
 from scipy.special import loggamma, polygamma
 
-from src.cyc_gbm.exceptions import UnknownDistributionError
+
+def sigm(x: np.ndarray) -> np.ndarray:
+    """Sigmoid function
+
+    :param x: Input array.
+    :return: Sigmoid of input array.
+    """
+    return 1 / (1 + np.exp(-x))
+
+
+def sigm_inv(x: np.ndarray) -> np.ndarray:
+    """Inverse sigmoid function
+
+    :param x: Input array.
+    :return: Inverse sigmoid of input array.
+    """
+    return np.log(x / (1 - x))
 
 
 def inherit_docstrings(cls: Type) -> Type:
@@ -27,8 +43,10 @@ def inherit_docstrings(cls: Type) -> Type:
 class Distribution:
     def __init__(
         self,
+        d: Optional[int] = None,
     ):
         """Initialize a distribution object."""
+        self.d = d
 
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
@@ -57,11 +75,12 @@ class Distribution:
         """
         pass
 
-    def mme(self, y: np.ndarray) -> np.ndarray:
+    def mme(self, y: np.ndarray, w: np.ndarray) -> np.ndarray:
         """
         Calculates the method of moments estimator for the parameter vector
 
         :param y: The target values.
+        :param w: The weights of the observations.
         :return: the method of moments estimator
         """
         pass
@@ -100,8 +119,7 @@ class Distribution:
         :return: The maximum likelihood estimator of the parameters.
         """
         z_0 = self.mme(y=y, w=w)
-        to_min = lambda z: self.loss(y=y, z=z, w=w).sum()
-        z_opt = minimize(to_min, z_0)["x"]
+        z_opt = minimize(lambda z: self.loss(y=y, z=z, w=w).sum(), z_0)["x"]
         return z_opt
 
     def opt_step(
@@ -125,15 +143,11 @@ class Distribution:
 
         # Indicator vector for adding step to dimension j
         e = np.eye(self.d)[:, j : j + 1]
-        to_min = lambda step: self.loss(y=y, z=z + e * step, w=w).sum()
-        grad = lambda step: self.grad(y=y, z=z + e * step, j=j, w=w).sum()
         step_opt = minimize(
-            fun=to_min,
-            jac=grad,
+            fun=lambda step: self.loss(y=y, z=z + e * step, w=w).sum(),
+            jac=lambda step: self.grad(y=y, z=z + e * step, j=j, w=w).sum(),
             x0=g_0,
-        )[
-            "x"
-        ][0]
+        )["x"][0]
         return step_opt
 
 
@@ -150,23 +164,7 @@ class MultivariateNormalDistribution(Distribution):
         E[X] = [w*mu,w*mu]
         Cov(X) = w*[sigma^2, rho*sigma^2; rho*sigma^2, sigma^2]
         """
-        self.d = 3
-
-    def sigm(self, x: np.ndarray) -> np.ndarray:
-        """Sigmoid function
-
-        :param x: Input array.
-        :return: Sigmoid of input array.
-        """
-        return 1 / (1 + np.exp(-x))
-
-    def sigm_inv(self, x: np.ndarray) -> np.ndarray:
-        """Inverse sigmoid function
-
-        :param x: Input array.
-        :return: Inverse sigmoid of input array.
-        """
-        return np.log(x / (1 - x))
+        super().__init__(d=3)
 
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
@@ -177,7 +175,7 @@ class MultivariateNormalDistribution(Distribution):
             )
         mu = z[0]
         s2 = np.exp(z[1])
-        rho = self.sigm(z[2])
+        rho = sigm(z[2])
 
         mu_term = (
             (y[:, 0] - mu) ** 2
@@ -197,13 +195,13 @@ class MultivariateNormalDistribution(Distribution):
         if j == 0:
             mu = z[0]
             s2 = np.exp(z[1])
-            rho = self.sigm(z[2])
+            rho = sigm(z[2])
 
             return (1 / (s2 * (1 + rho))) * (2 * mu - y[:, 0] - y[:, 1])
         elif j == 1:
             mu = z[0]
             s2 = np.exp(z[1])
-            rho = self.sigm(z[2])
+            rho = sigm(z[2])
 
             mu_term = (
                 (y[:, 0] - mu) ** 2
@@ -219,12 +217,12 @@ class MultivariateNormalDistribution(Distribution):
         elif j == 2:
             mu = z[0]
             s2 = np.exp(z[1])
-            rho = self.sigm(z[2])
+            rho = sigm(z[2])
 
             m_1 = (y[:, 0] - mu) ** 2 + (y[:, 1] - mu) ** 2
             m_2 = (y[:, 0] - mu) * (y[:, 1] - mu)
             return 1 * (
-                (rho / ((1 + rho)))
+                (rho / (1 + rho))
                 * (
                     (1 / (s2 * (1 - rho**2))) * (-m_2 * rho**2 + m_1 * rho - m_2)
                     - rho
@@ -240,7 +238,7 @@ class MultivariateNormalDistribution(Distribution):
         mu = y.mean()
         s2 = np.mean((y[0] - mu) ** 2 + (y[1] - mu) ** 2)
         rho = np.corrcoef(y.T)[0, 1]
-        return np.array([mu, np.log(s2), self.sigm_inv(rho)])
+        return np.array([mu, np.log(s2), sigm_inv(rho)])
 
     def simulate(
         self,
@@ -257,7 +255,7 @@ class MultivariateNormalDistribution(Distribution):
             rng = np.random.default_rng(seed=random_state)
         mu = np.stack([z[0]] * 2)
         s2 = np.exp(z[1])
-        rho = self.sigm(z[2])
+        rho = sigm(z[2])
         Sigma = np.stack([np.stack([s2, s2 * rho]), np.stack([s2 * rho, s2])])
 
         return np.stack(
@@ -277,7 +275,7 @@ class MultivariateNormalDistribution(Distribution):
         if k == 1:
             return np.array([z[0], z[0]])
         elif k == 2:
-            rho = self.sigm(z[2])
+            rho = sigm(z[2])
             s2 = np.exp(z[1])
             return np.stack([np.stack([s2, s2 * rho]), np.stack([s2 * rho, s2])])
 
@@ -291,7 +289,7 @@ class NormalDistribution(Distribution):
 
         Parameterization: z[0] = mu, z[1] = log(sigma), where E[X] = w*mu, Var(X) = w*sigma^2
         """
-        self.d = 2
+        super().__init__(d=2)
 
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
@@ -346,7 +344,7 @@ class NegativeBinomialDistribution(Distribution):
 
         Parameterization: z[0] = np.log(mu), z[1] = log(theta), where E[X] = w*mu, Var(X) = w*mu*(1+mu/theta)
         """
-        self.d = 2
+        super().__init__(d=2)
 
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
@@ -420,7 +418,7 @@ class InverseGaussianDistribution(Distribution):
 
         Parameterization: z[0] = log(mu), z[1] = log(lambda), where E[X] = w*mu, Var(X) =w*mu^3 / lambda
         """
-        self.d = 2
+        super().__init__(d=2)
 
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
@@ -498,7 +496,7 @@ class GammaDistribution(Distribution):
 
         Parameterization: z[0] = log(mu), z[1] = log(phi), where E[X] = w*mu, Var(X) =w*phi * mu^2
         """
-        self.d = 2
+        super().__init__(d=2)
 
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
@@ -570,7 +568,7 @@ class BetaPrimeDistribution(Distribution):
 
         Parameterization: z[0] = log(mu), z[1] = log(v), where E[X] = w*mu, Var(X) =w*mu*(1+mu)/v
         """
-        self.d = 2
+        super().__init__(d=2)
 
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
@@ -696,12 +694,12 @@ class CustomDistribution(Distribution):
         :param moment: A function that computes the kth moment of the distribution.
         :param d: The dimension of the distribution.
         """
+        super().__init__(d=d)
         self.loss = loss
         self.grad = grad
         self.mme = mme
         self.simulate = simulate
         self.moment = moment
-        self.d = d
 
 
 def initiate_distribution(
@@ -762,7 +760,7 @@ def initiate_distribution(
         return CustomDistribution(
             loss=loss, grad=grad, mme=mme, simulate=simulate, moment=moment, d=d
         )
-    raise UnknownDistributionError("Unknown distribution")
+    raise ValueError(f"Unknown distribution: {distribution}")
 
 
 if __name__ == "__main__":

@@ -1,2 +1,0 @@
-class UnknownDistributionError(Exception):
-    pass

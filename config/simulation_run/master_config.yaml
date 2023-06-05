@@ -1,26 +1,15 @@
-# Data setup
-data_source: simulation
-
 # Simulation setup
 n: 100000
 p: 9
 random_seed: 123
 test_size: 0.2
 
-# Distribution setup
-distribution: gamma
-parameter_function: |
-  def z(X):
-      z0 = -1 + 0.5*X[:,1] - 0.25*X[:,2]**2 + 0.5*np.abs(X[:,3])*np.sin(2*X[:,3]) * 0.25*X[:,4]*X[:,5]+0.125*X[:,5]**2*X[:,6]
-      z1 = 2 + 0.3*X[:,2]+0.02*np.abs(X[:,1])
-      return np.stack([z0,z1])
-
 # Model setup
 models:
 - intercept
-#- cyc-glm
-#- uni-gbm
-#- cyc-gbm
+- cyc-glm
+- uni-gbm
+- cyc-gbm
 # Hyperparameters
 glm_parameters:
   eps: 0.00001
@@ -39,3 +28,6 @@ copy_data: true
 output_path: ../../data/results/
 figure_format:
 verbose: 2
+
+# Config setup
+sub_configs: ../../config/simulation_run/sub_configs/
