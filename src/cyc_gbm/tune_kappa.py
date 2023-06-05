@@ -73,7 +73,7 @@ def tune_kappa(
 
     """
     if logger is None:
-        logger = CycGBMLogger()
+        logger = CycGBMLogger(verbose=0)
     if isinstance(w, float):
         w = np.ones(len(y)) * w
     if rng is None:
@@ -86,7 +86,7 @@ def tune_kappa(
     loss = np.ones((n_splits, max(kappa_max) + 1, d)) * np.nan
     for i, idx in enumerate(folds):
         logger.append_format_level(f"fold {i+1}/{n_splits}")
-        logger.log("training", verbose=1)
+        logger.log("tuning", verbose=1)
         idx_train, idx_valid = idx
         X_train, y_train, w_train = X[idx_train], y[idx_train], w[idx_train]
         X_valid, y_valid, w_valid = X[idx_valid], y[idx_valid], w[idx_valid]

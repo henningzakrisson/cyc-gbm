@@ -315,6 +315,7 @@ def _get_model_predictions(
                 X_test=X_test,
                 distribution=distribution,
                 parameters=hyper_parameters["glm"],
+                logger=logger,
             )
         elif model == "uni-gbm":
             z_hat_train, z_hat_test = _run_gbm_model(
@@ -378,6 +379,7 @@ def _run_glm_model(
     X_test: np.ndarray,
     distribution: Distribution,
     parameters: Dict[str, Union[float, int, List[float]]],
+    logger: CycGBMLogger,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Run cyclic GLM model.
 
@@ -387,13 +389,14 @@ def _run_glm_model(
     :param X_test: Test covariates.
     :param distribution: Distribution object.
     :param parameters: Dictionary of parameters.
+    :param logger: The logger.
     :return: Tuple of training and test predictions.
     """
     max_iter = parameters["max_iter"]
     eps = parameters["eps"]
     tol = parameters["tol"]
     glm = CycGLM(distribution=distribution, max_iter=max_iter, eps=eps, tol=tol)
-    glm.fit(X=X_train, y=y_train, w=w_train)
+    glm.fit(X=X_train, y=y_train, w=w_train, logger=logger)
     z_hat_train = glm.predict(X=X_train)
     z_hat_test = glm.predict(X=X_test)
     return z_hat_train, z_hat_test
@@ -493,9 +496,16 @@ def _save_data(
     output_path = config["output_path"]
     shutil.copy(config_file, f"{output_path}/run_{run_id}")
     os.makedirs(f"{output_path}/run_{run_id}/{data_set}")
-    np.savez(f"{output_path}/run_{run_id}/{data_set}/data", **data)
+    if config["copy_data"]:
+        np.savez(f"{output_path}/run_{run_id}/{data_set}/data", **data)
     np.savez(f"{output_path}/run_{run_id}/{data_set}/z_hat", **z_hat)
     np.savez(f"{output_path}/run_{run_id}/{data_set}/losses", **losses)
+    _save_table(
+        losses=losses,
+        output_path=output_path,
+        run_id=run_id,
+        data_set=data_set,
+    )
 
     if config["output_figures"]:
         _save_output_figures(
@@ -504,6 +514,24 @@ def _save_data(
             output_path=f"{output_path}/run_{run_id}/{data_set}",
             distribution=distribution,
         )
+
+
+def _save_table(
+    losses: Dict[str, Dict[str, Dict[str, np.ndarray]]],
+    output_path: str,
+    run_id: int,
+    data_set: str,
+) -> None:
+    """Save the table of mean losses.
+
+    :param losses: The losses.
+    """
+    loss_mean = {
+        data_set: {model: loss.mean() for model, loss in losses[data_set].items()}
+        for data_set in losses.keys()
+    }
+    table = pd.DataFrame(loss_mean)
+    table.to_csv(f"{output_path}/run_{run_id}/{data_set}/loss_table.csv")
 
 
 def _save_output_figures(
@@ -722,5 +750,6 @@ def _create_result_plots(
 
 
 if __name__ == "__main__":
-    config_file = "../../config/real_data_config.yaml"
-    numerical_illustration(config_file=config_file)
+    config_path = "../../config"
+    config_file = "real_data_config.yaml"
+    numerical_illustration(config_file=f"{config_path}/{config_file}")

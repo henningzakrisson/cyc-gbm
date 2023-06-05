@@ -4,6 +4,7 @@ import numpy as np
 
 from src.cyc_gbm.distributions import Distribution, initiate_distribution
 from src.cyc_gbm.gbm_tree import GBMTree
+from src.cyc_gbm.logger import CycGBMLogger
 
 
 class CycGLM:
@@ -42,6 +43,7 @@ class CycGLM:
         X: np.ndarray,
         y: np.ndarray,
         w: Union[np.ndarray, float] = 1,
+        logger: Union[CycGBMLogger, None] = None,
     ) -> None:
         """
         Train the model on the given training data.
@@ -50,6 +52,8 @@ class CycGLM:
         :param y: True response values for the input data, of shape (n_samples,).
         :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
         """
+        if logger is None:
+            logger = CycGBMLogger(verbose=0)
         z0 = self.dist.mle(y)[:, None]
         z = np.tile(z0, (1, len(y)))
         p = X.shape[1]
@@ -58,8 +62,14 @@ class CycGLM:
         for j in range(self.d):
             beta_hat[0, j, 0] = z0[j]
 
+        logger.log("training", verbose=1)
         for i in range(self.max_iter):
             for j in range(self.d):
+                logger.log_progress(
+                    step=(i + 1) * (j + 1),
+                    total_steps=self.max_iter * self.d,
+                    verbose=2,
+                )
                 g = self.dist.grad(y=y, z=z, w=w, j=j)
                 beta_hat[i, j] = beta_hat[i - 1, j] - self.eps[j] * g @ X
                 # Update score
@@ -72,7 +82,11 @@ class CycGLM:
                     )
                     < self.tol
                 ):
+                    logger.log(f"Training converged after {i} iterations.", verbose=1)
                     break
+
+        if i == self.max_iter - 1:
+            logger.log("Warning: Maximum number of iterations reached.", verbose=1)
 
         self.beta = beta_hat[i]
 
