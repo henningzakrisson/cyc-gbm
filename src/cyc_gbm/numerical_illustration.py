@@ -395,6 +395,7 @@ def numerical_illustrations(
             rng=rng,
             logger=logger,
         )
+        logger.remove_format_level()
 
     return results
 
