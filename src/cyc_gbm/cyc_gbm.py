@@ -1,8 +1,9 @@
-from typing import List, Union
+from typing import List, Union, Optional
 
 import numpy as np
 
 from src.cyc_gbm.distributions import Distribution, initiate_distribution
+from src.cyc_gbm.logger import CycGBMLogger
 from src.cyc_gbm.gbm_tree import GBMTree
 
 
@@ -65,7 +66,11 @@ class CycGBM:
                 self.z0[j] += self.dist.opt_step(y=y, z=z, w=w, j=j)
 
     def fit(
-        self, X: np.ndarray, y: np.ndarray, w: Union[np.ndarray, float] = 1.0
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        w: Union[np.ndarray, float] = 1.0,
+        logger: Optional[CycGBMLogger] = None,
     ) -> None:
         """
         Train the model on the given training data.
@@ -74,6 +79,8 @@ class CycGBM:
         :param y: True response values for the input data.
         :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
         """
+        if logger is None:
+            logger = CycGBMLogger(verbose=0)
         if isinstance(w, float):
             w = np.ones(len(y)) * w
         self.z0 = self.dist.mle(y=y, w=w)[:, None]
@@ -90,6 +97,11 @@ class CycGBM:
                 tree.fit_gradients(X=X, y=y, z=z, w=w, j=j)
                 z[j] += self.eps[j] * tree.predict(X)
                 self.trees[j][k] = tree
+                logger.log_progress(
+                    step=(k + 1) * (j + 1),
+                    total_steps=(max(self.kappa) * self.d),
+                    verbose=2,
+                )
 
         self._adjust_mle(X=X, y=y, w=w)
 

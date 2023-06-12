@@ -11,7 +11,6 @@ class CycGBMLogger:
     def __init__(
         self,
         run_id: int = 0,
-        data_type: str = "simulation",
         verbose: int = 0,
         output_path: Union[str, None] = None,
     ):
@@ -27,13 +26,13 @@ class CycGBMLogger:
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(logging.StreamHandler())
         formatter = logging.Formatter(
-            f"[%(asctime)s][{data_type}][run_{run_id}][%(message)s]",
+            f"[%(asctime)s][run_{run_id}][%(message)s]",
             datefmt="%Y-%m-%d %H:%M",
         )
         self.logger.handlers[0].setFormatter(formatter)
 
         if output_path is not None:
-            log_file = os.path.join(f"{output_path}/run_{run_id}", "log.txt")
+            log_file = os.path.join(output_path, "log.txt")
             file_handler = logging.FileHandler(log_file)
             file_handler.setFormatter(formatter)
             self.logger.addHandler(file_handler)

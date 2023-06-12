@@ -1,4 +1,4 @@
-from typing import Union, List, Dict, Tuple
+from typing import Union, List, Dict, Tuple, Optional
 import logging
 
 import numpy as np
@@ -17,8 +17,8 @@ logger.handlers[0].setFormatter(formatter)
 def _fold_split(
     X: np.ndarray,
     n_splits: int = 4,
-    random_state: Union[int, None] = None,
-    rng: Union[np.random.Generator, None] = None,
+    random_state: Optional[int] = None,
+    rng: Optional[np.random.Generator] = None,
 ) -> List[Tuple[np.ndarray, np.ndarray]]:
     """Split data into k folds.
 
@@ -51,9 +51,9 @@ def tune_kappa(
     min_samples_leaf: Union[int, List[int]] = 20,
     distribution: Union[str, Distribution] = "normal",
     n_splits: int = 4,
-    random_state: Union[int, None] = None,
-    rng: Union[np.random.Generator, None] = None,
-    logger: Union[CycGBMLogger, None] = None,
+    random_state: Optional[int] = None,
+    rng: Optional[np.random.Generator] = None,
+    logger: Optional[CycGBMLogger] = None,
 ) -> Dict[str, Union[List[int], np.ndarray]]:
     """Tunes the kappa parameter of a CycGBM model using k-fold cross-validation.
 
@@ -69,8 +69,9 @@ def tune_kappa(
     :param random_state: The random state to use for the k-fold split.
     :param rng: The random number generator.
     :param logger: The simulation logger to use for logging.
-    :return: Dictionary containing 'kappa' as the optimal number of bossting steps and 'loss' as loss array over all folds.
-
+    :return: A dictionary containing the following keys:
+        - "kappa": The optimal kappa parameter value for each parameter dimension.
+        - "loss": The loss values for each kappa parameter value.
     """
     if logger is None:
         logger = CycGBMLogger(verbose=0)
@@ -147,59 +148,4 @@ def tune_kappa(
             logger.log(f"tuning did not converge for dimension {j}", verbose=1)
             kappa[j] = kappa_max[j]
 
-    results = {"kappa": kappa, "loss": loss}
-
-    return results
-
-
-if __name__ == "__main__":
-    from sklearn.model_selection import train_test_split
-
-    n = 100000
-    p = 9
-    random_state = 11
-    dist = "normal"
-
-    rng = np.random.default_rng(seed=random_state)
-    distribution = initiate_distribution(distribution=dist)
-
-    X = np.concatenate([np.ones((1, n)), rng.normal(0, 1, (p - 1, n))]).T
-    z0 = (
-        1.5 * X[:, 1]
-        + 2 * X[:, 3]
-        - 0.65 * X[:, 2] ** 2
-        + 0.5 * np.abs(X[:, 3]) * np.sin(0.5 * X[:, 2])
-        + 0.45 * X[:, 4] * X[:, 5] ** 2
-    )
-    z1 = 1 + 0.02 * X[:, 2] + 0.5 * X[:, 1] * (X[:, 1] < 2) + 1.8 * (X[:, 5] > 0)
-    z = np.stack([z0, z1])
-    y = distribution.simulate(z=z, random_state=12)
-
-    X_train, X_test, y_train, y_test, z_train, z_test = train_test_split(
-        X, y, z.T, test_size=0.2, random_state=random_state
-    )
-    z_train = z_train.T
-    z_test = z_test.T
-
-    # Set hyperparameters
-    kappa_max = [100, 0]
-    eps = 0.1
-    max_depth = 3
-    min_samples_leaf = 5
-    n_splits = 10
-
-    # Tune kappa
-    kappa_uni = tune_kappa(
-        X=X_train,
-        y=y_train,
-        n_splits=n_splits,
-        eps=eps,
-        max_depth=max_depth,
-        min_samples_leaf=min_samples_leaf,
-        kappa_max=kappa_max,
-        dist=dist,
-        random_state=13,
-        log=True,
-    )["kappa"]
-
-    print(kappa_uni)
+    return {"kappa": kappa, "loss": loss}
