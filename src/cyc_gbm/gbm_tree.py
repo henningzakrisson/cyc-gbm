@@ -51,9 +51,6 @@ class GBMTree(DecisionTreeRegressor):
         :param j: Parameter dimension to update
         :param node_index: The index of the node to update
         """
-        if node_index == -1:
-            # This is nota node, but the child of a leaf
-            return
         # Optimize node and update impurity
         g_0 = self.tree_.value[node_index][0][0]
         g_opt = self.distribution.opt_step(y=y, z=z, w=w, j=j, g_0=g_0)
@@ -65,6 +62,9 @@ class GBMTree(DecisionTreeRegressor):
 
         # Tend to the children
         feature = self.tree_.feature[node_index]
+        if feature == -2:
+            # This is a leaf
+            return
         threshold = self.tree_.threshold[node_index]
         index_left = X[:, feature] <= threshold
         child_left = self.tree_.children_left[node_index]

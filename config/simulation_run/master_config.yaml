@@ -1,14 +1,14 @@
 # Simulation setup
 n: 1000
-p: 9
+p: 1
 random_seed: 123
 test_size: 0.2
 
 # Model setup
 models:
 - intercept
-- cyc-glm
-- uni-gbm
+#- cyc-glm
+#- uni-gbm
 - cyc-gbm
 # Hyperparameters
 glm_parameters:

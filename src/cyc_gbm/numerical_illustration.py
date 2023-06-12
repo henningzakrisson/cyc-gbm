@@ -403,6 +403,6 @@ def numerical_illustrations(
 
 
 if __name__ == "__main__":
-    config_path = "../../config/real_run"
+    config_path = "../../config/simulation_run"
     config_file = "master_config.yaml"
     results = numerical_illustrations(master_config_file=f"{config_path}/{config_file}")
