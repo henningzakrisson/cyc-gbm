@@ -6,6 +6,6 @@ data_source: simulation
 distribution: normal
 parameter_function: |
   def z(X):
-      z0 = 1 + 0.5*X[:,1] - 0.25*X[:,2]**2
-      z1 = 2 + 0.3*X[:,2]
+      z0 = 1 + 0.5*np.sin(X[:,0])
+      z1 = 2 - 0.3*(X[:,0]>0)
       return np.stack([z0,z1])
