@@ -23,10 +23,10 @@ gbm_parameters:
   n_splits: 2
 
 # Output setup
-copy_data: true
+copy_data: false
 output_path: ../../data/results/
 figure_format:
 verbose: 2
 
 # Config setup
-sub_configs: ../../config/simulation_run/sub_configs/
+sub_configs: ../../config/real_run/sub_configs/

@@ -1,5 +1,6 @@
 # Data setup
 data_source: simulation
+copy_data: true
 
 # Simulation setup
 n: 100000

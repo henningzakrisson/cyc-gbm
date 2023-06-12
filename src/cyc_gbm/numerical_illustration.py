@@ -145,7 +145,7 @@ def _get_data(
     """
     if config["data_source"] == "simulation":
         full_data = _simulate_data(config=config, rng=rng)
-    elif config["data"] == "real":
+    elif config["data_source"] == "real":
         full_data = _load_data(config=config)
     else:
         raise ValueError("Invalid data source.")
@@ -279,8 +279,9 @@ def _save_results(
     :param z_hat: The model predictions.
     :param losses: The model losses.
     """
-    yaml.dump(config, f"{output_path}/sub_config.yaml")
-    shutil.copy(config_file, output_path)
+    os.makedirs(output_path, exist_ok=True)
+    with open(f"{output_path}/sub_config.yaml", "w") as file:
+        yaml.dump(config, file)
     if config["copy_data"]:
         np.savez(f"{output_path}/data", **data)
     np.savez(f"{output_path}/z_hat", **z_hat)
@@ -347,10 +348,11 @@ def _consolidate_configs(
         "models",
         "glm_parameters",
         "gbm_parameters",
+        "copy_data",
     ]
     config = sub_config.copy()
     for key in master_keys:
-        if key not in config:
+        if key not in config and key in master_config:
             config[key] = master_config[key]
     return config
 
@@ -401,8 +403,6 @@ def numerical_illustrations(
 
 
 if __name__ == "__main__":
-    config_path = "../../config/simulation_run"
+    config_path = "../../config/real_run"
     config_file = "master_config.yaml"
     results = numerical_illustrations(master_config_file=f"{config_path}/{config_file}")
-
-    print(results)
