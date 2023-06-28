@@ -24,7 +24,7 @@ Fitting the mean and (log) sigma parameters of a normal distribution to a simula
 ```python
 import numpy as np
 from cyc_gbm import CycGBM
-from cyc_gbm import initiate_distribution
+from cyc_gbm.distributions import initiate_distribution
 
 # Simulate data
 X = np.random.normal(size=(10000, 3))
