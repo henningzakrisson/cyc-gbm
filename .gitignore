@@ -8,4 +8,5 @@
 /data/
 /notebooks/
 .DS_STORE
+/scripts/
 *.pyc
