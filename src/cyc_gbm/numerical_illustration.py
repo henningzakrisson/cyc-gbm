@@ -32,7 +32,7 @@ def _get_run_id(config: Dict[str, Any]) -> int:
     :param config: The config.
     :return: The run id.
     """
-    prev_runs = [int(f.split("_")[1]) for f in os.listdir(config["output_path"])]
+    prev_runs = [int(f.split("_")[1]) for f in os.listdir(config["output_path"]) if f[:3]=='run']
     return max(prev_runs, default=0) + 1
 
 
@@ -179,7 +179,7 @@ def _fit_models(
             model = CycGLM(
                 distribution=distribution,
                 max_iter=config["glm_parameters"]["max_iter"],
-                eps=config["glm_parameters"]["eps"],
+                eps = float(config["glm_parameters"]["eps"]),
                 tol=config["glm_parameters"]["tol"],
             )
         elif model_name in ["uni-gbm", "cyc-gbm"]:
@@ -407,6 +407,6 @@ def numerical_illustrations(
 
 
 if __name__ == "__main__":
-    config_path = "../../config/simulation_run"
+    config_path = "../../config/cas_data_study"
     config_file = "master_config.yaml"
     results = numerical_illustrations(master_config_file=f"{config_path}/{config_file}")
