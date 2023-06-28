@@ -2,9 +2,8 @@ from typing import List, Union, Optional
 
 import numpy as np
 
-from src.cyc_gbm.distributions import Distribution, initiate_distribution
-from src.cyc_gbm.gbm_tree import GBMTree
-from src.cyc_gbm.logger import CycGBMLogger
+from cyc_gbm.distributions import Distribution, initiate_distribution
+from cyc_gbm.logger import CycGBMLogger
 
 
 class Intercept:

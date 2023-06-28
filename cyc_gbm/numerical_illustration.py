@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Union, Optional, Tuple
+from typing import Dict, Any, List, Union, Optional
 import os
 import shutil
 
@@ -7,10 +7,10 @@ import pandas as pd
 import yaml
 
 
-from src.cyc_gbm.logger import CycGBMLogger
-from src.cyc_gbm.distributions import initiate_distribution
-from src.cyc_gbm.tune_kappa import tune_kappa
-from src.cyc_gbm import CycGBM, CycGLM, Intercept
+from cyc_gbm.logger import CycGBMLogger
+from cyc_gbm.distributions import initiate_distribution
+from cyc_gbm.tune_kappa import tune_kappa
+from cyc_gbm import CycGBM, CycGLM, Intercept
 
 
 def _load_config(config_file: str) -> dict:
@@ -407,6 +407,6 @@ def numerical_illustrations(
 
 
 if __name__ == "__main__":
-    config_path = "../../config/cas_data_study"
+    config_path = "../config/cas_data_study"
     config_file = "master_config.yaml"
     results = numerical_illustrations(master_config_file=f"{config_path}/{config_file}")

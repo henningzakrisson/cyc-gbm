@@ -86,13 +86,6 @@ class GBMTree(DecisionTreeRegressor):
             node_index=child_right,
         )
 
-    def feature_importances(self) -> np.ndarray:
-        """
-        Returns the feature importances of the tree.
-
-        :return: The feature importances of the tree.
-        """
-        return self.tree_.compute_feature_importances(normalize=False)
 
     def fit_gradients(
         self,
@@ -114,3 +107,11 @@ class GBMTree(DecisionTreeRegressor):
         g = self.distribution.grad(y=y, z=z, w=w, j=j)
         self.fit(X, -g)
         self._adjust_node_values(X=X, y=y, z=z, w=w, j=j)
+
+    def feature_importances(self) -> np.ndarray:
+        """
+        Returns the feature importances of the tree.
+
+        :return: The feature importances of the tree.
+        """
+        return self.tree_.compute_feature_importances(normalize=False)

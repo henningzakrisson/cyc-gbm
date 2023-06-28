@@ -3,9 +3,9 @@ import logging
 
 import numpy as np
 
-from src.cyc_gbm import CycGBM
-from src.cyc_gbm.distributions import initiate_distribution, Distribution
-from src.cyc_gbm.logger import CycGBMLogger
+from cyc_gbm import CycGBM
+from cyc_gbm.distributions import initiate_distribution, Distribution
+from cyc_gbm.logger import CycGBMLogger
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

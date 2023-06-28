@@ -20,15 +20,16 @@ A package for the Cyclical Gradient Boosting Machine algorithm. For the (pre-pri
     ```
 ## Usage example
 Fitting the mean and (log) sigma parameters of a normal distribution to a simulated dataset:
+
 ```python
 import numpy as np
-from src.cyc_gbm import CycGBM
-from src.cyc_gbm.distributions import initiate_distribution
+from cyc_gbm import CycGBM
+from cyc_gbm import initiate_distribution
 
 # Simulate data
 X = np.random.normal(size=(10000, 3))
-mu = X[:, 0] + 10*(X[:, 1]>0)
-log_sigma = 3-2*(X[:, 1]>0)
+mu = X[:, 0] + 10 * (X[:, 1] > 0)
+log_sigma = 3 - 2 * (X[:, 1] > 0)
 z = np.stack([mu, log_sigma], axis=0)
 dist = initiate_distribution(distribution='normal')
 y = dist.simulate(z=z)
@@ -43,16 +44,16 @@ X_test, y_test, z_test = X[idx_test], y[idx_test], z[:, idx_test]
 # Fit model
 model = CycGBM(
    distribution='normal',
-    kappa=[40,20],
-    eps=0.1,
-    max_depth=2,
-    min_samples_leaf=10,
+   kappa=[40, 20],
+   eps=0.1,
+   max_depth=2,
+   min_samples_leaf=10,
 )
 model.fit(X_train, y_train)
 
 # Evaluate
 z_hat = model.predict(X_test)
-loss = model.dist.loss(y=y_test,  z=z_hat).sum()
+loss = model.dist.loss(y=y_test, z=z_hat).sum()
 print(f'negative log likelihood: {loss}')
 ```
 

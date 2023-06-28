@@ -4,7 +4,7 @@
 .idea/c-gbm.iml
 .idea/misc.xml
 /__pychache__/
-/src/cyc_gbm/__pycache__/
+/cyc_gbm/__pycache__/
 /data/
 /notebooks/
 .DS_STORE
