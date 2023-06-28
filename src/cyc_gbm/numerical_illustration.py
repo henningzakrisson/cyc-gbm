@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Union
+from typing import Dict, Any, List, Union, Optional, Tuple
 import os
 import shutil
 
@@ -289,20 +289,24 @@ def _save_results(
 
 
 def numerical_illustration(
-    config: str,
+    config: Union[Dict[str, Any], str],
     output_path: str,
     rng: np.random.Generator,
-    logger: CycGBMLogger,
+    logger: Optional[CycGBMLogger] = None,
 ) -> Dict[str, Any]:
     """Run the numerical illustration.
 
-    :param config: The config.
+    :param config: The configuration dictionary or path to configuration file.
     :param output_path: The output path.
     :param rng: The random number generator.
     :param logger: The logger.
     :return: The results.
     """
+    if logger is None:
+        logger = CycGBMLogger(verbose = -1)
     logger.log("loading data.")
+    if isinstance(config, str):
+        config = _load_config(config_file=config)
     data = _get_data(config=config, rng=rng)
 
     logger.log("fitting models.")
