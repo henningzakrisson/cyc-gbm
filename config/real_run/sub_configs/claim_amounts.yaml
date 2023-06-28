@@ -1,7 +1,0 @@
-# Data setup
-data_name: claim_amounts
-data_source: real
-
-# Distribution setup
-distribution: normal
-input_path: ../../data/cas_data/claim_amounts.csv

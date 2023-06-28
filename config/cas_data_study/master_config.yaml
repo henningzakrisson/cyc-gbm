@@ -1,0 +1,21 @@
+# Simulation setup
+n: 1000
+p: 9
+random_seed: 123
+test_size: 0.2
+
+# Model setup
+models:
+- intercept
+- cyc-glm
+- uni-gbm
+- cyc-gbm
+
+# Output setup
+copy_data: false
+output_path: ../../data/results/
+output_figures: false
+verbose: 2
+
+# Config setup
+sub_configs: ../../config/cas_data_study/sub_configs/
