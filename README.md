@@ -2,6 +2,12 @@
 A package for the Cyclical Gradient Boosting Machine algorithm. For the (pre-print) paper describing the algorithm, see [here](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4352505).
 
 ## Installation
+You can install the package using pip:
+```bash
+pip install cyc-gbm
+```
+Alternatively, you can install the package from source by following these steps:
+
 1. Clone this repository to your local machine:
     ```bash
     git clone https://github.com/henningzakrisson/c-gbm.git
@@ -24,36 +30,29 @@ Fitting the mean and (log) sigma parameters of a normal distribution to a simula
 ```python
 import numpy as np
 from cyc_gbm import CycGBM
-from cyc_gbm.distributions import initiate_distribution
+from sklearn.model_selection import train_test_split
 
 # Simulate data
-X = np.random.normal(size=(10000, 3))
+X = np.random.normal(size=(1000, 2))
 mu = X[:, 0] + 10 * (X[:, 1] > 0)
-log_sigma = 3 - 2 * (X[:, 1] > 0)
-z = np.stack([mu, log_sigma], axis=0)
-dist = initiate_distribution(distribution='normal')
-y = dist.simulate(z=z)
+sigma = np.exp(3 - 2 * (X[:, 0] > 0))
+y = np.random.normal(mu, sigma)
 
 # Split data
-idx = np.arange(X.shape[0])
-np.random.shuffle(idx)
-idx_train, idx_test = idx[:500], idx[500:]
-X_train, y_train, z_train = X[idx_train], y[idx_train], z[:, idx_train]
-X_test, y_test, z_test = X[idx_test], y[idx_test], z[:, idx_test]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
 # Fit model
 model = CycGBM(
    distribution='normal',
-   kappa=[40, 20],
+   kappa=[26,34],
    eps=0.1,
    max_depth=2,
-   min_samples_leaf=10,
+   min_samples_leaf=20,
 )
 model.fit(X_train, y_train)
 
 # Evaluate
-z_hat = model.predict(X_test)
-loss = model.dist.loss(y=y_test, z=z_hat).sum()
+loss = model.dist.loss(y=y_test, z=model.predict(X_test)).sum()
 print(f'negative log likelihood: {loss}')
 ```
 

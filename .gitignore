@@ -10,3 +10,5 @@
 .DS_STORE
 /scripts/
 *.pyc
+/dist/
+*.egg-info/
