@@ -334,6 +334,48 @@ class NormalDistribution(Distribution):
         elif k == 2:
             return w * np.exp(2 * z[1])
 
+class NormalDistributionUni(Distribution):
+    def __init__(
+        self,
+    ):
+        """Initialize a normal distribution object with only the mu parameter.
+
+        Parameterization: z[0] = mu, where E[X] = mu, Var(X) = 1
+        """
+        super().__init__(d=1)
+
+    def loss(
+        self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
+    ) -> np.ndarray:
+        if np.any(w != 1):
+            raise NotImplementedError(
+                "Weighted loss not implemented for univariatevariate normal distribution"
+            )
+        return (y - z[0]) ** 2
+
+    def grad(
+        self, y: np.ndarray, z: np.ndarray, j: int = 0, w: Union[np.ndarray, float] = 1.0
+    ) -> np.ndarray:
+        return y - z[0]
+
+    def mme(self, y: np.ndarray, w: Union[np.ndarray, float] = 1.0) -> np.ndarray:
+        return y.mean()
+
+    def simulate(
+        self,
+        z: np.ndarray,
+        w: Union[np.ndarray, float] = 1.0,
+        random_state: Union[int, None] = None,
+        rng: Union[np.random.Generator, None] = None,
+    ) -> np.ndarray:
+        if rng is None:
+            rng = np.random.default_rng(seed=random_state)
+        return rng.normal(z[0], 1)
+
+    def moment(
+        self, z: np.ndarray, k: int = 1, w: Union[np.ndarray, float] = 1.0
+    ) -> np.ndarray:
+        return z[0]
 
 @inherit_docstrings
 class NegativeBinomialDistribution(Distribution):
@@ -729,7 +771,7 @@ def initiate_distribution(
     moment: Union[
         None, Callable[[np.ndarray, int, Union[np.ndarray, float]], np.ndarray]
     ] = None,
-    d: Union[None, int] = None,
+    d: int = 2,
 ) -> Distribution:
     """
     Returns a probability distribution object based on the distribution name.
@@ -740,12 +782,15 @@ def initiate_distribution(
     :param mme: A function that computes the method of moments estimator. Only used if dist == "custom".
     :param simulate: A function that simulates data from the distribution. Only used if dist == "custom".
     :param moment: A function that computes the kth moment of the distribution. Only used if dist == "custom".
-    :param d: The dimension of the distribution. Only used if dist == "custom".
+    :param d: The dimension of the distribution.
     :return: A probability distribution object based on the distribution name.
     :raises UnknownDistribution: If the input distribution name is not recognized.
     """
     if distribution == "normal":
-        return NormalDistribution()
+        if d ==1:
+            return NormalDistributionUni()
+        if d==2:
+            return NormalDistribution()
     if distribution == "gamma":
         return GammaDistribution()
     if distribution == "beta_prime":
