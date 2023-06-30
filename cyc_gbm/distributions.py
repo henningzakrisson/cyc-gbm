@@ -161,8 +161,8 @@ class MultivariateNormalDistribution(Distribution):
 
         Parameterization: z[0] = mu, z[1] = 2*log(sigma), z[2] = inv_sigm(rho)
         where
-        E[X] = [w*mu,w*mu]
-        Cov(X) = w*[sigma^2, rho*sigma^2; rho*sigma^2, sigma^2]
+        E[Y] = [w*mu,w*mu]
+        Cov(Y) = w*[sigma^2, rho*sigma^2; rho*sigma^2, sigma^2]
         """
         super().__init__(d=3)
 
@@ -287,7 +287,7 @@ class NormalDistribution(Distribution):
     ):
         """Initialize a normal distribution object.
 
-        Parameterization: z[0] = mu, z[1] = log(sigma), where E[X] = w*mu, Var(X) = w*sigma^2
+        Parameterization: z[0] = mu, z[1] = log(sigma), where E[Y] = w*mu, Var(Y) = w*sigma^2
         """
         super().__init__(d=2)
 
@@ -334,13 +334,14 @@ class NormalDistribution(Distribution):
         elif k == 2:
             return w * np.exp(2 * z[1])
 
+@inherit_docstrings
 class NormalDistributionUni(Distribution):
     def __init__(
         self,
     ):
         """Initialize a normal distribution object with only the mu parameter.
 
-        Parameterization: z[0] = mu, where E[X] = mu, Var(X) = 1
+        Parameterization: z[0] = mu, where E[Y] = mu, Var(Y) = 1
         """
         super().__init__(d=1)
 
@@ -384,7 +385,7 @@ class NegativeBinomialDistribution(Distribution):
     ):
         """Initialize a negative binomial distribution object.
 
-        Parameterization: z[0] = np.log(mu), z[1] = log(theta), where E[X] = w*mu, Var(X) = w*mu*(1+mu/theta)
+        Parameterization: z[0] = np.log(mu), z[1] = log(theta), where E[Y] = w*mu, Var(Y) = w*mu*(1+mu/theta)
         """
         super().__init__(d=2)
 
@@ -458,7 +459,7 @@ class InverseGaussianDistribution(Distribution):
     ):
         """Initialize a inverse Gaussian distribution object.
 
-        Parameterization: z[0] = log(mu), z[1] = log(lambda), where E[X] = w*mu, Var(X) =w*mu^3 / lambda
+        Parameterization: z[0] = log(mu), z[1] = log(lambda), where E[Y] = w*mu, Var(Y) =w*mu^3 / lambda
         """
         super().__init__(d=2)
 
@@ -536,7 +537,7 @@ class GammaDistribution(Distribution):
         """
         Initialize a gamma distribution object.
 
-        Parameterization: z[0] = log(mu), z[1] = log(phi), where E[X] = w*mu, Var(X) =w*phi * mu^2
+        Parameterization: z[0] = log(mu), z[1] = log(phi), where E[Y] = w*mu, Var(Y) =w*phi * mu^2
         """
         super().__init__(d=2)
 
@@ -608,7 +609,7 @@ class BetaPrimeDistribution(Distribution):
         """
         Initialize a beta prime distribution object.
 
-        Parameterization: z[0] = log(mu), z[1] = log(v), where E[X] = w*mu, Var(X) =w*mu*(1+mu)/v
+        Parameterization: z[0] = log(mu), z[1] = log(v), where E[Y] = w*mu, Var(Y) =w*mu*(1+mu)/v
         """
         super().__init__(d=2)
 

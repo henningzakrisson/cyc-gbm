@@ -12,3 +12,4 @@
 *.pyc
 /dist/
 *.egg-info/
+/build/
