@@ -65,6 +65,10 @@ For running several experiments in one run, I refer to the ````numerical_illustr
 See the documentation for usage.
 An example configuration file for running several experiments can be found in ````config/simulation_run/master_config.yaml````.
 
+## Not yet implemented
+- [ ] Add support for categorical features (currently the trees are based on ````sklearn.tree.DecisionTreeRegressor```` which does not support categorical features)
+- [ ] Add other tuning methods (such as adaptive shrinkage)
+
 ## Contact
 If you have any questions, feel free to contact me [here](mailto:henning.zakrisson@gmail.com).
 
