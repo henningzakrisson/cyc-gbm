@@ -32,23 +32,35 @@ class CyclicalGradientBooster:
         else:
             self.dist = distribution
         self.d = self.dist.d
-        self.kappa = (
-            kappa
-            if isinstance(kappa, list) or isinstance(kappa, np.ndarray)
-            else [kappa] * self.d
-        )
-        self.eps = eps if isinstance(eps, list) else [eps] * self.d
-        self.max_depth = (
-            max_depth if isinstance(max_depth, list) else [max_depth] * self.d
-        )
-        self.min_samples_leaf = (
-            min_samples_leaf
-            if isinstance(min_samples_leaf, list)
-            else [min_samples_leaf] * self.d
-        )
+        self.kappa = self._initialize_parameter(parameter=kappa)
+        self.eps = self._initialize_parameter(parameter=eps)
+        self.max_depth = self._initialize_parameter(parameter=max_depth)
+        self.min_samples_leaf = self._initialize_parameter(parameter=min_samples_leaf)
 
-        self.z0 = None
-        self.trees = [[None] * self.kappa[j] for j in range(self.d)]
+        self.z0 = 0
+        self.trees = [
+            [
+                BoostingTree(
+                    max_depth=self.max_depth[j],
+                    min_samples_leaf=self.min_samples_leaf[j],
+                    distribution=self.dist,
+                )
+                for _ in range(self.kappa[j])
+            ]
+            for j in range(self.d)
+        ]
+
+    def _initialize_parameter(self, parameter):
+        """
+        Initialize parameter to default_value if parameter is not a list or numpy array.
+
+        :param parameter: parameter to initialize
+        """
+        return (
+            parameter
+            if isinstance(parameter, (list, np.ndarray))
+            else [parameter] * self.d
+        )
 
     def _adjust_mle(
         self, X: np.ndarray, y: np.ndarray, w: Union[np.ndarray, float] = 1
@@ -78,31 +90,27 @@ class CyclicalGradientBooster:
         :param X: Input data matrix of shape (n_samples, n_features).
         :param y: True response values for the input data.
         :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
+        :param logger: Logger object to log progress. Default is no logger.
         """
         if logger is None:
             logger = CycGBMLogger(verbose=0)
         if isinstance(w, float):
             w = np.ones(len(y)) * w
+
         self.z0 = self.dist.mle(y=y, w=w)[:, None]
         z = np.tile(self.z0, (1, len(y)))
+
         for k in range(0, max(self.kappa)):
             for j in range(self.d):
-                if k >= self.kappa[j]:
-                    continue
-                self.trees[j][k] = BoostingTree(
-                    max_depth=self.max_depth[j],
-                    min_samples_leaf=self.min_samples_leaf[j],
-                    distribution=self.dist,
-                )
-                self.trees[j][k].fit_gradients(X=X, y=y, z=z, w=w, j=j)
+                if k < self.kappa[j]:
+                    self.trees[j][k].fit_gradients(X=X, y=y, z=z, w=w, j=j)
+                    z[j] += self.eps[j] * self.trees[j][k].predict(X)
 
-                z[j] += self.eps[j] * self.trees[j][k].predict(X)
-
-                logger.log_progress(
-                    step=(k + 1) * (j + 1),
-                    total_steps=(max(self.kappa) * self.d),
-                    verbose=2,
-                )
+                    logger.log_progress(
+                        step=(k + 1) * (j + 1),
+                        total_steps=(max(self.kappa) * self.d),
+                        verbose=2,
+                    )
 
         self._adjust_mle(X=X, y=y, w=w)
 
@@ -120,11 +128,13 @@ class CyclicalGradientBooster:
         if isinstance(w, float):
             w = np.ones(len(y)) * w
         z = self.predict(X)
-        self.trees[j] += [BoostingTree(
-            max_depth=self.max_depth[j],
-            min_samples_leaf=self.min_samples_leaf[j],
-            distribution=self.dist,
-        )]
+        self.trees[j].append(
+            BoostingTree(
+                max_depth=self.max_depth[j],
+                min_samples_leaf=self.min_samples_leaf[j],
+                distribution=self.dist,
+            )
+        )
         self.trees[j][-1].fit_gradients(X=X, y=y, z=z, w=w, j=j)
         self.kappa[j] += 1
 
@@ -135,13 +145,15 @@ class CyclicalGradientBooster:
         :param X: Input data matrix of shape (n_samples, n_features).
         :return: Predicted response values of shape (d,n_samples).
         """
-        z_hat = np.zeros((self.d, len(X)))
-        for j in range(self.d):
-            if len(self.trees[j]) > 0:
-                z_hat[j] = self.eps[j] * sum(
-                    [tree.predict(X) for tree in self.trees[j]]
-                )
-        return self.z0 + z_hat
+        return self.z0 + np.array(
+            [
+                self.eps[j]
+                * np.sum([tree.predict(X) for tree in self.trees[j]], axis=0)
+                if self.trees[j]
+                else np.zeros(len(X))
+                for j in range(self.d)
+            ]
+        )
 
     def feature_importances(
         self, j: Union[str, int] = "all", normalize: bool = True
@@ -188,5 +200,7 @@ if __name__ == "__main__":
 
     kappa = [23, 17, 79]
     eps = [0.5, 0.25, 0.1]
-    gbm = CyclicalGradientBooster(distribution="multivariate_normal", kappa=kappa, eps=eps)
+    gbm = CyclicalGradientBooster(
+        distribution="multivariate_normal", kappa=kappa, eps=eps
+    )
     gbm.fit(X, y)

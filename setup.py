@@ -3,12 +3,12 @@ from setuptools import setup, find_packages
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-with open('requirements.txt') as f:
+with open("requirements.txt") as f:
     requirements = f.read().splitlines()
 
 setup(
     name="cyc-gbm",
-    version="0.0.24",
+    version="0.0.25",
     author="Henning Zakrisson",
     author_email="henning.zakrisson@gmail.com",
     description="A python package for the Cyclical Gradient Boosting Machine algorithm",
@@ -21,8 +21,8 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.7',
+    python_requires=">=3.7",
     install_requires=requirements,
-    license='MIT',
-    license_files = ('LICENSE', )
+    license="MIT",
+    license_files=("LICENSE",),
 )

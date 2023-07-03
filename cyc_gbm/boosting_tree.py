@@ -7,11 +7,12 @@ from .distributions import Distribution
 class BoostingTree(DecisionTreeRegressor):
     """
     A Gradient Boosting Machine tree.
+    It is a subclass of sklearn.tree.DecisionTreeRegressor that first computes the current negative gradient of the loss function and then fits a regression tree to the negative gradient.
+    Then, the node values of the tree are adjusted to the step size that minimizes the loss.
 
     :param max_depth: The maximum depth of the tree.
-    :param min_samples_leaf: The minimum number of samples required to be at a leaf node.
-    :param distribution: The distribution function used for calculating the gradients.
-
+    :param min_samples_leaf: The minimum number of samples required for a split to be valid.
+    :param distribution: The distribution function used for calculating the gradients and optimal step sizes.
     """
 
     def __init__(
@@ -21,7 +22,7 @@ class BoostingTree(DecisionTreeRegressor):
         distribution: Distribution,
     ):
         """
-        Constructs a new GBMTree instance.
+        Constructs a new BoostingTree instance.
 
         :param max_depth: The maximum depth of the tree.
         :param min_samples_leaf: The minimum number of samples required to be at a leaf node.
@@ -29,6 +30,27 @@ class BoostingTree(DecisionTreeRegressor):
         """
         super().__init__(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
         self.distribution = distribution
+
+    def fit_gradients(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        z: np.ndarray,
+        w: np.ndarray,
+        j: int,
+    ) -> None:
+        """
+        Fits the BoostingTree to the negative gradients and adjusts node values to minimize loss.
+
+        :param X: The training input samples.
+        :param y: The target values.
+        :param z: The predicted parameter values from the previous iteration.
+        :param w: Weights for the training data, of shape (n_samples,).
+        :param j: The parameter dimension to update.
+        """
+        g = self.distribution.grad(y=y, z=z, w=w, j=j)
+        self.fit(X, -g)
+        self._adjust_node_values(X=X, y=y, z=z, w=w, j=j)
 
     def _adjust_node_values(
         self,
@@ -85,28 +107,6 @@ class BoostingTree(DecisionTreeRegressor):
             j=j,
             node_index=child_right,
         )
-
-
-    def fit_gradients(
-        self,
-        X: np.ndarray,
-        y: np.ndarray,
-        z: np.ndarray,
-        w: np.ndarray,
-        j: int,
-    ) -> None:
-        """
-        Fits the GBMTree to the negative gradients and adjusts node values to minimize loss.
-
-        :param X: The training input samples.
-        :param y: The target values.
-        :param z: The predicted parameter values from the previous iteration.
-        :param w: Weights for the training data, of shape (n_samples,).
-        :param j: The parameter dimension to update.
-        """
-        g = self.distribution.grad(y=y, z=z, w=w, j=j)
-        self.fit(X, -g)
-        self._adjust_node_values(X=X, y=y, z=z, w=w, j=j)
 
     def feature_importances(self) -> np.ndarray:
         """
