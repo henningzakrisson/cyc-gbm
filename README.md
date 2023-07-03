@@ -7,7 +7,7 @@ You can install the package using pip:
 pip install cyc-gbm
 ```
 Alternatively, you can install the package from source.
-This will also include scripts for reproducing the results in the papar. Follow these steps:
+This will also a pipeline for reproducing the results in the paper. Follow these steps:
 
 1. Clone this repository to your local machine:
     ```bash
