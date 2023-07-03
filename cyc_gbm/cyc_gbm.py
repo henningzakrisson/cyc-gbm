@@ -89,14 +89,15 @@ class CyclicalGradientBooster:
             for j in range(self.d):
                 if k >= self.kappa[j]:
                     continue
-                tree = BoostingTree(
+                self.trees[j][k] = BoostingTree(
                     max_depth=self.max_depth[j],
                     min_samples_leaf=self.min_samples_leaf[j],
                     distribution=self.dist,
                 )
-                tree.fit_gradients(X=X, y=y, z=z, w=w, j=j)
-                z[j] += self.eps[j] * tree.predict(X)
-                self.trees[j][k] = tree
+                self.trees[j][k].fit_gradients(X=X, y=y, z=z, w=w, j=j)
+
+                z[j] += self.eps[j] * self.trees[j][k].predict(X)
+
                 logger.log_progress(
                     step=(k + 1) * (j + 1),
                     total_steps=(max(self.kappa) * self.d),
@@ -119,13 +120,12 @@ class CyclicalGradientBooster:
         if isinstance(w, float):
             w = np.ones(len(y)) * w
         z = self.predict(X)
-        tree = BoostingTree(
+        self.trees[j] += [BoostingTree(
             max_depth=self.max_depth[j],
             min_samples_leaf=self.min_samples_leaf[j],
             distribution=self.dist,
-        )
-        tree.fit_gradients(X=X, y=y, z=z, w=w, j=j)
-        self.trees[j] += [tree]
+        )]
+        self.trees[j][-1].fit_gradients(X=X, y=y, z=z, w=w, j=j)
         self.kappa[j] += 1
 
     def predict(self, X: np.ndarray) -> np.ndarray:
