@@ -4,7 +4,7 @@ from sklearn.tree import DecisionTreeRegressor
 from .distributions import Distribution
 
 
-class GBMTree(DecisionTreeRegressor):
+class BoostingTree(DecisionTreeRegressor):
     """
     A Gradient Boosting Machine tree.
 

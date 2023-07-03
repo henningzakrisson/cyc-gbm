@@ -4,12 +4,12 @@ import numpy as np
 
 from cyc_gbm.distributions import Distribution, initiate_distribution
 from cyc_gbm.logger import CycGBMLogger
-from cyc_gbm.gbm_tree import GBMTree
+from cyc_gbm.boosting_tree import BoostingTree
 
 
-class CycGBM:
+class CyclicalGradientBooster:
     """
-    Class for cyclical gradient boosting machine regressors
+    Class for cyclical gradient boosting regressors
     """
 
     def __init__(
@@ -89,7 +89,7 @@ class CycGBM:
             for j in range(self.d):
                 if k >= self.kappa[j]:
                     continue
-                tree = GBMTree(
+                tree = BoostingTree(
                     max_depth=self.max_depth[j],
                     min_samples_leaf=self.min_samples_leaf[j],
                     distribution=self.dist,
@@ -119,7 +119,7 @@ class CycGBM:
         if isinstance(w, float):
             w = np.ones(len(y)) * w
         z = self.predict(X)
-        tree = GBMTree(
+        tree = BoostingTree(
             max_depth=self.max_depth[j],
             min_samples_leaf=self.min_samples_leaf[j],
             distribution=self.dist,
@@ -188,5 +188,5 @@ if __name__ == "__main__":
 
     kappa = [23, 17, 79]
     eps = [0.5, 0.25, 0.1]
-    gbm = CycGBM(distribution="multivariate_normal", kappa=kappa, eps=eps)
+    gbm = CyclicalGradientBooster(distribution="multivariate_normal", kappa=kappa, eps=eps)
     gbm.fit(X, y)

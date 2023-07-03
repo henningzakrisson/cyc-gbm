@@ -1,6 +1,5 @@
 # Data setup
 data_source: simulation
-copy_data: true
 
 # Simulation setup
 n: 10000
@@ -31,6 +30,6 @@ gbm_parameters:
 # Output setup
 output_figures: false
 copy_data: true
-output_path: ../../data/results/
+output_path: data/results/
 figure_format:
 verbose: 2

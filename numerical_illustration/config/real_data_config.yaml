@@ -50,6 +50,6 @@ hyper_parameters:
 # Output setup
 output_figures: false
 copy_data: false
-output_path: ../../data/results/real_data
+output_path: data/results/real_data
 figure_format: png
 verbose: 2

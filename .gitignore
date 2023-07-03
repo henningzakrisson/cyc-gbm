@@ -5,7 +5,7 @@
 .idea/misc.xml
 /__pychache__/
 /cyc_gbm/__pycache__/
-/data/
+/numerical_illustration/data/
 /notebooks/
 .DS_STORE
 /scripts/
@@ -13,3 +13,4 @@
 /dist/
 *.egg-info/
 /build/
+/numerical_illustration/data/
