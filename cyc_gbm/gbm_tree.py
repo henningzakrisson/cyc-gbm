@@ -102,7 +102,7 @@ class GBMTree(DecisionTreeRegressor):
         :param y: The target values.
         :param z: The predicted parameter values from the previous iteration.
         :param w: Weights for the training data, of shape (n_samples,).
-        :param j: The index of the current iteration.
+        :param j: The parameter dimension to update.
         """
         g = self.distribution.grad(y=y, z=z, w=w, j=j)
         self.fit(X, -g)
