@@ -32,7 +32,10 @@ def _get_run_id(config: Dict[str, Any]) -> int:
     :param config: The config.
     :return: The run id.
     """
-    prev_runs = [int(f.split("_")[1]) for f in os.listdir(config["output_path"]) if f[:3]=='run']
+    # Create the folder if it does not exist
+    output_path = config["output_path"]
+    os.makedirs(output_path, exist_ok=True)
+    prev_runs = [int(f.split("_")[1]) for f in os.listdir(output_path) if f[:3]=='run']
     return max(prev_runs, default=0) + 1
 
 
