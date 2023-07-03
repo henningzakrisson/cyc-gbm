@@ -29,7 +29,7 @@ Fitting the mean and (log) sigma parameters of a normal distribution to a simula
 
 ```python
 import numpy as np
-from cyc_gbm import CycGBM
+from cyc_gbm import CyclicalGradientBooster
 from sklearn.model_selection import train_test_split
 
 # Simulate data
@@ -42,9 +42,9 @@ y = np.random.normal(mu, sigma)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
 # Fit model
-model = CycGBM(
+model = CyclicalGradientBooster(
    distribution='normal',
-   kappa=[26,34],
+   kappa=[26, 34],
    eps=0.1,
    max_depth=2,
    min_samples_leaf=20,
@@ -57,13 +57,13 @@ print(f'negative log likelihood: {loss}')
 ```
 
 ## Reproducing the numerical illustrations in the paper
-The numerical illustrations in the paper can be reproduced by running the ````numerical_illustration```` function in the ````src/numerical_illustration.py```` module. 
+The numerical illustrations in the paper can be reproduced by running the ````numerical_illustration```` function in the ````numerical_illustration/numerical_illustration.py```` module. 
 The function takes the path to a configuration file as input. 
 The configuration file is a yaml file that specifies the parameters of the numerical illustration.
-An example configuration file can be found in ````config/simulation_config.yaml````.
+An example configuration file can be found in ````numerical_illustration/config/simulation_config.yaml````.
 For running several experiments in one run, I refer to the ````numerical_illustrations```` function in the same module. 
 See the documentation for usage.
-An example configuration file for running several experiments can be found in ````config/simulation_run/master_config.yaml````.
+An example configuration file for running several experiments can be found in ````numerical_illustration/config/simulation_run/master_config.yaml````.
 
 ## Not yet implemented
 - [ ] Add support for categorical features (currently the trees are based on ````sklearn.tree.DecisionTreeRegressor```` which does not support categorical features)

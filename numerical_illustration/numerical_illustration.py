@@ -6,11 +6,11 @@ import numpy as np
 import pandas as pd
 import yaml
 
-
+from cyc_gbm import CyclicalGradientBooster
 from cyc_gbm.logger import CycGBMLogger
 from cyc_gbm.distributions import initiate_distribution
 from cyc_gbm.tune_kappa import tune_kappa
-from cyc_gbm import CycGBM, CycGLM, Intercept
+from baseline_models import CycGLM, Intercept
 
 
 def _load_config(config_file: str) -> dict:
@@ -32,7 +32,10 @@ def _get_run_id(config: Dict[str, Any]) -> int:
     :param config: The config.
     :return: The run id.
     """
-    prev_runs = [int(f.split("_")[1]) for f in os.listdir(config["output_path"]) if f[:3]=='run']
+    # Create the folder if it does not exist
+    output_path = config["output_path"]
+    os.makedirs(output_path, exist_ok=True)
+    prev_runs = [int(f.split("_")[1]) for f in os.listdir(output_path) if f[:3]=='run']
     return max(prev_runs, default=0) + 1
 
 
@@ -198,7 +201,7 @@ def _fit_models(
                 rng=rng,
                 logger=logger,
             )["kappa"]
-            model = CycGBM(
+            model = CyclicalGradientBooster(
                 distribution=distribution,
                 kappa=kappa,
                 eps=config["gbm_parameters"]["eps"],
@@ -407,6 +410,6 @@ def numerical_illustrations(
 
 
 if __name__ == "__main__":
-    config_path = "../config/cas_data_study"
+    config_path = "config/simulation_study"
     config_file = "master_config.yaml"
     results = numerical_illustrations(master_config_file=f"{config_path}/{config_file}")

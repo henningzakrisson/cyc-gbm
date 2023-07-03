@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from cyc_gbm import CycGBM, CycGLM
+from cyc_gbm import CyclicalGradientBooster
 from cyc_gbm.tune_kappa import tune_kappa
 from cyc_gbm.distributions import initiate_distribution
 
@@ -30,7 +30,7 @@ class GBMTests(unittest.TestCase):
         y = dist.simulate(z, random_state=10)
 
         kappa = [100, 0]
-        gbm = CycGBM(distribution="normal", kappa=kappa)
+        gbm = CyclicalGradientBooster(distribution="normal", kappa=kappa)
         gbm.fit(X, y)
         loss = gbm.dist.loss(y=y, z=gbm.predict(X)).sum()
 
@@ -60,7 +60,7 @@ class GBMTests(unittest.TestCase):
 
         kappa = [100, 0]
         eps = 0.1
-        gbm = CycGBM(distribution="gamma", kappa=kappa, eps=eps)
+        gbm = CyclicalGradientBooster(distribution="gamma", kappa=kappa, eps=eps)
         gbm.fit(X, y)
         loss = gbm.dist.loss(y=y, z=gbm.predict(X)).sum()
 
@@ -118,7 +118,7 @@ class GBMTests(unittest.TestCase):
         eps = 0.1
         max_depth = 2
         min_samples_leaf = 20
-        gbm = CycGBM(
+        gbm = CyclicalGradientBooster(
             kappa=kappas,
             eps=eps,
             min_samples_leaf=min_samples_leaf,
@@ -158,7 +158,7 @@ class GBMTests(unittest.TestCase):
 
         kappas = [15, 30]
         eps = 0.1
-        gbm = CycGBM(kappa=kappas, eps=eps, distribution="gamma")
+        gbm = CyclicalGradientBooster(kappa=kappas, eps=eps, distribution="gamma")
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
@@ -239,7 +239,7 @@ class GBMTests(unittest.TestCase):
         eps = [0.1, 0.1]
         kappa = [20, 100]
 
-        gbm = CycGBM(
+        gbm = CyclicalGradientBooster(
             kappa=kappa,
             eps=eps,
             max_depth=max_depth,
@@ -279,7 +279,7 @@ class GBMTests(unittest.TestCase):
 
         kappa = 100
         eps = 0.001
-        gbm = CycGBM(distribution="inv_gauss", kappa=kappa)
+        gbm = CyclicalGradientBooster(distribution="inv_gauss", kappa=kappa)
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
         loss = gbm.dist.loss(y=y, z=z_hat).sum()
@@ -311,7 +311,7 @@ class GBMTests(unittest.TestCase):
 
         kappa = 100
         eps = 0.01
-        gbm = CycGBM(distribution="neg_bin", kappa=kappa)
+        gbm = CyclicalGradientBooster(distribution="neg_bin", kappa=kappa)
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
         loss = gbm.dist.loss(y=y, z=z_hat).sum()
@@ -352,7 +352,7 @@ class GBMTests(unittest.TestCase):
 
         kappa = [23, 17, 79]
         eps = [0.5, 0.25, 0.1]
-        gbm = CycGBM(distribution="multivariate_normal", kappa=kappa, eps=eps)
+        gbm = CyclicalGradientBooster(distribution="multivariate_normal", kappa=kappa, eps=eps)
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
         loss = gbm.dist.loss(y=y, z=z_hat).sum()
@@ -379,7 +379,7 @@ class GBMTests(unittest.TestCase):
         kappa = 100
         eps = 0.1
         max_depth = 2
-        gbm = CycGBM(distribution="normal", kappa=kappa, eps=eps, max_depth=max_depth)
+        gbm = CyclicalGradientBooster(distribution="normal", kappa=kappa, eps=eps, max_depth=max_depth)
         gbm.fit(X, y)
 
         feature_importances = {j: gbm.feature_importances(j=j) for j in [0, 1, "all"]}
@@ -395,41 +395,6 @@ class GBMTests(unittest.TestCase):
                     second=feature_importances[j][feature],
                     places=5,
                     msg=f"CycGBM feature importance not as expected for feature {feature}, parameter {j}",
-                )
-
-    def test_cyc_glm(self):
-        """
-        Test method for the `CycGLM` class on a dataset where the target variable
-        follows a normal distribution.
-        :raises AssertionError: If the estimated parameters do not match the true ones
-        """
-        rng = np.random.default_rng(seed=11)
-        n = 10000
-        p = 3
-        X = rng.normal(0, 1, (n, p))
-        beta_0 = np.array([0, 1, 2]) / 10
-        beta_1 = np.array([0, 2, 1]) / 10
-
-        z0 = beta_0 @ X.T
-        z1 = beta_1 @ X.T
-        z = np.stack([z0, z1])
-        distribution = initiate_distribution(distribution="normal")
-        y = distribution.simulate(z=z, random_state=5)
-
-        max_iter = 10000
-        eps = 1e-7
-        tol = 1e-6
-        cyc_glm = CycGLM(distribution="normal", max_iter=max_iter, eps=eps, tol=tol)
-        cyc_glm.fit(X, y)
-        beta_hat = cyc_glm.beta
-
-        for j in range(2):
-            for k in range(p):
-                self.assertAlmostEqual(
-                    first=beta_hat[j, k],
-                    second=beta_0[k] if j == 0 else beta_1[k],
-                    places=1,
-                    msg=f"CycGLM parameter estimate not as expected for parameter dimension {j}, covariate parameter {k}",
                 )
 
     def test_gamma_with_weights(self):
@@ -457,7 +422,7 @@ class GBMTests(unittest.TestCase):
 
         kappas = [15, 30]
         eps = 0.1
-        gbm = CycGBM(kappa=kappas, eps=eps, distribution="gamma")
+        gbm = CyclicalGradientBooster(kappa=kappas, eps=eps, distribution="gamma")
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
@@ -495,7 +460,7 @@ class GBMTests(unittest.TestCase):
 
         kappas = [15, 30]
         eps = 0.1
-        gbm = CycGBM(kappa=kappas, eps=eps, distribution="normal")
+        gbm = CyclicalGradientBooster(kappa=kappas, eps=eps, distribution="normal")
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 

@@ -1,7 +1,7 @@
 # Simulation setup
-n: 100000
+n: 1000
 p: 9
-random_seed: 11
+random_seed: 123
 test_size: 0.2
 
 # Model setup
@@ -12,10 +12,10 @@ models:
 - cyc-gbm
 
 # Output setup
-copy_data: true
+copy_data: false
+output_path: data/results/
 output_figures: false
-output_path: ../../data/results/
 verbose: 2
 
 # Config setup
-sub_configs: ../../config/simulation_study/sub_configs/
+sub_configs: config/cas_data_study/sub_configs/

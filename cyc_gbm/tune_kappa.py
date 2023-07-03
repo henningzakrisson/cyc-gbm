@@ -3,7 +3,7 @@ import logging
 
 import numpy as np
 
-from cyc_gbm import CycGBM
+from cyc_gbm import CyclicalGradientBooster
 from cyc_gbm.distributions import initiate_distribution, Distribution
 from cyc_gbm.logger import CycGBMLogger
 
@@ -92,7 +92,7 @@ def tune_kappa(
         X_train, y_train, w_train = X[idx_train], y[idx_train], w[idx_train]
         X_valid, y_valid, w_valid = X[idx_valid], y[idx_valid], w[idx_valid]
 
-        gbm = CycGBM(
+        gbm = CyclicalGradientBooster(
             kappa=0,
             eps=eps,
             max_depth=max_depth,
