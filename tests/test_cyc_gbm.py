@@ -352,7 +352,9 @@ class GBMTests(unittest.TestCase):
 
         kappa = [23, 17, 79]
         eps = [0.5, 0.25, 0.1]
-        gbm = CyclicalGradientBooster(distribution="multivariate_normal", kappa=kappa, eps=eps)
+        gbm = CyclicalGradientBooster(
+            distribution="multivariate_normal", kappa=kappa, eps=eps
+        )
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
         loss = gbm.dist.loss(y=y, z=z_hat).sum()
@@ -379,7 +381,9 @@ class GBMTests(unittest.TestCase):
         kappa = 100
         eps = 0.1
         max_depth = 2
-        gbm = CyclicalGradientBooster(distribution="normal", kappa=kappa, eps=eps, max_depth=max_depth)
+        gbm = CyclicalGradientBooster(
+            distribution="normal", kappa=kappa, eps=eps, max_depth=max_depth
+        )
         gbm.fit(X, y)
 
         feature_importances = {j: gbm.feature_importances(j=j) for j in [0, 1, "all"]}

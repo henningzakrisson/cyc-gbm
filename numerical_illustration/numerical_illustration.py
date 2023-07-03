@@ -35,7 +35,9 @@ def _get_run_id(config: Dict[str, Any]) -> int:
     # Create the folder if it does not exist
     output_path = config["output_path"]
     os.makedirs(output_path, exist_ok=True)
-    prev_runs = [int(f.split("_")[1]) for f in os.listdir(output_path) if f[:3]=='run']
+    prev_runs = [
+        int(f.split("_")[1]) for f in os.listdir(output_path) if f[:3] == "run"
+    ]
     return max(prev_runs, default=0) + 1
 
 
@@ -182,7 +184,7 @@ def _fit_models(
             model = CycGLM(
                 distribution=distribution,
                 max_iter=config["glm_parameters"]["max_iter"],
-                eps = float(config["glm_parameters"]["eps"]),
+                eps=float(config["glm_parameters"]["eps"]),
                 tol=config["glm_parameters"]["tol"],
             )
         elif model_name in ["uni-gbm", "cyc-gbm"]:
@@ -306,7 +308,7 @@ def numerical_illustration(
     :return: The results.
     """
     if logger is None:
-        logger = CycGBMLogger(verbose = -1)
+        logger = CycGBMLogger(verbose=-1)
     logger.log("loading data.")
     if isinstance(config, str):
         config = _load_config(config_file=config)

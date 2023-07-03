@@ -334,6 +334,7 @@ class NormalDistribution(Distribution):
         elif k == 2:
             return w * np.exp(2 * z[1])
 
+
 @inherit_docstrings
 class NormalDistributionUni(Distribution):
     def __init__(
@@ -355,7 +356,11 @@ class NormalDistributionUni(Distribution):
         return (y - z[0]) ** 2
 
     def grad(
-        self, y: np.ndarray, z: np.ndarray, j: int = 0, w: Union[np.ndarray, float] = 1.0
+        self,
+        y: np.ndarray,
+        z: np.ndarray,
+        j: int = 0,
+        w: Union[np.ndarray, float] = 1.0,
     ) -> np.ndarray:
         return y - z[0]
 
@@ -377,6 +382,7 @@ class NormalDistributionUni(Distribution):
         self, z: np.ndarray, k: int = 1, w: Union[np.ndarray, float] = 1.0
     ) -> np.ndarray:
         return z[0]
+
 
 @inherit_docstrings
 class NegativeBinomialDistribution(Distribution):
@@ -788,9 +794,9 @@ def initiate_distribution(
     :raises UnknownDistribution: If the input distribution name is not recognized.
     """
     if distribution == "normal":
-        if d ==1:
+        if d == 1:
             return NormalDistributionUni()
-        if d==2:
+        if d == 2:
             return NormalDistribution()
     if distribution == "gamma":
         return GammaDistribution()
