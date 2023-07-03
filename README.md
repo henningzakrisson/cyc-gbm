@@ -6,7 +6,8 @@ You can install the package using pip:
 ```bash
 pip install cyc-gbm
 ```
-Alternatively, you can install the package from source by following these steps:
+Alternatively, you can install the package from source.
+This will also include scripts for reproducing the results in the papar. Follow these steps:
 
 1. Clone this repository to your local machine:
     ```bash
