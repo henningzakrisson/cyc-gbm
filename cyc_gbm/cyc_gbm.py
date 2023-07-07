@@ -87,7 +87,7 @@ class CyclicalGradientBooster:
         self,
         X: Union[np.ndarray, pd.DataFrame],
         y: Union[np.ndarray, pd.Series, pd.DataFrame],
-        w: Union[np.ndarray, pd.Series, float] = 1,
+        w: Union[np.ndarray, pd.Series, float] = None,
         logger: Optional[CycGBMLogger] = None,
     ) -> None:
         """
