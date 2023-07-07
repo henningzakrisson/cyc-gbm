@@ -1,6 +1,7 @@
 from typing import List, Union, Optional
 
 import numpy as np
+import pandas as pd
 
 from cyc_gbm.distributions import Distribution, initiate_distribution
 from cyc_gbm.logger import CycGBMLogger
@@ -50,7 +51,7 @@ class CyclicalGradientBooster:
             for j in range(self.d)
         ]
 
-    def _initialize_parameter(self, parameter):
+    def _initialize_parameter(self, parameter) -> List:
         """
         Initialize parameter to default_value if parameter is not a list or numpy array.
 
@@ -63,7 +64,10 @@ class CyclicalGradientBooster:
         )
 
     def _adjust_mle(
-        self, X: np.ndarray, y: np.ndarray, w: Union[np.ndarray, float] = 1
+        self,
+        X: Union[np.ndarray, pd.DataFrame],
+        y: Union[np.ndarray, pd.Series, pd.DataFrame],
+        w: Union[np.ndarray, pd.Series, float] = 1,
     ) -> None:
         """
         Adjust the initial values of the model for parameters not modeled by the GBM
@@ -79,9 +83,9 @@ class CyclicalGradientBooster:
 
     def fit(
         self,
-        X: np.ndarray,
-        y: np.ndarray,
-        w: Union[np.ndarray, float] = 1.0,
+        X: Union[np.ndarray, pd.DataFrame],
+        y: Union[np.ndarray, pd.Series, pd.DataFrame],
+        w: Union[np.ndarray, pd.Series, float] = 1,
         logger: Optional[CycGBMLogger] = None,
     ) -> None:
         """
@@ -116,11 +120,11 @@ class CyclicalGradientBooster:
 
     def update(
         self,
-        X: np.ndarray,
-        y: np.ndarray,
+        X: Union[np.ndarray, pd.DataFrame],
+        y: Union[np.ndarray, pd.Series, pd.DataFrame],
         j: int,
-        z: Optional[np.ndarray] = None,
-        w: Union[np.ndarray, float] = 1,
+        z: Optional[Union[np.ndarray, pd.DataFrame]] = None,
+        w: Union[np.ndarray, pd.Series, float] = 1,
     ) -> None:
         """
         Updates the current boosting model with one additional tree
@@ -145,7 +149,9 @@ class CyclicalGradientBooster:
         self.trees[j][-1].fit_gradients(X=X, y=y, z=z, w=w, j=j)
         self.kappa[j] += 1
 
-    def predict(self, X: np.ndarray) -> np.ndarray:
+    def predict(
+        self, X: Union[np.ndarray, pd.DataFrame]
+    ) -> Union[np.ndarray, pd.DataFrame]:
         """
         Predict response values for the input data using the trained model.
 
@@ -164,7 +170,7 @@ class CyclicalGradientBooster:
 
     def feature_importances(
         self, j: Union[str, int] = "all", normalize: bool = True
-    ) -> np.ndarray:
+    ) -> Union[np.ndarray, pd.Series]:
         """
         Computes the feature importances for parameter dimension j
 

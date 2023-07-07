@@ -33,10 +33,10 @@ class BoostingTree(DecisionTreeRegressor):
 
     def fit_gradients(
         self,
-        X: np.ndarray,
-        y: np.ndarray,
-        z: np.ndarray,
-        w: np.ndarray,
+        X: Union[np.ndarray, pd.DataFrame],
+        y: Union[np.ndarray, pd.Series, pd.DataFrame],
+        z: Union[np.ndarray, pd.DataFrame],
+        w: Union[np.ndarray, pd.Series],
         j: int,
     ) -> None:
         """
@@ -54,10 +54,10 @@ class BoostingTree(DecisionTreeRegressor):
 
     def _adjust_node_values(
         self,
-        X: np.ndarray,
-        y: np.ndarray,
-        z: np.ndarray,
-        w: np.ndarray,
+        X: Union[np.ndarray, pd.DataFrame],
+        y: Union[np.ndarray, pd.Series, pd.DataFrame],
+        z: Union[np.ndarray, pd.DataFrame],
+        w: Union[np.ndarray, pd.Series],
         j: int,
         node_index: int = 0,
     ) -> None:
