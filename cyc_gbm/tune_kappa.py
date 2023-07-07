@@ -84,7 +84,8 @@ def tune_kappa(
         distribution = initiate_distribution(distribution=distribution)
     d = distribution.d
     kappa_max = kappa_max if isinstance(kappa_max, list) else [kappa_max] * d
-    loss = np.ones((n_splits, max(kappa_max) + 1, d)) * np.nan
+    loss_train = np.ones((n_splits, max(kappa_max) + 1, d)) * np.nan
+    loss_valid = np.ones((n_splits, max(kappa_max) + 1, d)) * np.nan
     for i, idx in enumerate(folds):
         logger.append_format_level(f"fold {i+1}/{n_splits}")
         logger.log("tuning", verbose=1)
@@ -100,27 +101,37 @@ def tune_kappa(
             distribution=distribution,
         )
         gbm.fit(X_train, y_train, w_train)
+        z_train = gbm.predict(X_train)
         z_valid = gbm.predict(X_valid)
-        loss[i, 0, :] = gbm.dist.loss(y=y_valid, z=z_valid, w=w_valid).sum()
+        loss_train[i, 0, :] = gbm.dist.loss(y=y_train, z=z_train, w=w_train).sum()
+        loss_valid[i, 0, :] = gbm.dist.loss(y=y_valid, z=z_valid, w=w_valid).sum()
 
         for k in range(1, max(kappa_max) + 1):
             for j in range(d):
                 if k < kappa_max[j]:
-                    gbm.update(X=X_train, y=y_train, w=w_train, j=j)
+                    gbm.update(X=X_train, y=y_train, z=z_train, w=w_train, j=j)
+                    z_train[j] += gbm.eps[j] * gbm.trees[j][-1].predict(X_train)
                     z_valid[j] += gbm.eps[j] * gbm.trees[j][-1].predict(X_valid)
-                    loss[i, k, j] = gbm.dist.loss(y=y_valid, z=z_valid, w=w_valid).sum()
+                    loss_train[i, k, j] = gbm.dist.loss(
+                        y=y_train, z=z_train, w=w_train
+                    ).sum()
+                    loss_valid[i, k, j] = gbm.dist.loss(
+                        y=y_valid, z=z_valid, w=w_valid
+                    ).sum()
                 else:
                     if j == 0:
-                        loss[i, k, j] = loss[i, k - 1, j + 1]
+                        loss_train[i, k, j] = loss_train[i, k - 1, j + 1]
+                        loss_valid[i, k, j] = loss_valid[i, k - 1, j + 1]
                     else:
-                        loss[i, k, j] = loss[i, k, j - 1]
+                        loss_train[i, k, j] = loss_train[i, k, j - 1]
+                        loss_valid[i, k, j] = loss_valid[i, k, j - 1]
 
             # Stop if no improvement was made
             if k != max(kappa_max) and np.all(
-                [loss[i, k, 0] >= loss[i, k - 1, 1]]
-                + [loss[i, k, j] >= loss[i, k, j - 1] for j in range(1, d)]
+                [loss_valid[i, k, 0] >= loss_valid[i, k - 1, 1]]
+                + [loss_valid[i, k, j] >= loss_valid[i, k, j - 1] for j in range(1, d)]
             ):
-                loss[i, k + 1 :, :] = loss[i, k, -1]
+                loss_valid[i, k + 1 :, :] = loss_valid[i, k, -1]
                 logger.log(
                     msg=f"tuning converged after {k} steps",
                     verbose=1,
@@ -136,7 +147,7 @@ def tune_kappa(
         logger.reset_progress()
         logger.remove_format_level()
 
-    loss_total = loss.sum(axis=0)
+    loss_total = loss_valid.sum(axis=0)
     loss_delta = np.zeros((d, max(kappa_max) + 1))
     loss_delta[0, 1:] = loss_total[1:, 0] - loss_total[:-1, -1]
     for j in range(1, d):
@@ -148,4 +159,4 @@ def tune_kappa(
             logger.log(f"tuning did not converge for dimension {j}", verbose=1)
             kappa[j] = kappa_max[j]
 
-    return {"kappa": kappa, "loss": loss}
+    return {"kappa": kappa, "loss": {"train": loss_train, "valid": loss_valid}}

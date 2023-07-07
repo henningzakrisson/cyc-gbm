@@ -115,7 +115,12 @@ class CyclicalGradientBooster:
         self._adjust_mle(X=X, y=y, w=w)
 
     def update(
-        self, X: np.ndarray, y: np.ndarray, j: int, w: Union[np.ndarray, float] = 1
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        j: int,
+        z: Optional[np.ndarray] = None,
+        w: Union[np.ndarray, float] = 1,
     ) -> None:
         """
         Updates the current boosting model with one additional tree
@@ -123,11 +128,13 @@ class CyclicalGradientBooster:
         :param X: The training input data, shape (n_samples, n_features).
         :param y: The target values for the training data.
         :param j: Parameter dimension to update
+        :param z: Current predictions of the model. If None, the current predictions are calculated.
         :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
         """
         if isinstance(w, float):
             w = np.ones(len(y)) * w
-        z = self.predict(X)
+        if z is None:
+            z = self.predict(X)
         self.trees[j].append(
             BoostingTree(
                 max_depth=self.max_depth[j],
