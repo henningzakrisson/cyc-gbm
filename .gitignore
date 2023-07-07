@@ -14,3 +14,4 @@
 *.egg-info/
 /build/
 /numerical_illustration/data/
+/scripts/
