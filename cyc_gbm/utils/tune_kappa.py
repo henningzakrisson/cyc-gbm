@@ -4,8 +4,8 @@ import logging
 import numpy as np
 
 from cyc_gbm import CyclicalGradientBooster
-from cyc_gbm.distributions import initiate_distribution, Distribution
-from cyc_gbm.logger import CycGBMLogger
+from cyc_gbm.utils.distributions import initiate_distribution, Distribution
+from cyc_gbm.utils.logger import CycGBMLogger
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

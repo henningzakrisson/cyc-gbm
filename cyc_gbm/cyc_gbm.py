@@ -3,8 +3,9 @@ from typing import List, Union, Optional
 import numpy as np
 import pandas as pd
 
-from cyc_gbm.distributions import Distribution, initiate_distribution
-from cyc_gbm.logger import CycGBMLogger
+from cyc_gbm.utils.distributions import Distribution, initiate_distribution
+from cyc_gbm.utils.logger import CycGBMLogger
+from cyc_gbm.utils.convert_data import convert_data
 from cyc_gbm.boosting_tree import BoostingTree
 
 
@@ -50,6 +51,7 @@ class CyclicalGradientBooster:
             ]
             for j in range(self.d)
         ]
+        self.feature_names = None
 
     def _initialize_parameter(self, parameter) -> List:
         """
@@ -98,8 +100,9 @@ class CyclicalGradientBooster:
         """
         if logger is None:
             logger = CycGBMLogger(verbose=0)
-        if isinstance(w, float):
-            w = np.ones(len(y)) * w
+        if isinstance(X, pd.DataFrame):
+            self.feature_names = X.columns
+        X, y, w = convert_data(X=X, y=y, w=w)
 
         self.z0 = self.dist.mle(y=y, w=w)[:, None]
         z = np.tile(self.z0, (1, len(y)))
@@ -135,8 +138,7 @@ class CyclicalGradientBooster:
         :param z: Current predictions of the model. If None, the current predictions are calculated.
         :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
         """
-        if isinstance(w, float):
-            w = np.ones(len(y)) * w
+        X, y, w = convert_data(X=X, y=y, w=w, feature_names=self.feature_names)
         if z is None:
             z = self.predict(X)
         self.trees[j].append(
@@ -158,6 +160,7 @@ class CyclicalGradientBooster:
         :param X: Input data matrix of shape (n_samples, n_features).
         :return: Predicted response values of shape (d,n_samples).
         """
+        X, _, _ = convert_data(X=X, feature_names=self.feature_names)
         return self.z0 + np.array(
             [
                 self.eps[j]
@@ -190,6 +193,11 @@ class CyclicalGradientBooster:
             ).sum(axis=0)
         if normalize:
             feature_importances /= feature_importances.sum()
+
+        if self.feature_names is not None:
+            feature_importances = pd.Series(
+                feature_importances, index=self.feature_names
+            )
         return feature_importances
 
 

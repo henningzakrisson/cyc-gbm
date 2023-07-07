@@ -7,9 +7,9 @@ import pandas as pd
 import yaml
 
 from cyc_gbm import CyclicalGradientBooster
-from cyc_gbm.logger import CycGBMLogger
-from cyc_gbm.distributions import initiate_distribution
-from cyc_gbm.tune_kappa import tune_kappa
+from cyc_gbm.utils.logger import CycGBMLogger
+from cyc_gbm.utils.distributions import initiate_distribution
+from cyc_gbm.utils.tune_kappa import tune_kappa
 from baseline_models import CycGLM, Intercept
 
 

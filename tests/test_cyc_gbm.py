@@ -1,10 +1,11 @@
 import unittest
 
 import numpy as np
+import pandas as pd
 
 from cyc_gbm import CyclicalGradientBooster
-from cyc_gbm.tune_kappa import tune_kappa
-from cyc_gbm.distributions import initiate_distribution
+from cyc_gbm.utils.tune_kappa import tune_kappa
+from cyc_gbm.utils.distributions import initiate_distribution
 
 
 class GBMTests(unittest.TestCase):
@@ -476,6 +477,41 @@ class GBMTests(unittest.TestCase):
             places=5,
             msg="CycGBM Normal distribution with weights loss not as expected",
         )
+
+    def test_pandas_support(self):
+        """
+        Test method for the `CycGBM` class support for pandas dataframes, to make sure that
+        the model can handle both pandas and numpy dataframes and that the column names are
+        used instead of the column indices.
+        :raises AssertionError: If the calculated loss does not match the expected loss
+        """
+        rng = np.random.default_rng(seed=10)
+        n = 10000
+        p = 4
+        X = pd.DataFrame(
+            data=rng.normal(size=(n, p)), columns=["aaa", "bbb", "ccc", "ddd"]
+        )
+        mu = X["aaa"] ** 2 + np.sin(X["bbb"])
+        log_sigma = X["ccc"] + 3 * (X["ddd"] < 0)
+        z = np.stack([mu, log_sigma])
+        distribution = initiate_distribution(distribution="normal")
+        y = distribution.simulate(z=z, rng=rng)
+
+        model = CyclicalGradientBooster(
+            kappa=100, eps=0.01, min_samples_leaf=10, max_depth=2, distribution="normal"
+        )
+
+        model.fit(X=X, y=y)
+        orig_loss = distribution.loss(y=y, z=model.predict(X)).mean()
+        for shuffle in range(4):
+            X_shuffled = X.sample(frac=1, axis=1, random_state=shuffle)
+            new_loss = distribution.loss(y=y, z=model.predict(X_shuffled)).mean()
+            self.assertAlmostEqual(
+                first=orig_loss,
+                second=new_loss,
+                places=10,
+                msg="CycGBM loss not invariant to column order",
+            )
 
 
 if __name__ == "__main__":
