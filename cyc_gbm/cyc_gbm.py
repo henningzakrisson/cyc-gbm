@@ -1,4 +1,4 @@
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Dict
 
 import numpy as np
 import pandas as pd
@@ -52,6 +52,7 @@ class CyclicalGradientBooster:
             for j in range(self.d)
         ]
         self.feature_names = None
+        self.n_features = None
 
     def _initialize_parameter(self, parameter) -> List:
         """
@@ -88,6 +89,7 @@ class CyclicalGradientBooster:
         X: Union[np.ndarray, pd.DataFrame],
         y: Union[np.ndarray, pd.Series, pd.DataFrame],
         w: Union[np.ndarray, pd.Series, float] = None,
+        features: Optional[Dict[int, List[Union[str, int]]]] = None,
         logger: Optional[CycGBMLogger] = None,
     ) -> None:
         """
@@ -96,13 +98,22 @@ class CyclicalGradientBooster:
         :param X: Input data matrix of shape (n_samples, n_features).
         :param y: True response values for the input data.
         :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
+        :param features: Dictionary of features to use for each parameter dimension. Default is all for all.
         :param logger: Logger object to log progress. Default is no logger.
         """
         if logger is None:
             logger = CycGBMLogger(verbose=0)
         if isinstance(X, pd.DataFrame):
             self.feature_names = X.columns
+            if features is not None:
+                self.features = {
+                    j: [X.columns.get_loc(f) for f in features[j]]
+                    for j in range(self.d)
+                }
         X, y, w = convert_data(X=X, y=y, w=w)
+        if features is None:
+            self.features = {j: list(range(X.shape[1])) for j in range(self.d)}
+        self.n_features = X.shape[1]
 
         self.z0 = self.dist.mle(y=y, w=w)[:, None]
         z = np.tile(self.z0, (1, len(y)))
@@ -110,8 +121,12 @@ class CyclicalGradientBooster:
         for k in range(0, max(self.kappa)):
             for j in range(self.d):
                 if k < self.kappa[j]:
-                    self.trees[j][k].fit_gradients(X=X, y=y, z=z, w=w, j=j)
-                    z[j] += self.eps[j] * self.trees[j][k].predict(X)
+                    self.trees[j][k].fit_gradients(
+                        X=X[:, self.features[j]], y=y, z=z, w=w, j=j
+                    )
+                    z[j] += self.eps[j] * self.trees[j][k].predict(
+                        X[:, self.features[j]]
+                    )
 
                     logger.log_progress(
                         step=(k + 1) * (j + 1),
@@ -148,7 +163,7 @@ class CyclicalGradientBooster:
                 distribution=self.dist,
             )
         )
-        self.trees[j][-1].fit_gradients(X=X, y=y, z=z, w=w, j=j)
+        self.trees[j][-1].fit_gradients(X=X[:, self.features[j]], y=y, z=z, w=w, j=j)
         self.kappa[j] += 1
 
     def predict(
@@ -164,7 +179,10 @@ class CyclicalGradientBooster:
         return self.z0 + np.array(
             [
                 self.eps[j]
-                * np.sum([tree.predict(X) for tree in self.trees[j]], axis=0)
+                * np.sum(
+                    [tree.predict(X[:, self.features[j]]) for tree in self.trees[j]],
+                    axis=0,
+                )
                 if self.trees[j]
                 else np.zeros(len(X))
                 for j in range(self.d)
@@ -181,16 +199,19 @@ class CyclicalGradientBooster:
         :return: Feature importance of shape (n_features,)
         """
         if j == "all":
-            feature_importances = np.array(
-                [
+            feature_importances = np.zeros(self.n_features)
+            for j in range(self.d):
+                feature_importances_from_trees = np.array(
                     [tree.feature_importances() for tree in self.trees[j]]
-                    for j in range(self.d)
-                ]
-            ).sum(axis=(0, 1))
+                ).sum(axis=0)
+                feature_importances[self.features[j]] += feature_importances_from_trees
         else:
-            feature_importances = np.array(
+            feature_importances = np.zeros(self.n_features)
+            feature_importances_from_trees = np.array(
                 [tree.feature_importances() for tree in self.trees[j]]
             ).sum(axis=0)
+
+            feature_importances[self.features[j]] = feature_importances_from_trees
         if normalize:
             feature_importances /= feature_importances.sum()
 
@@ -199,29 +220,3 @@ class CyclicalGradientBooster:
                 feature_importances, index=self.feature_names
             )
         return feature_importances
-
-
-if __name__ == "__main__":
-    rng = np.random.default_rng(seed=10)
-    n = 1000
-    p = 9
-    X = np.concatenate([np.ones((1, n)), rng.normal(0, 1, (p - 1, n))]).T
-    z0 = (
-        1.5 * X[:, 1]
-        + 2 * X[:, 3]
-        - 0.65 * X[:, 2] ** 2
-        + 0.5 * np.abs(X[:, 3]) * np.sin(0.5 * X[:, 2])
-        + 0.45 * X[:, 4] * X[:, 5] ** 2
-    )
-    z1 = 1 + 0.02 * X[:, 2] + 0.5 * X[:, 1] * (X[:, 1] < 2) + 1.8 * (X[:, 5] > 0)
-    z2 = 0.2 * X[:, 3] + 0.03 * X[:, 2] ** 2
-    z = np.stack([z0, z1, z2])
-    distribution = initiate_distribution(distribution="multivariate_normal")
-    y = distribution.simulate(z=z, random_state=5)
-
-    kappa = [23, 17, 79]
-    eps = [0.5, 0.25, 0.1]
-    gbm = CyclicalGradientBooster(
-        distribution="multivariate_normal", kappa=kappa, eps=eps
-    )
-    gbm.fit(X, y)

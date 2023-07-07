@@ -513,6 +513,52 @@ class GBMTests(unittest.TestCase):
                 msg="CycGBM loss not invariant to column order",
             )
 
+    def test_selected_features(self):
+        """
+        Test method for the `CycGBM` class support for pandas dataframes, to make sure that
+        the model can handle both pandas and numpy dataframes and that the column names are
+        used instead of the column indices.
+        :raises AssertionError: If the calculated loss does not match the expected loss
+        """
+        rng = np.random.default_rng(seed=10)
+        n = 10000
+        p = 4
+        X = pd.DataFrame(
+            data=rng.normal(size=(n, p)), columns=["aaa", "bbb", "ccc", "ddd"]
+        )
+        mu = X["aaa"] ** 2 + np.sin(X["bbb"])
+        log_sigma = X["ccc"] + 3 * (X["ddd"] < 0)
+        z = np.stack([mu, log_sigma])
+        distribution = initiate_distribution(distribution="normal")
+        y = distribution.simulate(z=z, rng=rng)
+
+        model = CyclicalGradientBooster(
+            kappa=100, eps=0.01, min_samples_leaf=10, max_depth=2, distribution="normal"
+        )
+
+        model.fit(X=X, y=y, features={0: ["aaa", "bbb"], 1: ["ccc", "ddd"]})
+
+        expected_feature_importance = {
+            0: {"aaa": 0.623652, "bbb": 0.376348, "ccc": 0.0, "ddd": 0.0},
+            1: {"aaa": 0.0, "bbb": 0.0, "ccc": 0.557019, "ddd": 0.442981},
+            "all": {"aaa": 0.253577, "bbb": 0.153023, "ccc": 0.330536, "ddd": 0.262865},
+        }
+
+        feature_importance = {
+            0: model.feature_importances(j=0),
+            1: model.feature_importances(j=1),
+            "all": model.feature_importances(j="all"),
+        }
+
+        for j in [0, 1, "all"]:
+            for feature in ["aaa", "bbb", "ccc", "ddd"]:
+                self.assertAlmostEqual(
+                    first=expected_feature_importance[j][feature],
+                    second=feature_importance[j][feature],
+                    places=5,
+                    msg=f"Feature importance for feature {feature} for parameter j = {j} not as expected",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
