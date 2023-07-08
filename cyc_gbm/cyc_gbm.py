@@ -11,36 +11,48 @@ from cyc_gbm.boosting_tree import BoostingTree
 
 class CyclicalGradientBooster:
     """
-    Class for cyclical gradient boosting regressors
+    Class for cyclical gradient boosting regressors.
+
+    The model estimates a d-dimensional parameter function theta that depends on X to responses y.
+    y is assumed to be observations of Y ~ F(theta(X)), where F is a distribution.
     """
 
     def __init__(
         self,
-        kappa: Union[int, List[int]] = 100,
-        eps: Union[float, List[float]] = 0.1,
-        min_samples_split: Union[int, List[int]] = 2,
-        min_samples_leaf: Union[int, List[int]] = 20,
-        max_depth: Union[int, List[int]] = 2,
         distribution: Union[str, Distribution] = "normal",
+        learning_rate: Union[float, List[float]] = 0.1,
+        n_estimators: Union[int, List[int]] = 100,
+        min_samples_split: Union[int, List[int]] = 2,
+        min_samples_leaf: Union[int, List[int]] = 1,
+        max_depth: Union[int, List[int]] = 3,
     ):
         """
-        :param kappa: Number of boosting steps. Dimension-wise or global for all parameter dimensions.
-        :param eps: Shrinkage factors, which scales the contribution of each tree. Dimension-wise or global for all parameter dimensions.
+        :param distribution: distribution for losses and gradients. String or Distribution object.
+        :param learning_rate: Shrinkage factors, which scales the contribution of each tree. Dimension-wise or global for all parameter dimensions.
+        :param n_estimators: Number of boosting steps. Dimension-wise or global for all parameter dimensions.
         :param min_samples_split: Minimum number of samples required to split an internal node. Dimension-wise or global for all parameter dimensions.
         :param min_samples_leaf: Minimum number of samples required at a leaf node. Dimension-wise or global for all parameter dimensions.
         :param max_depth: Maximum depths of each decision tree. Dimension-wise or global for all parameter dimensions.
-        :param distribution: distribution for losses and gradients. String or Distribution object.
         """
         if isinstance(distribution, str):
             self.dist = initiate_distribution(distribution=distribution)
         else:
             self.dist = distribution
         self.d = self.dist.d
-        self.kappa = self._initialize_parameter(parameter=kappa)
-        self.eps = self._initialize_parameter(parameter=eps)
-        self.min_samples_split = self._initialize_parameter(parameter=min_samples_split)
-        self.min_samples_leaf = self._initialize_parameter(parameter=min_samples_leaf)
-        self.max_depth = self._initialize_parameter(parameter=max_depth)
+
+        self.n_estimators = self._initialize_hyper_parameter(
+            hyper_parameter=n_estimators
+        )
+        self.learning_rate = self._initialize_hyper_parameter(
+            hyper_parameter=learning_rate
+        )
+        self.min_samples_split = self._initialize_hyper_parameter(
+            hyper_parameter=min_samples_split
+        )
+        self.min_samples_leaf = self._initialize_hyper_parameter(
+            hyper_parameter=min_samples_leaf
+        )
+        self.max_depth = self._initialize_hyper_parameter(hyper_parameter=max_depth)
 
         self.z0 = 0
         self.trees = [
@@ -51,23 +63,23 @@ class CyclicalGradientBooster:
                     min_samples_split=self.min_samples_split[j],
                     min_samples_leaf=self.min_samples_leaf[j],
                 )
-                for _ in range(self.kappa[j])
+                for _ in range(self.n_estimators[j])
             ]
             for j in range(self.d)
         ]
         self.feature_names = None
         self.n_features = None
 
-    def _initialize_parameter(self, parameter) -> List:
+    def _initialize_hyper_parameter(self, hyper_parameter) -> List:
         """
         Initialize parameter to default_value if parameter is not a list or numpy array.
 
-        :param parameter: parameter to initialize
+        :param hyper_parameter: parameter to initialize
         """
         return (
-            parameter
-            if isinstance(parameter, (list, np.ndarray))
-            else [parameter] * self.d
+            hyper_parameter
+            if isinstance(hyper_parameter, (list, np.ndarray))
+            else [hyper_parameter] * self.d
         )
 
     def _adjust_mle(
@@ -85,7 +97,7 @@ class CyclicalGradientBooster:
         """
         z = self.predict(X=X)
         for j in range(self.d):
-            if self.kappa[j] == 0:
+            if self.n_estimators[j] == 0:
                 self.z0[j] += self.dist.opt_step(y=y, z=z, w=w, j=j)
 
     def fit(
@@ -122,19 +134,19 @@ class CyclicalGradientBooster:
         self.z0 = self.dist.mle(y=y, w=w)[:, None]
         z = np.tile(self.z0, (1, len(y)))
 
-        for k in range(0, max(self.kappa)):
+        for k in range(0, max(self.n_estimators)):
             for j in range(self.d):
-                if k < self.kappa[j]:
+                if k < self.n_estimators[j]:
                     self.trees[j][k].fit_gradients(
                         X=X[:, self.features[j]], y=y, z=z, w=w, j=j
                     )
-                    z[j] += self.eps[j] * self.trees[j][k].predict(
+                    z[j] += self.learning_rate[j] * self.trees[j][k].predict(
                         X[:, self.features[j]]
                     )
 
                     logger.log_progress(
                         step=(k + 1) * (j + 1),
-                        total_steps=(max(self.kappa) * self.d),
+                        total_steps=(max(self.n_estimators) * self.d),
                         verbose=2,
                     )
 
@@ -169,7 +181,7 @@ class CyclicalGradientBooster:
             )
         )
         self.trees[j][-1].fit_gradients(X=X[:, self.features[j]], y=y, z=z, w=w, j=j)
-        self.kappa[j] += 1
+        self.n_estimators[j] += 1
 
     def predict(
         self, X: Union[np.ndarray, pd.DataFrame]
@@ -183,7 +195,7 @@ class CyclicalGradientBooster:
         X, _, _ = convert_data(X=X, feature_names=self.feature_names)
         return self.z0 + np.array(
             [
-                self.eps[j]
+                self.learning_rate[j]
                 * np.sum(
                     [tree.predict(X[:, self.features[j]]) for tree in self.trees[j]],
                     axis=0,

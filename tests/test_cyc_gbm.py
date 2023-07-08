@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from cyc_gbm import CyclicalGradientBooster
-from cyc_gbm.utils.tune_kappa import tune_kappa
+from cyc_gbm.utils.tuning import tune_n_estimators
 from cyc_gbm.utils.distributions import initiate_distribution
 
 
@@ -30,8 +30,13 @@ class GBMTests(unittest.TestCase):
         dist = initiate_distribution(distribution="normal")
         y = dist.simulate(z, random_state=10)
 
-        kappa = [100, 0]
-        gbm = CyclicalGradientBooster(distribution="normal", kappa=kappa)
+        n_estimators = [100, 0]
+        gbm = CyclicalGradientBooster(
+            distribution="normal",
+            n_estimators=n_estimators,
+            max_depth=2,
+            min_samples_leaf=20,
+        )
         gbm.fit(X, y)
         loss = gbm.dist.loss(y=y, z=gbm.predict(X)).sum()
 
@@ -59,9 +64,15 @@ class GBMTests(unittest.TestCase):
         dist = initiate_distribution(distribution="gamma")
         y = dist.simulate(z, random_state=10)
 
-        kappa = [100, 0]
+        n_estimators = [100, 0]
         eps = 0.1
-        gbm = CyclicalGradientBooster(distribution="gamma", kappa=kappa, eps=eps)
+        gbm = CyclicalGradientBooster(
+            distribution="gamma",
+            n_estimators=n_estimators,
+            learning_rate=eps,
+            max_depth=2,
+            min_samples_leaf=20,
+        )
         gbm.fit(X, y)
         loss = gbm.dist.loss(y=y, z=gbm.predict(X)).sum()
 
@@ -72,12 +83,12 @@ class GBMTests(unittest.TestCase):
             msg="UniGBM Gamma distribution sse not as expected",
         )
 
-    def test_kappa_tuning_uni(self):
-        """Tests the `tune_kappa` function to ensure it returns the correct value of the kappa parameter for uniparametric distributions.
+    def test_n_estimators_tuning_uni(self):
+        """Tests the `tune_n_estimators` function to ensure it returns the correct value of the n_estimators parameter for uniparametric distributions.
 
         :raises AssertionError: If the estimated number of boosting steps does not match the expecter number.
         """
-        expected_kappa = 35
+        expected_n_estimators = 35
         n = 1000
         rng = np.random.default_rng(seed=10)
         X0 = np.arange(0, n)
@@ -88,11 +99,18 @@ class GBMTests(unittest.TestCase):
         X = np.stack([X0, X1]).T
         y = rng.normal(mu, 1.5)
 
-        tuning_results = tune_kappa(X=X, y=y, random_state=5, kappa_max=[1000, 0])
+        tuning_results = tune_n_estimators(
+            X=X,
+            y=y,
+            random_state=5,
+            n_estimators_max=[1000, 0],
+            max_depth=2,
+            min_samples_leaf=20,
+        )
 
         self.assertEqual(
-            first=expected_kappa,
-            second=tuning_results["kappa"][0],
+            first=expected_n_estimators,
+            second=tuning_results["n_estimators"][0],
             msg="Optimal number of boosting steps not correct for CycGBM in normal distribution with constant variance",
         )
 
@@ -115,13 +133,13 @@ class GBMTests(unittest.TestCase):
         X = np.stack([X0, X1]).T
         y = rng.normal(mu, sigma)
 
-        kappas = [100, 10]
+        n_estimatorss = [100, 10]
         eps = 0.1
         max_depth = 2
         min_samples_leaf = 20
         gbm = CyclicalGradientBooster(
-            kappa=kappas,
-            eps=eps,
+            n_estimators=n_estimatorss,
+            learning_rate=eps,
             min_samples_leaf=min_samples_leaf,
             max_depth=max_depth,
         )
@@ -157,9 +175,15 @@ class GBMTests(unittest.TestCase):
         X = np.stack([X0, X1]).T
         y = rng.gamma(1 / phi, mu * phi)
 
-        kappas = [15, 30]
+        n_estimatorss = [15, 30]
         eps = 0.1
-        gbm = CyclicalGradientBooster(kappa=kappas, eps=eps, distribution="gamma")
+        gbm = CyclicalGradientBooster(
+            n_estimators=n_estimatorss,
+            learning_rate=eps,
+            distribution="gamma",
+            max_depth=2,
+            min_samples_leaf=20,
+        )
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
@@ -172,13 +196,13 @@ class GBMTests(unittest.TestCase):
             msg="CycGBM Gamma distribution loss not as expected",
         )
 
-    def test_kappa_tuning_cyc(self):
-        """Tests the `tune_kappa` function to ensure it returns the correct value of the kappa parameter for multiparametric distributions.
+    def test_n_estimators_tuning_cyc(self):
+        """Tests the `tune_n_estimators` function to ensure it returns the correct value of the n_estimators parameter for multiparametric distributions.
 
         :raises AssertionError: If the estimated number of boosting steps does not match the expecter number.
         """
         n = 100
-        expected_kappa = [16, 15]
+        expected_n_estimators = [16, 15]
         rng = np.random.default_rng(seed=10)
         X0 = np.arange(0, n)
         X1 = np.arange(0, n)
@@ -189,16 +213,16 @@ class GBMTests(unittest.TestCase):
         X = np.stack([X0, X1]).T
         y = rng.normal(mu, sigma)
 
-        kappa_max = [1000, 100]
+        n_estimators_max = [1000, 100]
         eps = 0.1
         max_depth = 2
         min_samples_leaf = 20
         random_state = 5
-        tuning_results = tune_kappa(
+        tuning_results = tune_n_estimators(
             X=X,
             y=y,
-            kappa_max=kappa_max,
-            eps=eps,
+            n_estimators_max=n_estimators_max,
+            learning_rate=eps,
             max_depth=max_depth,
             min_samples_leaf=min_samples_leaf,
             distribution="normal",
@@ -207,8 +231,8 @@ class GBMTests(unittest.TestCase):
         )
         for j in [0, 1]:
             self.assertEqual(
-                first=expected_kappa[j],
-                second=tuning_results["kappa"][j],
+                first=expected_n_estimators[j],
+                second=tuning_results["n_estimators"][j],
                 msg=f"CycGBM Tuning method not giving expected result for dimension {j} in normal distribution",
             )
 
@@ -238,11 +262,11 @@ class GBMTests(unittest.TestCase):
         max_depth = 2
         min_samples_leaf = 20
         eps = [0.1, 0.1]
-        kappa = [20, 100]
+        n_estimators = [20, 100]
 
         gbm = CyclicalGradientBooster(
-            kappa=kappa,
-            eps=eps,
+            n_estimators=n_estimators,
+            learning_rate=eps,
             max_depth=max_depth,
             min_samples_leaf=min_samples_leaf,
             distribution="beta_prime",
@@ -278,9 +302,13 @@ class GBMTests(unittest.TestCase):
         X = np.stack([X0, X1]).T
         y = rng.wald(mu, l)
 
-        kappa = 100
-        eps = 0.001
-        gbm = CyclicalGradientBooster(distribution="inv_gauss", kappa=kappa)
+        n_estimators = 100
+        gbm = CyclicalGradientBooster(
+            distribution="inv_gauss",
+            n_estimators=n_estimators,
+            max_depth=2,
+            min_samples_leaf=20,
+        )
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
         loss = gbm.dist.loss(y=y, z=z_hat).sum()
@@ -310,9 +338,13 @@ class GBMTests(unittest.TestCase):
         distribution = initiate_distribution(distribution="neg_bin")
         y = distribution.simulate(z=z, random_state=5)
 
-        kappa = 100
-        eps = 0.01
-        gbm = CyclicalGradientBooster(distribution="neg_bin", kappa=kappa)
+        n_estimators = 100
+        gbm = CyclicalGradientBooster(
+            distribution="neg_bin",
+            n_estimators=n_estimators,
+            max_depth=2,
+            min_samples_leaf=20,
+        )
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
         loss = gbm.dist.loss(y=y, z=z_hat).sum()
@@ -351,10 +383,14 @@ class GBMTests(unittest.TestCase):
         distribution = initiate_distribution(distribution="multivariate_normal")
         y = distribution.simulate(z=z, random_state=5)
 
-        kappa = [23, 17, 79]
+        n_estimators = [23, 17, 79]
         eps = [0.5, 0.25, 0.1]
         gbm = CyclicalGradientBooster(
-            distribution="multivariate_normal", kappa=kappa, eps=eps
+            distribution="multivariate_normal",
+            n_estimators=n_estimators,
+            learning_rate=eps,
+            max_depth=2,
+            min_samples_leaf=20,
         )
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
@@ -379,11 +415,15 @@ class GBMTests(unittest.TestCase):
         distribution = initiate_distribution(distribution="normal")
         y = distribution.simulate(z=z, random_state=5)
 
-        kappa = 100
+        n_estimators = 100
         eps = 0.1
         max_depth = 2
         gbm = CyclicalGradientBooster(
-            distribution="normal", kappa=kappa, eps=eps, max_depth=max_depth
+            distribution="normal",
+            n_estimators=n_estimators,
+            learning_rate=eps,
+            max_depth=max_depth,
+            min_samples_leaf=20,
         )
         gbm.fit(X, y)
 
@@ -425,9 +465,15 @@ class GBMTests(unittest.TestCase):
         distribution = initiate_distribution(distribution="gamma")
         y = distribution.simulate(z=z, w=w, random_state=5)
 
-        kappas = [15, 30]
+        n_estimatorss = [15, 30]
         eps = 0.1
-        gbm = CyclicalGradientBooster(kappa=kappas, eps=eps, distribution="gamma")
+        gbm = CyclicalGradientBooster(
+            n_estimators=n_estimatorss,
+            learning_rate=eps,
+            distribution="gamma",
+            max_depth=2,
+            min_samples_leaf=20,
+        )
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
@@ -463,9 +509,15 @@ class GBMTests(unittest.TestCase):
         distribution = initiate_distribution(distribution="normal")
         y = distribution.simulate(z=z, w=w, random_state=5)
 
-        kappas = [15, 30]
+        n_estimatorss = [15, 30]
         eps = 0.1
-        gbm = CyclicalGradientBooster(kappa=kappas, eps=eps, distribution="normal")
+        gbm = CyclicalGradientBooster(
+            n_estimators=n_estimatorss,
+            learning_rate=eps,
+            distribution="normal",
+            max_depth=2,
+            min_samples_leaf=20,
+        )
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
@@ -498,7 +550,11 @@ class GBMTests(unittest.TestCase):
         y = distribution.simulate(z=z, rng=rng)
 
         model = CyclicalGradientBooster(
-            kappa=100, eps=0.01, min_samples_leaf=10, max_depth=2, distribution="normal"
+            n_estimators=100,
+            learning_rate=0.01,
+            min_samples_leaf=10,
+            max_depth=2,
+            distribution="normal",
         )
 
         model.fit(X=X, y=y)
@@ -533,7 +589,11 @@ class GBMTests(unittest.TestCase):
         y = distribution.simulate(z=z, rng=rng)
 
         model = CyclicalGradientBooster(
-            kappa=100, eps=0.01, min_samples_leaf=10, max_depth=2, distribution="normal"
+            n_estimators=100,
+            learning_rate=0.01,
+            min_samples_leaf=10,
+            max_depth=2,
+            distribution="normal",
         )
 
         model.fit(X=X, y=y, features={0: ["aaa", "bbb"], 1: ["ccc", "ddd"]})
