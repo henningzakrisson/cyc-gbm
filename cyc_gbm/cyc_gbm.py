@@ -27,6 +27,8 @@ class CyclicalGradientBooster:
         max_depth: Union[int, List[int]] = 3,
     ):
         """
+        Initialize a CyclicalGradientBooster object.
+
         :param distribution: distribution for losses and gradients. String or Distribution object.
         :param learning_rate: Shrinkage factors, which scales the contribution of each tree. Dimension-wise or global for all parameter dimensions.
         :param n_estimators: Number of boosting steps. Dimension-wise or global for all parameter dimensions.
