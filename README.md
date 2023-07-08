@@ -58,20 +58,6 @@ model.fit(X_train, y_train)
 loss = model.dist.loss(y=y_test, z=model.predict(X_test)).sum()
 print(f'negative log likelihood: {loss}')
 ```
-<!---
-## Reproducing the numerical illustrations in the paper
-The numerical illustrations in the paper can be reproduced by running the ````numerical_illustration```` function in the ````numerical_illustration/numerical_illustration.py```` module. 
-The function takes the path to a configuration file as input. 
-The configuration file is a yaml file that specifies the parameters of the numerical illustration.
-An example configuration file can be found in ````numerical_illustration/config/simulation_config.yaml````.
-For running several experiments in one run, I refer to the ````numerical_illustrations```` function in the same module. 
-See the documentation for usage.
-An example configuration file for running several experiments can be found in ````numerical_illustration/config/simulation_run/master_config.yaml````.
--->
-
-## Not yet implemented
-- [ ] Add support for categorical features (currently the trees are based on ````sklearn.tree.DecisionTreeRegressor```` which does not support categorical features)
-- [ ] Add other tuning methods (such as adaptive shrinkage)
 
 ## Contact
 If you have any questions, feel free to contact me [here](mailto:henning.zakrisson@gmail.com).
