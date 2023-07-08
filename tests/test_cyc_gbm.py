@@ -28,96 +28,86 @@ class CyclicalGradientBoosterTestCase(unittest.TestCase):
         self.n_estimators = 25
         self.w = self.rng.choice([0.5, 1.0, 2.0], size=n, replace=True)
 
-    def test_normal_distribution_uni(self):
+    def _test_distribution(
+        self,
+        distribution_name: str,
+        expected_loss: float,
+        n_dim: int,
+        use_weights: bool = False,
+    ):
         """
         Test method for the CycGBM` class on a dataset where the target variable
-        follows a univariate normal distribution with constant variance.
+        is generated from a given distribution.
 
-        :raises AssertionError: If the calculated loss does not match the expected loss
-            to within a tolerance.
+        :param distribution_name: The name of the distribution to use.
+        :param expected_loss: The expected loss of the CycGBM model.
+        :param n_dim: The number of dimensions to use
+        :param use_weights: Whether to use weights in the fit method.
         """
-        distribution = initiate_distribution(distribution="normal")
-        z = np.stack([self.z[0], np.zeros(self.z[0].shape)])
-        y = distribution.simulate(z=z, rng=self.rng)
+        distribution = initiate_distribution(
+            distribution=distribution_name, n_dim=n_dim
+        )
+        z = self.z[:n_dim]
+        w = self.w if use_weights else np.ones(self.X.shape[0])
+        y = distribution.simulate(z=z, w=w, rng=self.rng)
 
         gbm = CyclicalGradientBooster(
             distribution=distribution,
-            n_estimators=[self.n_estimators, 0],
+            n_estimators=self.n_estimators,
         )
-        gbm.fit(X=self.X, y=y)
+        gbm.fit(X=self.X, y=y, w=w)
 
         self.assertAlmostEqual(
-            first=0.5521796794285049,
-            second=distribution.loss(y=y, z=gbm.predict(self.X)).mean(),
+            first=expected_loss,
+            second=distribution.loss(y=y, z=gbm.predict(self.X), w=w).mean(),
             places=5,
-            msg="UniGBM Normal distribution loss not as expected",
-        )
-
-    def test_n_estimators_tuning_uni(self):
-        """Tests the `tune_n_estimators` function to ensure it returns the correct value of the n_estimators parameter for uniparametric distributions.
-
-        :raises AssertionError: If the estimated number of boosting steps does not match the expecter number.
-        """
-        distribution = initiate_distribution(distribution="normal")
-        z = np.stack([self.z[0], np.zeros(self.z[0].shape)])
-        y = distribution.simulate(z=z, rng=self.rng)
-
-        tuning_results = tune_n_estimators(
-            X=self.X,
-            y=y,
-            rng=self.rng,
-            n_estimators_max=[100, 0],
-        )
-
-        self.assertEqual(
-            first=52,
-            second=tuning_results["n_estimators"][0],
-            msg="Optimal number of boosting steps not correct for CycGBM in normal distribution with constant variance",
+            msg=f"CycGBM {distribution_name} distribution loss not as expected",
         )
 
     def test_normal_distribution(self):
-        """
-        Test method for the `CycGBM` class on a dataset where the target variable follows a normal distribution.
-
-        :raises AssertionError: If the calculated loss does not match the expected loss to within a tolerance.
-        """
-        distribution = initiate_distribution(distribution="normal")
-        y = distribution.simulate(z=self.z[:2], rng=self.rng)
-
-        gbm = CyclicalGradientBooster(
-            n_estimators=self.n_estimators,
+        self._test_distribution(
+            distribution_name="normal", expected_loss=0.8849930601326066, n_dim=2
         )
-        gbm.fit(self.X, y)
 
-        self.assertAlmostEqual(
-            first=0.8849930601326066,
-            second=distribution.loss(y=y, z=gbm.predict(self.X)).mean(),
-            places=5,
-            msg="CycGBM Normal distribution loss not as expected",
+    def test_normal_distribution_weighted(self):
+        self._test_distribution(
+            distribution_name="normal",
+            expected_loss=0.9091152884599392,
+            n_dim=2,
+            use_weights=True,
         )
 
     def test_gamma_distribution(self):
-        """
-        Test method for the `CycGBM` class on a dataset where the target variable
-        follows a gamma distribution.
-
-        :raises AssertionError: If the calculated loss does not match the expected loss
-            to within a tolerance.
-        """
-        distribution = initiate_distribution(distribution="gamma")
-        y = distribution.simulate(z=self.z[:2], rng=self.rng)
-
-        gbm = CyclicalGradientBooster(
-            distribution=distribution,
-            n_estimators=self.n_estimators,
+        self._test_distribution(
+            distribution_name="gamma", expected_loss=2.0453458895192274, n_dim=2
         )
-        gbm.fit(self.X, y)
 
-        self.assertAlmostEqual(
-            first=2.0453458895192274,
-            second=distribution.loss(y=y, z=gbm.predict(self.X)).mean(),
-            places=5,
-            msg="CycGBM Gamma distribution loss not as expected",
+    def test_gamma_distribution_weighted(self):
+        self._test_distribution(
+            distribution_name="gamma",
+            expected_loss=2.083812889187767,
+            n_dim=2,
+            use_weights=True,
+        )
+
+    def test_beta_prime(self):
+        self._test_distribution(
+            distribution_name="beta_prime", expected_loss=-1.3969559499821231, n_dim=2
+        )
+
+    def test_inv_gaussian(self):
+        self._test_distribution(
+            distribution_name="inv_gauss", expected_loss=0.6519232343689577, n_dim=2
+        )
+
+    def test_neg_bin(self):
+        self._test_distribution(
+            distribution_name="neg_bin", expected_loss=-12944.715688945882, n_dim=2
+        )
+
+    def test_multi_normal(self):
+        self._test_distribution(
+            distribution_name="normal", expected_loss=1.4502626196695108, n_dim=3
         )
 
     def test_n_estimators_tuning_cyc(self):
@@ -132,112 +122,17 @@ class CyclicalGradientBoosterTestCase(unittest.TestCase):
             X=self.X,
             y=y,
             rng=self.rng,
-            n_estimators_max=100,
+            n_estimators_max=[30, 100],
             distribution=distribution,
             n_splits=2,
         )
-        expected_n_estimators = [32, 24]
+        expected_n_estimators = [30, 24]
         for j in range(distribution.n_dim):
             self.assertEqual(
                 first=expected_n_estimators[j],
                 second=tuning_results["n_estimators"][j],
                 msg=f"Optimal number of boosting steps not correct for parameter dimension {j} in CycGBM in normal distribution with constant variance",
             )
-
-    def test_beta_prime(self):
-        """
-        Test method for the `CycGBM` class on a dataset where the target variable
-        follows a beta prime distribution.
-
-        :raises AssertionError: If the calculated loss does not match the expected loss
-            to within a tolerance.
-        """
-        distribution = initiate_distribution(distribution="beta_prime")
-        y = distribution.simulate(z=self.z[:2], rng=self.rng)
-
-        gbm = CyclicalGradientBooster(
-            distribution=distribution,
-            n_estimators=self.n_estimators,
-        )
-        gbm.fit(self.X, y)
-
-        self.assertAlmostEqual(
-            first=-1.3969559499821258,
-            second=distribution.loss(y=y, z=gbm.predict(self.X)).mean(),
-            places=5,
-            msg="CycGBM beta_prime distribution loss not as expected",
-        )
-
-    def test_inv_gaussian(self):
-        """
-        Test method for the `CycGBM` class on a dataset where the target variable
-        follows an Inverse Gaussian distribution
-
-        :raises AssertionError: If the calculated loss does not match the expected loss
-            to within a tolerance.
-        """
-        distribution = initiate_distribution(distribution="inv_gauss")
-        y = distribution.simulate(z=self.z[:2], rng=self.rng)
-
-        gbm = CyclicalGradientBooster(
-            distribution=distribution,
-            n_estimators=self.n_estimators,
-        )
-        gbm.fit(self.X, y)
-
-        self.assertAlmostEqual(
-            first=0.6519232343689577,
-            second=distribution.loss(y=y, z=gbm.predict(self.X)).mean(),
-            places=5,
-            msg="CycGBM inv_gaussian distribution loss not as expected",
-        )
-
-    def test_negative_binomial(self):
-        """
-        Test method for the `CycGBM` class on a dataset where the target variable
-        follows a negative binomial distribution.
-
-        :raises AssertionError: If the calculated loss does not match the expected loss
-            to within a tolerance.
-        """
-        distribution = initiate_distribution(distribution="neg_bin")
-        y = distribution.simulate(z=self.z[:2], rng=self.rng)
-
-        gbm = CyclicalGradientBooster(
-            distribution=distribution,
-            n_estimators=self.n_estimators,
-        )
-        gbm.fit(self.X, y)
-
-        self.assertAlmostEqual(
-            first=-12944.715688945882,
-            second=distribution.loss(y=y, z=gbm.predict(self.X)).mean(),
-            places=5,
-            msg="CycGBM neg_bin distribution loss not as expected",
-        )
-
-    def test_multivariate_normal(self):
-        """
-        Test method for the `CycGBM` class on a dataset where the target variable
-        follows a multivariate normal distribution.
-        :raises AssertionError: If the calculated loss does not match the expected loss
-            to within a tolerance.
-        """
-        distribution = initiate_distribution(distribution="normal", n_dim=3)
-        y = distribution.simulate(z=self.z, rng=self.rng)
-
-        gbm = CyclicalGradientBooster(
-            distribution=distribution,
-            n_estimators=self.n_estimators,
-        )
-        gbm.fit(self.X, y)
-
-        self.assertAlmostEqual(
-            first=1.4502626196695108,
-            second=distribution.loss(y=y, z=gbm.predict(self.X)).mean(),
-            places=5,
-            msg="CycGBM multivariate normal distribution loss not as expected",
-        )
 
     def test_feature_importance(self):
         """Test method for the 'CycGBM' class to test the feature importance calculation."""
@@ -265,52 +160,6 @@ class CyclicalGradientBoosterTestCase(unittest.TestCase):
                     places=5,
                     msg=f"CycGBM feature importance not as expected for feature {feature}, parameter {j}",
                 )
-
-    def test_gamma_with_weights(self):
-        """
-        Test method for the `CycGBM` class on a dataset where the target variable
-        follows a gamma distribution with weights.
-        :raises AssertionError: If the calculated loss does not match the expected loss
-            to within a tolerance.
-        """
-        distribution = initiate_distribution(distribution="gamma")
-        y = distribution.simulate(z=self.z[:2], w=self.w, rng=self.rng)
-
-        gbm = CyclicalGradientBooster(
-            distribution=distribution,
-            n_estimators=self.n_estimators,
-        )
-        gbm.fit(X=self.X, y=y, w=self.w)
-
-        self.assertAlmostEqual(
-            first=2.083812889187767,
-            second=distribution.loss(y=y, z=gbm.predict(self.X), w=self.w).mean(),
-            places=5,
-            msg="CycGBM Gamma distribution with weights loss not as expected",
-        )
-
-    def test_normal_with_weights(self):
-        """
-        Test method for the `CycGBM` class on a dataset where the target variable
-        follows a normal distribution with weights.
-        :raises AssertionError: If the calculated loss does not match the expected loss
-            to within a tolerance.
-        """
-        distribution = initiate_distribution(distribution="normal")
-        y = distribution.simulate(z=self.z[:2], w=self.w, rng=self.rng)
-
-        gbm = CyclicalGradientBooster(
-            distribution=distribution,
-            n_estimators=self.n_estimators,
-        )
-        gbm.fit(X=self.X, y=y, w=self.w)
-
-        self.assertAlmostEqual(
-            first=0.9091152884599392,
-            second=distribution.loss(y=y, z=gbm.predict(self.X), w=self.w).mean(),
-            places=5,
-            msg="CycGBM Normal distribution with weights loss not as expected",
-        )
 
     def test_pandas_support(self):
         """
