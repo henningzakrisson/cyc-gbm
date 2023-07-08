@@ -11,7 +11,7 @@ This will also a pipeline for reproducing the results in the paper. Follow these
 
 1. Clone this repository to your local machine:
     ```bash
-    git clone https://github.com/henningzakrisson/c-gbm.git
+    git clone https://github.com/henningzakrisson/cyc-gbm.git
     ```
 2. Create a virtual environment in the root directory of the repository:
     ```bash
@@ -45,10 +45,12 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 # Fit model
 model = CyclicalGradientBooster(
    distribution='normal',
-   kappa=[26, 34],
-   eps=0.1,
-   max_depth=2,
+   learning_rate=0.1,
+   n_estimators=[26, 34],
+   min_samples_split = 2,
    min_samples_leaf=20,
+   max_depth=2,
+
 )
 model.fit(X_train, y_train)
 
@@ -56,7 +58,7 @@ model.fit(X_train, y_train)
 loss = model.dist.loss(y=y_test, z=model.predict(X_test)).sum()
 print(f'negative log likelihood: {loss}')
 ```
-
+<!---
 ## Reproducing the numerical illustrations in the paper
 The numerical illustrations in the paper can be reproduced by running the ````numerical_illustration```` function in the ````numerical_illustration/numerical_illustration.py```` module. 
 The function takes the path to a configuration file as input. 
@@ -65,6 +67,7 @@ An example configuration file can be found in ````numerical_illustration/config/
 For running several experiments in one run, I refer to the ````numerical_illustrations```` function in the same module. 
 See the documentation for usage.
 An example configuration file for running several experiments can be found in ````numerical_illustration/config/simulation_run/master_config.yaml````.
+-->
 
 ## Not yet implemented
 - [ ] Add support for categorical features (currently the trees are based on ````sklearn.tree.DecisionTreeRegressor```` which does not support categorical features)

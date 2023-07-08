@@ -9,7 +9,7 @@ import yaml
 from cyc_gbm import CyclicalGradientBooster
 from cyc_gbm.utils.logger import CycGBMLogger
 from cyc_gbm.utils.distributions import initiate_distribution
-from cyc_gbm.utils.tune_kappa import tune_kappa
+from cyc_gbm.utils.tuning import tune_n_estimators
 from baseline_models import CycGLM, Intercept
 
 
@@ -188,14 +188,14 @@ def _fit_models(
                 tol=config["glm_parameters"]["tol"],
             )
         elif model_name in ["uni-gbm", "cyc-gbm"]:
-            kappa = tune_kappa(
+            kappa = tune_n_estimators(
                 X=data_train["X"],
                 y=data_train["y"],
                 w=data_train["w"],
-                kappa_max=[config["gbm_parameters"]["kappa_max"], 0]
+                n_estimators_max=[config["gbm_parameters"]["kappa_max"], 0]
                 if model_name == "uni_gbm"
                 else config["gbm_parameters"]["kappa_max"],
-                eps=config["gbm_parameters"]["eps"],
+                learning_rate=config["gbm_parameters"]["eps"],
                 max_depth=config["gbm_parameters"]["max_depth"],
                 min_samples_leaf=config["gbm_parameters"]["min_samples_leaf"],
                 distribution=distribution,
@@ -205,8 +205,8 @@ def _fit_models(
             )["kappa"]
             model = CyclicalGradientBooster(
                 distribution=distribution,
-                kappa=kappa,
-                eps=config["gbm_parameters"]["eps"],
+                n_estimators=kappa,
+                learning_rate=config["gbm_parameters"]["eps"],
                 max_depth=config["gbm_parameters"]["max_depth"],
                 min_samples_leaf=config["gbm_parameters"]["min_samples_leaf"],
             )
