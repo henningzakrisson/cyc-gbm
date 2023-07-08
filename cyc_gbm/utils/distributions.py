@@ -69,7 +69,7 @@ class Distribution:
 
         :param z: The predicted parameters.
         :param y: The target values.
-        :param j: The parameter dimension to compute the gradient for (default=0).
+        :param j: The parameter dimension to compute the gradient for.
         :param w: The weights of the observations. Default is 1.0.
         :return: The gradient(s) of the loss function for the given `z`, `y`, and `j`.
         """
