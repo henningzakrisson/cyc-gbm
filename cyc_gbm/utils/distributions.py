@@ -778,7 +778,7 @@ def initiate_distribution(
     moment: Union[
         None, Callable[[np.ndarray, int, Union[np.ndarray, float]], np.ndarray]
     ] = None,
-    d: int = 2,
+    n_dim: int = 2,
 ) -> Distribution:
     """
     Returns a probability distribution object based on the distribution name.
@@ -794,10 +794,12 @@ def initiate_distribution(
     :raises UnknownDistribution: If the input distribution name is not recognized.
     """
     if distribution == "normal":
-        if d == 1:
+        if n_dim == 1:
             return NormalDistributionUni()
-        if d == 2:
+        if n_dim == 2:
             return NormalDistribution()
+        if n_dim == 3:
+            return MultivariateNormalDistribution()
     if distribution == "gamma":
         return GammaDistribution()
     if distribution == "beta_prime":
@@ -806,8 +808,6 @@ def initiate_distribution(
         return InverseGaussianDistribution()
     if distribution == "neg_bin":
         return NegativeBinomialDistribution()
-    if distribution == "multivariate_normal":
-        return MultivariateNormalDistribution()
     if distribution == "custom":
         return CustomDistribution(
             loss=loss, grad=grad, mme=mme, simulate=simulate, moment=moment, d=d
