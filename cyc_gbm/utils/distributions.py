@@ -43,10 +43,10 @@ def inherit_docstrings(cls: Type) -> Type:
 class Distribution:
     def __init__(
         self,
-        d: Optional[int] = None,
+        n_dim: Optional[int] = None,
     ):
         """Initialize a distribution object."""
-        self.d = d
+        self.n_dim = n_dim
 
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
@@ -142,7 +142,7 @@ class Distribution:
         """
 
         # Indicator vector for adding step to dimension j
-        e = np.eye(self.d)[:, j : j + 1]
+        e = np.eye(self.n_dim)[:, j : j + 1]
         step_opt = minimize(
             fun=lambda step: self.loss(y=y, z=z + e * step, w=w).sum(),
             jac=lambda step: self.grad(y=y, z=z + e * step, j=j, w=w).sum(),
@@ -164,7 +164,7 @@ class MultivariateNormalDistribution(Distribution):
         E[Y] = [w*mu,w*mu]
         Cov(Y) = w*[sigma^2, rho*sigma^2; rho*sigma^2, sigma^2]
         """
-        super().__init__(d=3)
+        super().__init__(n_dim=3)
 
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
@@ -289,7 +289,7 @@ class NormalDistribution(Distribution):
 
         Parameterization: z[0] = mu, z[1] = log(sigma), where E[Y] = w*mu, Var(Y) = w*sigma^2
         """
-        super().__init__(d=2)
+        super().__init__(n_dim=2)
 
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
@@ -344,7 +344,7 @@ class NormalDistributionUni(Distribution):
 
         Parameterization: z[0] = mu, where E[Y] = mu, Var(Y) = 1
         """
-        super().__init__(d=1)
+        super().__init__(n_dim=1)
 
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
@@ -393,7 +393,7 @@ class NegativeBinomialDistribution(Distribution):
 
         Parameterization: z[0] = np.log(mu), z[1] = log(theta), where E[Y] = w*mu, Var(Y) = w*mu*(1+mu/theta)
         """
-        super().__init__(d=2)
+        super().__init__(n_dim=2)
 
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
@@ -467,7 +467,7 @@ class InverseGaussianDistribution(Distribution):
 
         Parameterization: z[0] = log(mu), z[1] = log(lambda), where E[Y] = w*mu, Var(Y) =w*mu^3 / lambda
         """
-        super().__init__(d=2)
+        super().__init__(n_dim=2)
 
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
@@ -545,7 +545,7 @@ class GammaDistribution(Distribution):
 
         Parameterization: z[0] = log(mu), z[1] = log(phi), where E[Y] = w*mu, Var(Y) =w*phi * mu^2
         """
-        super().__init__(d=2)
+        super().__init__(n_dim=2)
 
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
@@ -617,7 +617,7 @@ class BetaPrimeDistribution(Distribution):
 
         Parameterization: z[0] = log(mu), z[1] = log(v), where E[Y] = w*mu, Var(Y) =w*mu*(1+mu)/v
         """
-        super().__init__(d=2)
+        super().__init__(n_dim=2)
 
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
@@ -743,7 +743,7 @@ class CustomDistribution(Distribution):
         :param moment: A function that computes the kth moment of the distribution.
         :param d: The dimension of the distribution.
         """
-        super().__init__(d=d)
+        super().__init__(n_dim=d)
         self.loss = loss
         self.grad = grad
         self.mme = mme
