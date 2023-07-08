@@ -18,15 +18,17 @@ class CyclicalGradientBooster:
         self,
         kappa: Union[int, List[int]] = 100,
         eps: Union[float, List[float]] = 0.1,
-        max_depth: Union[int, List[int]] = 2,
+        min_samples_split: Union[int, List[int]] = 2,
         min_samples_leaf: Union[int, List[int]] = 20,
+        max_depth: Union[int, List[int]] = 2,
         distribution: Union[str, Distribution] = "normal",
     ):
         """
         :param kappa: Number of boosting steps. Dimension-wise or global for all parameter dimensions.
         :param eps: Shrinkage factors, which scales the contribution of each tree. Dimension-wise or global for all parameter dimensions.
-        :param max_depth: Maximum depths of each decision tree. Dimension-wise or global for all parameter dimensions.
+        :param min_samples_split: Minimum number of samples required to split an internal node. Dimension-wise or global for all parameter dimensions.
         :param min_samples_leaf: Minimum number of samples required at a leaf node. Dimension-wise or global for all parameter dimensions.
+        :param max_depth: Maximum depths of each decision tree. Dimension-wise or global for all parameter dimensions.
         :param distribution: distribution for losses and gradients. String or Distribution object.
         """
         if isinstance(distribution, str):
@@ -36,16 +38,18 @@ class CyclicalGradientBooster:
         self.d = self.dist.d
         self.kappa = self._initialize_parameter(parameter=kappa)
         self.eps = self._initialize_parameter(parameter=eps)
-        self.max_depth = self._initialize_parameter(parameter=max_depth)
+        self.min_samples_split = self._initialize_parameter(parameter=min_samples_split)
         self.min_samples_leaf = self._initialize_parameter(parameter=min_samples_leaf)
+        self.max_depth = self._initialize_parameter(parameter=max_depth)
 
         self.z0 = 0
         self.trees = [
             [
                 BoostingTree(
-                    max_depth=self.max_depth[j],
-                    min_samples_leaf=self.min_samples_leaf[j],
                     distribution=self.dist,
+                    max_depth=self.max_depth[j],
+                    min_samples_split=self.min_samples_split[j],
+                    min_samples_leaf=self.min_samples_leaf[j],
                 )
                 for _ in range(self.kappa[j])
             ]
@@ -158,9 +162,10 @@ class CyclicalGradientBooster:
             z = self.predict(X)
         self.trees[j].append(
             BoostingTree(
-                max_depth=self.max_depth[j],
-                min_samples_leaf=self.min_samples_leaf[j],
                 distribution=self.dist,
+                max_depth=self.max_depth[j],
+                min_samples_split=self.min_samples_split[j],
+                min_samples_leaf=self.min_samples_leaf[j],
             )
         )
         self.trees[j][-1].fit_gradients(X=X[:, self.features[j]], y=y, z=z, w=w, j=j)
