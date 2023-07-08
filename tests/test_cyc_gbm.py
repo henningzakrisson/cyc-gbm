@@ -10,7 +10,7 @@ from cyc_gbm.utils.distributions import initiate_distribution
 
 class GBMTests(unittest.TestCase):
     """
-    A class that defines unit tests for the `GBM` classes.
+    A class that defines unit tests for the CyclicalGradientBooster class.
     """
 
     def test_normal_distribution_uni(self):

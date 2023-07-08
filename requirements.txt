@@ -5,3 +5,4 @@ PyYAML
 scikit_learn
 scipy
 tikzplotlib
+pytest
