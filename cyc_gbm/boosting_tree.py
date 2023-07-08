@@ -17,18 +17,24 @@ class BoostingTree(DecisionTreeRegressor):
 
     def __init__(
         self,
-        max_depth: int,
-        min_samples_leaf: int,
         distribution: Distribution,
+        max_depth: int,
+        min_samples_split: int,
+        min_samples_leaf: int,
     ):
         """
         Constructs a new BoostingTree instance.
 
-        :param max_depth: The maximum depth of the tree.
-        :param min_samples_leaf: The minimum number of samples required to be at a leaf node.
         :param distribution: The distribution used for calculating the gradients and losses
+        :param max_depth: The maximum depth of the tree.
+        :param min_samples_split: The minimum number of samples required to split an internal node.
+        :param min_samples_leaf: The minimum number of samples required to be at a leaf node.
         """
-        super().__init__(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
+        super().__init__(
+            max_depth=max_depth,
+            min_samples_split=min_samples_split,
+            min_samples_leaf=min_samples_leaf,
+        )
         self.distribution = distribution
 
     def fit_gradients(
