@@ -38,7 +38,7 @@ class GBMTests(unittest.TestCase):
             min_samples_leaf=20,
         )
         gbm.fit(X, y)
-        loss = gbm.dist.loss(y=y, z=gbm.predict(X)).sum()
+        loss = gbm.distribution.loss(y=y, z=gbm.predict(X)).sum()
 
         self.assertAlmostEqual(
             first=51.017764411696184,
@@ -74,7 +74,7 @@ class GBMTests(unittest.TestCase):
             min_samples_leaf=20,
         )
         gbm.fit(X, y)
-        loss = gbm.dist.loss(y=y, z=gbm.predict(X)).sum()
+        loss = gbm.distribution.loss(y=y, z=gbm.predict(X)).sum()
 
         self.assertAlmostEqual(
             first=130.9327996047943,
@@ -146,7 +146,7 @@ class GBMTests(unittest.TestCase):
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
-        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+        loss = gbm.distribution.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -187,7 +187,7 @@ class GBMTests(unittest.TestCase):
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
-        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+        loss = gbm.distribution.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -273,7 +273,7 @@ class GBMTests(unittest.TestCase):
         )
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
-        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+        loss = gbm.distribution.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -311,7 +311,7 @@ class GBMTests(unittest.TestCase):
         )
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
-        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+        loss = gbm.distribution.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -347,7 +347,7 @@ class GBMTests(unittest.TestCase):
         )
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
-        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+        loss = gbm.distribution.loss(y=y, z=z_hat).sum()
 
         # The tolerance is set to 1 decimal place because the negative binomial
         # loss is not convex in two dimensions
@@ -394,7 +394,7 @@ class GBMTests(unittest.TestCase):
         )
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
-        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+        loss = gbm.distribution.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -427,7 +427,9 @@ class GBMTests(unittest.TestCase):
         )
         gbm.fit(X, y)
 
-        feature_importances = {j: gbm.feature_importances(j=j) for j in [0, 1, "all"]}
+        feature_importances = {
+            j: gbm.calculate_feature_importances(j=j) for j in [0, 1, "all"]
+        }
         expected_feature_importances = {
             0: [0, 0.27203, 0.72798, 0, 0],
             1: [0, 0.94076, 0.05484, 0.00224, 0.00217],
@@ -477,7 +479,7 @@ class GBMTests(unittest.TestCase):
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
-        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+        loss = gbm.distribution.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -521,7 +523,7 @@ class GBMTests(unittest.TestCase):
         gbm.fit(X, y)
         z_hat = gbm.predict(X)
 
-        loss = gbm.dist.loss(y=y, z=z_hat).sum()
+        loss = gbm.distribution.loss(y=y, z=z_hat).sum()
 
         self.assertAlmostEqual(
             first=expected_loss,
@@ -605,9 +607,9 @@ class GBMTests(unittest.TestCase):
         }
 
         feature_importance = {
-            0: model.feature_importances(j=0),
-            1: model.feature_importances(j=1),
-            "all": model.feature_importances(j="all"),
+            0: model.calculate_feature_importances(j=0),
+            1: model.calculate_feature_importances(j=1),
+            "all": model.calculate_feature_importances(j="all"),
         }
 
         for j in [0, 1, "all"]:

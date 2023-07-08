@@ -83,7 +83,7 @@ class BoostingTree(DecisionTreeRegressor):
         g_0 = self.tree_.value[node_index][0][0]
         g_opt = self.distribution.opt_step(y=y, z=z, w=w, j=j, g_0=g_0)
         self.tree_.value[node_index] = g_opt
-        e = np.eye(self.distribution.d)[:, j : j + 1]  # Indicator vector
+        e = np.eye(self.distribution.n_dim)[:, j : j + 1]  # Indicator vector
         self.tree_.impurity[node_index] = self.distribution.loss(
             y=y, z=z + e * g_opt, w=w
         ).sum()
