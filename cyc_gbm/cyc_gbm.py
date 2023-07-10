@@ -66,6 +66,7 @@ class CyclicalGradientBooster:
             for j in range(self.n_dim)
         ]
         self.feature_names = None
+        self.features = None
         self.n_features = None
 
     def _setup_hyper_parameter(self, hyper_parameter) -> List:
