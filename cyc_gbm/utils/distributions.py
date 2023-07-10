@@ -88,12 +88,14 @@ class Distribution:
     def simulate(
         self,
         z: np.ndarray,
+        w: Union[np.ndarray, float] = 1.0,
         random_state: Union[int, None] = None,
         rng: Union[np.random.Generator, None] = None,
     ) -> np.ndarray:
         """Simulate values given parameter values in z
 
         :param z: Parameter values of shape (n_parameters, n_samples).
+        :param w: Weights of the observations. Default is 1.0.
         :param random_state: Random seed to use in simulation.
         :param rng: Random number generator to use in simulation.
         :return: Simulated values of shape (n_samples,).
