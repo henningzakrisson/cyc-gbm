@@ -1,6 +1,5 @@
 from typing import Union, List, Dict, Tuple, Optional
 import copy
-
 from joblib import Parallel, delayed
 
 import numpy as np
@@ -53,7 +52,7 @@ def tune_n_estimators(
 
     logger.log(f"performing cross-validation on {n_splits} folds")
     if parallel:
-        results = Parallel(n_jobs=-1)(
+        results = Parallel(n_jobs=n_jobs)(
             delayed(_evaluate_fold)(
                 fold=folds[i],
                 model=copy.deepcopy(model),
@@ -104,7 +103,8 @@ def _fold_split(
     :param X: The input data matrix of shape (n_samples, n_features).
     :param n_splits: The number of folds to use for k-fold cross-validation.
     :param rng: The random number generator.
-    :return
+    :return A dictionary containing the folds as tuples in the order
+        (X_train, y_train, w_train, X_valid, y_valid, w_valid).
     """
     if isinstance(w, float):
         w = np.ones(len(y)) * w
