@@ -26,6 +26,7 @@ class CyclicalGradientBooster:
         min_samples_split: Union[int, List[int]] = 2,
         min_samples_leaf: Union[int, List[int]] = 1,
         max_depth: Union[int, List[int]] = 3,
+        features: Optional[Dict[int, List[Union[str, int]]]] = None,
     ):
         """
         Initialize a CyclicalGradientBooster object.
@@ -36,6 +37,7 @@ class CyclicalGradientBooster:
         :param min_samples_split: Minimum number of samples required to split an internal node. Dimension-wise or global for all parameter dimensions.
         :param min_samples_leaf: Minimum number of samples required at a leaf node. Dimension-wise or global for all parameter dimensions.
         :param max_depth: Maximum depths of each decision tree. Dimension-wise or global for all parameter dimensions.
+        :param features: Features to use for each parameter dimension. If None, all features are used for all parameter dimensions.
         """
         if isinstance(distribution, str):
             self.distribution = initiate_distribution(distribution=distribution)
@@ -52,6 +54,7 @@ class CyclicalGradientBooster:
             hyper_parameter=min_samples_leaf
         )
         self.max_depth = self._setup_hyper_parameter(hyper_parameter=max_depth)
+        self.features = features
 
         self.z0 = 0
         self.trees = [
@@ -67,7 +70,6 @@ class CyclicalGradientBooster:
             for j in range(self.n_dim)
         ]
         self.feature_names = None
-        self.features = None
         self.n_features = None
 
     def _setup_hyper_parameter(self, hyper_parameter) -> List:
@@ -87,7 +89,6 @@ class CyclicalGradientBooster:
         X: Union[np.ndarray, pd.DataFrame],
         y: Union[np.ndarray, pd.Series, pd.DataFrame],
         w: Union[np.ndarray, pd.Series, float] = None,
-        features: Optional[Dict[int, List[Union[str, int]]]] = None,
         logger: Optional[CycGBMLogger] = None,
     ) -> None:
         """
@@ -103,13 +104,13 @@ class CyclicalGradientBooster:
             logger = CycGBMLogger(verbose=0)
         if isinstance(X, pd.DataFrame):
             self.feature_names = X.columns
-            if features is not None:
+            if self.features is not None:
                 self.features = {
-                    j: [X.columns.get_loc(f) for f in features[j]]
+                    j: [X.columns.get_loc(f) for f in self.features[j]]
                     for j in range(self.n_dim)
                 }
         X, y, w = convert_data(X=X, y=y, w=w)
-        if features is None:
+        if self.features is None:
             self.features = {j: list(range(X.shape[1])) for j in range(self.n_dim)}
         self.n_features = X.shape[1]
 

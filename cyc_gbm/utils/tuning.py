@@ -101,8 +101,9 @@ def tune_n_estimators(
             min_samples_split=min_samples_split,
             min_samples_leaf=min_samples_leaf,
             max_depth=max_depth,
+            features=features,
         )
-        gbm.fit(X=X_train, y=y_train, w=w_train, features=features)
+        gbm.fit(X=X_train, y=y_train, w=w_train)
         z_train = gbm.predict(X=X_train)
         z_valid = gbm.predict(X=X_valid)
         loss_train[i, 0, :] = gbm.distribution.loss(
