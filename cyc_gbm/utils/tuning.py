@@ -7,12 +7,6 @@ from cyc_gbm import CyclicalGradientBooster
 from cyc_gbm.utils.distributions import initiate_distribution, Distribution
 from cyc_gbm.utils.logger import CycGBMLogger
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(logging.StreamHandler())
-formatter = logging.Formatter("[%(asctime)s][%(message)s]", datefmt="%Y-%m-%d %H:%M")
-logger.handlers[0].setFormatter(formatter)
-
 
 def _fold_split(
     X: np.ndarray,
@@ -51,6 +45,7 @@ def tune_n_estimators(
     min_samples_split: Union[int, List[int]] = 2,
     min_samples_leaf: Union[int, List[int]] = 20,
     max_depth: Union[int, List[int]] = 2,
+    features: Optional[Dict[Union[str, int], List[Union[str, int]]]] = None,
     n_splits: int = 4,
     random_state: Optional[int] = None,
     rng: Optional[np.random.Generator] = None,
@@ -67,6 +62,7 @@ def tune_n_estimators(
     :param min_samples_split: The minimum number of samples required to split an internal node in the CycGBM model. Dimension-wise or same for all parameter dimensions.
     :param min_samples_leaf: The minimum number of samples required to be at a leaf node in the CycGBM model. Dimension-wise or same for all parameter dimensions.
     :param max_depth: The maximum depth of the decision trees in the GBM model. Dimension-wise or same for all parameter dimensions.
+    :param features: The features to use for each parameter dimension. If None, all features are used for all parameter dimensions.
     :param n_splits: The number of folds to use for k-fold cross-validation.
     :param random_state: The random state to use for the k-fold split.
     :param rng: The random number generator.
@@ -107,9 +103,9 @@ def tune_n_estimators(
             min_samples_leaf=min_samples_leaf,
             max_depth=max_depth,
         )
-        gbm.fit(X_train, y_train, w_train)
-        z_train = gbm.predict(X_train)
-        z_valid = gbm.predict(X_valid)
+        gbm.fit(X=X_train, y=y_train, w=w_train, features=features)
+        z_train = gbm.predict(X=X_train)
+        z_valid = gbm.predict(X=X_valid)
         loss_train[i, 0, :] = gbm.distribution.loss(
             y=y_train, z=z_train, w=w_train
         ).sum()
