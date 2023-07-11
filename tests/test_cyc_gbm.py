@@ -145,7 +145,7 @@ class CyclicalGradientBoosterTestCase(unittest.TestCase):
         gbm.fit(self.X, y)
 
         feature_importances = {
-            j: gbm.calculate_feature_importances(j=j) for j in [0, 1, "all"]
+            j: gbm.compute_feature_importances(j=j) for j in [0, 1, "all"]
         }
         expected_feature_importances = {
             0: [0.53851, 0.45073, 0.00092, 0.00984],
@@ -226,9 +226,9 @@ class CyclicalGradientBoosterTestCase(unittest.TestCase):
         }
 
         feature_importance = {
-            0: gbm.calculate_feature_importances(j=0),
-            1: gbm.calculate_feature_importances(j=1),
-            "all": gbm.calculate_feature_importances(j="all"),
+            0: gbm.compute_feature_importances(j=0),
+            1: gbm.compute_feature_importances(j=1),
+            "all": gbm.compute_feature_importances(j="all"),
         }
 
         for j in [0, 1, "all"]:

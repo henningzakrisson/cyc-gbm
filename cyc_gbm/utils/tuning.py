@@ -131,20 +131,21 @@ def tune_n_estimators(
                     ).sum()
                 else:
                     if j == 0:
-                        loss_train[i, k, j] = loss_train[i, k - 1, j + 1]
-                        loss_valid[i, k, j] = loss_valid[i, k - 1, j + 1]
+                        loss_train[i, k, j] = loss_train[i, k - 1, -1]
+                        loss_valid[i, k, j] = loss_valid[i, k - 1, -1]
                     else:
                         loss_train[i, k, j] = loss_train[i, k, j - 1]
                         loss_valid[i, k, j] = loss_valid[i, k, j - 1]
 
             # Stop if no improvement was made
             if k != max(n_estimators_max) and np.all(
-                [loss_valid[i, k, 0] >= loss_valid[i, k - 1, 1]]
+                [loss_valid[i, k, 0] >= loss_valid[i, k - 1, -1]]
                 + [
                     loss_valid[i, k, j] >= loss_valid[i, k, j - 1]
                     for j in range(1, n_dim)
                 ]
             ):
+                loss_train[i, k + 1 :, :] = loss_train[i, k, -1]
                 loss_valid[i, k + 1 :, :] = loss_valid[i, k, -1]
                 logger.log(
                     msg=f"tuning converged after {k} steps",

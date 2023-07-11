@@ -205,7 +205,7 @@ class CyclicalGradientBooster:
             ]
         )
 
-    def calculate_feature_importances(
+    def compute_feature_importances(
         self, j: Union[str, int] = "all", normalize: bool = True
     ) -> Union[np.ndarray, pd.Series]:
         """
@@ -218,13 +218,13 @@ class CyclicalGradientBooster:
             feature_importances = np.zeros(self.n_features)
             for j in range(self.n_dim):
                 feature_importances_from_trees = np.array(
-                    [tree.feature_importances() for tree in self.trees[j]]
+                    [tree.compute_feature_importances() for tree in self.trees[j]]
                 ).sum(axis=0)
                 feature_importances[self.features[j]] += feature_importances_from_trees
         else:
             feature_importances = np.zeros(self.n_features)
             feature_importances_from_trees = np.array(
-                [tree.feature_importances() for tree in self.trees[j]]
+                [tree.compute_feature_importances() for tree in self.trees[j]]
             ).sum(axis=0)
 
             feature_importances[self.features[j]] = feature_importances_from_trees

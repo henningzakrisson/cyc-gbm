@@ -114,7 +114,7 @@ class BoostingTree(DecisionTreeRegressor):
             node_index=child_right,
         )
 
-    def feature_importances(self) -> np.ndarray:
+    def compute_feature_importances(self) -> np.ndarray:
         """
         Returns the feature importances of the tree.
 
