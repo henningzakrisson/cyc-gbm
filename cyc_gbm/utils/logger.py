@@ -1,6 +1,7 @@
 import logging
 from typing import Union
 import os
+import time
 
 import numpy as np
 
@@ -21,7 +22,7 @@ class CycGBMLogger:
         :param output_path: The path to the output directory.
         """
         self.verbose = verbose
-        self.last_progress = 0
+        self.last_progress = -1
         self.logger = logging.Logger("simulation_logger")
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(logging.StreamHandler())
@@ -30,6 +31,8 @@ class CycGBMLogger:
             datefmt="%Y-%m-%d %H:%M",
         )
         self.logger.handlers[0].setFormatter(formatter)
+
+        self.start_time = time.time()
 
         if output_path is not None:
             log_file = os.path.join(output_path, "log.txt")
@@ -84,3 +87,18 @@ class CycGBMLogger:
         self.logger.handlers[0].setFormatter(formatter)
         if len(self.logger.handlers) > 1:
             self.logger.handlers[1].setFormatter(formatter)
+
+    def log_finish(self, msg: str = "Finished in {}."):
+        """Log the finish of the simulation."""
+        time_elapsed = time.time() - self.start_time
+        # make a string saying how many hours, minutes, seconds, etc.
+        # if no full hours, don't display hours
+        if time_elapsed < 60:
+            time_elapsed = f"{time_elapsed:.2f} seconds"
+        elif time_elapsed < 3600:
+            time_elapsed = (
+                f"{time_elapsed // 60:.0f} minutes, {time_elapsed % 60:.2f} seconds"
+            )
+        else:
+            time_elapsed = f"{time_elapsed // 3600:.0f} hours, {(time_elapsed % 3600) // 60:.0f} minutes, {(time_elapsed % 3600) % 60:.2f} seconds"
+        self.logger.info(msg.format(time_elapsed))

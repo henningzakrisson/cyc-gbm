@@ -242,3 +242,33 @@ class CyclicalGradientBooster:
                 feature_importances, index=self.feature_names
             )
         return feature_importances
+
+    def reset(self, n_estimators: Optional[Union[int, List[int]]] = None) -> None:
+        """
+        Resets the model to its initial state.
+
+        :param n_estimators: Number of estimators to reset to. If None, the model is reset to its initial state.
+        """
+        if n_estimators is not None:
+            self.n_estimators = (
+                [n_estimators] * self.n_dim
+                if isinstance(n_estimators, int)
+                else n_estimators
+            )
+
+        self.trees = [
+            [
+                BoostingTree(
+                    distribution=self.distribution,
+                    max_depth=self.max_depth[j],
+                    min_samples_split=self.min_samples_split[j],
+                    min_samples_leaf=self.min_samples_leaf[j],
+                )
+                for _ in range(self.n_estimators[j])
+            ]
+            for j in range(self.n_dim)
+        ]
+
+        self.z0 = None
+        self.n_features = None
+        self.feature_names = None

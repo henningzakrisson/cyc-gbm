@@ -110,7 +110,7 @@ class CyclicalGradientBoosterTestCase(unittest.TestCase):
             distribution_name="normal", expected_loss=1.3351243486545377, n_dim=3
         )
 
-    def test_n_estimators_tuning_cyc(self):
+    def test_n_estimators_tuning(self):
         """Tests the `tune_n_estimators` function to ensure it returns the correct value of the n_estimators parameter for multiparametric distributions.
 
         :raises AssertionError: If the estimated number of boosting steps does not match the expecter number.
@@ -118,12 +118,18 @@ class CyclicalGradientBoosterTestCase(unittest.TestCase):
         distribution = initiate_distribution(distribution="normal")
         y = distribution.simulate(z=self.z[:2], rng=self.rng)
 
+        model = CyclicalGradientBooster(
+            distribution=distribution,
+            max_depth=2,
+            min_samples_leaf=20,
+        )
+
         tuning_results = tune_n_estimators(
             X=self.X,
             y=y,
             rng=self.rng,
             n_estimators_max=[30, 100],
-            distribution=distribution,
+            model=model,
             n_splits=2,
         )
         expected_n_estimators = [30, 24]
