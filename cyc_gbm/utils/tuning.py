@@ -1,10 +1,11 @@
 from typing import Union, List, Dict, Tuple, Optional
 import copy
 
+from joblib import Parallel, delayed
+
 import numpy as np
 
 from cyc_gbm import CyclicalGradientBooster
-from cyc_gbm.utils.distributions import initiate_distribution, Distribution
 from cyc_gbm.utils.logger import CycGBMLogger
 
 
@@ -18,6 +19,8 @@ def tune_n_estimators(
     rng: Optional[np.random.Generator] = None,
     random_state: Optional[int] = None,
     logger: Optional[CycGBMLogger] = None,
+    parallel: bool = True,
+    n_jobs: int = -1,
 ) -> Dict[str, Union[List[int], np.ndarray]]:
     """Finds a suitable n_estimators hyperparameter of a CycGBM model using k-fold cross-validation.
 
@@ -30,6 +33,8 @@ def tune_n_estimators(
     :param rng: The random number generator.
     :param random_state: The random state to use for the k-fold split. Will be ignored if rng is not None.
     :param logger: The simulation logger to use for logging.
+    :param parallel: Whether to use parallel processing for the cross-validation.
+    :param n_jobs: The number of jobs to use for parallel processing. Default is -1, which uses all available cores.
     :return: A dictionary containing the following keys:
         - "n_estimators": The optimal n_estimators parameter value for each parameter dimension.
         - "loss": The loss results for every boosting step in the cross-validation.
@@ -44,18 +49,34 @@ def tune_n_estimators(
         else [n_estimators_max] * model.n_dim
     )
 
-    loss = {"train": [[]] * n_splits, "valid": [[]] * n_splits}
-
     folds = _fold_split(X=X, y=y, w=w, n_splits=n_splits, rng=rng)
-    for i in folds:
-        logger.append_format_level(f"fold {i+1}/{n_splits}")
-        loss["train"][i], loss["valid"][i] = _evaluate_fold(
-            fold=folds[i],
-            model=copy.deepcopy(model),
-            n_estimators_max=n_estimators_max,
-            logger=logger,
+
+    logger.log(f"performing cross-validation on {n_splits} folds")
+    if parallel:
+        results = Parallel(n_jobs=-1)(
+            delayed(_evaluate_fold)(
+                fold=folds[i],
+                model=copy.deepcopy(model),
+                n_estimators_max=n_estimators_max,
+            )
+            for i in folds
         )
-        logger.remove_format_level()
+    else:
+        results = []
+        for i in folds:
+            logger.log(f"fold {i+1}/{n_splits}")
+            results.append(
+                _evaluate_fold(
+                    fold=folds[i],
+                    model=copy.deepcopy(model),
+                    n_estimators_max=n_estimators_max,
+                )
+            )
+
+    loss = {
+        "train": [result[0] for result in results],
+        "valid": [result[1] for result in results],
+    }
 
     n_estimators = _find_n_estimators(
         loss=np.sum(loss["valid"], axis=0),
@@ -108,7 +129,6 @@ def _evaluate_fold(
     fold: Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray],
     model: CyclicalGradientBooster,
     n_estimators_max: List[int],
-    logger: Optional[CycGBMLogger] = None,
 ):
     X_train, y_train, w_train, X_valid, y_valid, w_valid = fold
 
@@ -146,24 +166,13 @@ def _evaluate_fold(
                 else:
                     loss_train[k, j] = loss_train[k, j - 1]
                     loss_valid[k, j] = loss_valid[k, j - 1]
-        if k == max(n_estimators_max):
-            logger.log(
-                msg="tuning did not converge",
-                verbose=1,
-            )
-        elif _has_tuning_converged(
+        if _has_tuning_converged(
             current_loss=loss_valid[k], previous_loss=loss_valid[k - 1]
         ):
             loss_train[k + 1 :, :] = loss_train[k, -1]
             loss_valid[k + 1 :, :] = loss_valid[k, -1]
-            logger.log(
-                msg=f"tuning converged after {k} steps",
-                verbose=1,
-            )
             break
 
-        logger.log_progress(step=k, total_steps=max(n_estimators_max) + 1, verbose=2)
-    logger.reset_progress()
     return loss_train, loss_valid
 
 
