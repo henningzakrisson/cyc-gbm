@@ -135,9 +135,12 @@ def tune_n_estimators(
                     else:
                         loss_train[i, k, j] = loss_train[i, k, j - 1]
                         loss_valid[i, k, j] = loss_valid[i, k, j - 1]
-
-            # Stop if no improvement was made
-            if k != max(n_estimators_max) and np.all(
+            if k == max(n_estimators_max):
+                logger.log(
+                    msg="tuning did not converge",
+                    verbose=1,
+                )
+            elif np.all(
                 [loss_valid[i, k, 0] >= loss_valid[i, k - 1, -1]]
                 + [
                     loss_valid[i, k, j] >= loss_valid[i, k, j - 1]
@@ -152,11 +155,6 @@ def tune_n_estimators(
                 )
                 break
 
-            if k == max(n_estimators_max):
-                logger.log(
-                    msg="tuning did not converge",
-                    verbose=1,
-                )
             logger.log_progress(
                 step=k, total_steps=max(n_estimators_max) + 1, verbose=2
             )
