@@ -66,48 +66,48 @@ class CyclicalGradientBoosterTestCase(unittest.TestCase):
 
     def test_normal_distribution(self):
         self._test_distribution(
-            distribution_name="normal", expected_loss=0.8849930601326066, n_dim=2
+            distribution_name="normal", expected_loss=0.8777181600299709, n_dim=2
         )
 
     def test_normal_distribution_weighted(self):
         self._test_distribution(
             distribution_name="normal",
-            expected_loss=0.9091152884599392,
+            expected_loss=0.900653358604354,
             n_dim=2,
             use_weights=True,
         )
 
     def test_gamma_distribution(self):
         self._test_distribution(
-            distribution_name="gamma", expected_loss=2.0453458895192274, n_dim=2
+            distribution_name="gamma", expected_loss=1.9655223678827858, n_dim=2
         )
 
     def test_gamma_distribution_weighted(self):
         self._test_distribution(
             distribution_name="gamma",
-            expected_loss=2.083812889187767,
+            expected_loss=1.9967752095726388,
             n_dim=2,
             use_weights=True,
         )
 
     def test_beta_prime(self):
         self._test_distribution(
-            distribution_name="beta_prime", expected_loss=-1.3969559499821231, n_dim=2
+            distribution_name="beta_prime", expected_loss=-1.4001803080633544, n_dim=2
         )
 
     def test_inv_gaussian(self):
         self._test_distribution(
-            distribution_name="inv_gauss", expected_loss=0.6519232343689577, n_dim=2
+            distribution_name="inv_gauss", expected_loss=0.6066039743569882, n_dim=2
         )
 
     def test_neg_bin(self):
         self._test_distribution(
-            distribution_name="neg_bin", expected_loss=-12944.715688945882, n_dim=2
+            distribution_name="neg_bin", expected_loss=-12944.799372247004, n_dim=2
         )
 
     def test_multi_normal(self):
         self._test_distribution(
-            distribution_name="normal", expected_loss=1.4502626196695108, n_dim=3
+            distribution_name="normal", expected_loss=1.3351243486545377, n_dim=3
         )
 
     def test_n_estimators_tuning_cyc(self):
@@ -182,10 +182,12 @@ class CyclicalGradientBoosterTestCase(unittest.TestCase):
         )
         gbm.fit(X=X, y=y, w=w)
 
+        expected_loss = distribution.loss(y=y, z=gbm.predict(X), w=w).mean()
+
         for i in range(4):
             X_shuffled = X.sample(frac=1, axis=1, random_state=10)
             self.assertAlmostEqual(
-                first=0.9091152884599392,
+                first=expected_loss,
                 second=distribution.loss(
                     y=y, z=gbm.predict(X_shuffled), w=self.w
                 ).mean(),

@@ -113,11 +113,8 @@ class CyclicalGradientBooster:
             self.features = {j: list(range(X.shape[1])) for j in range(self.n_dim)}
         self.n_features = X.shape[1]
 
-        self.z0 = minimize(
-            fun=lambda z: self.distribution.loss(y=y, z=z, w=w).sum(),
-            x0=self.distribution.mme(y=y, w=w),
-        )["x"][:, None]
-        z = np.tile(self.z0, (1, len(y)))
+        self.z0 = self.initialize_estimate(y=y, w=w)
+        z = np.tile(self.z0, (len(y), 1)).T
 
         for k in range(0, max(self.n_estimators)):
             for j in range(self.n_dim):
@@ -134,6 +131,30 @@ class CyclicalGradientBooster:
                         total_steps=(max(self.n_estimators) * self.n_dim),
                         verbose=2,
                     )
+
+        # Adjust initial estimate given current tree estimates
+        self.z0 += self.initialize_estimate(y=y, w=w, z=z)
+
+    def initialize_estimate(
+        self,
+        y: np.ndarray,
+        w: np.ndarray,
+        z: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
+        """
+        Initialize the estimate of the parameter vector z0.
+        If z is not None, the estimate is initialized to fit to the residuals of z.
+
+        :param y: The target values for the training data.
+        :param w: The weights for the training data.
+        :param z: The current estimate of the parameter vector. If None, the estimate is initialized from zero.
+        """
+        if z is None:
+            z = np.zeros((self.n_dim, len(y)))
+        return minimize(
+            fun=lambda z0: self.distribution.loss(y=y, z=z0[:, None] + z, w=w).sum(),
+            x0=self.distribution.mme(y=y, w=w),
+        )["x"]
 
     def add_tree(
         self,
@@ -176,7 +197,7 @@ class CyclicalGradientBooster:
         :return: Predicted response values of shape (d,n_samples).
         """
         X, _, _ = convert_data(X=X, feature_names=self.feature_names)
-        return self.z0 + np.array(
+        return self.z0[:, None] + np.array(
             [
                 self.learning_rate[j]
                 * np.sum(
