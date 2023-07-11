@@ -112,46 +112,6 @@ class Distribution:
         """
         pass
 
-    def mle(self, y: np.ndarray, w: Union[np.ndarray, float] = 1.0) -> np.ndarray:
-        """
-        Calculates the maximum likelihood estimator of the parameter given observations.
-
-        :param y: The target values.
-        :param w: The weights of the observations. Default is 1.0.
-        :return: The maximum likelihood estimator of the parameters.
-        """
-        z_0 = self.mme(y=y, w=w)
-        z_opt = minimize(lambda z: self.loss(y=y, z=z, w=w).sum(), z_0)["x"]
-        return z_opt
-
-    def opt_step(
-        self,
-        y: np.ndarray,
-        z: np.ndarray,
-        j: int,
-        w: Union[np.ndarray, float] = 1.0,
-        g_0: float = 0,
-    ):
-        """
-        Numerically optimize the step size for the data in specified dimension
-
-        :param y: Target values.
-        :param z: Current parameter estimates.
-        :param j: Index of the dimension to optimize.
-        :param w: Weights of the observations. Default is 1.0.
-        :param g_0: Initial guess for the optimal step size. Default is 0.
-        :return: The optimal step size.
-        """
-
-        # Indicator vector for adding step to dimension j
-        e = np.eye(self.n_dim)[:, j : j + 1]
-        step_opt = minimize(
-            fun=lambda step: self.loss(y=y, z=z + e * step, w=w).sum(),
-            jac=lambda step: self.grad(y=y, z=z + e * step, j=j, w=w).sum(),
-            x0=g_0,
-        )["x"][0]
-        return step_opt
-
 
 @inherit_docstrings
 class MultivariateNormalDistribution(Distribution):

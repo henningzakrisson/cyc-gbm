@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.tree import DecisionTreeRegressor
+from scipy.optimize import minimize
 
 from cyc_gbm.utils.distributions import Distribution
 
@@ -80,12 +81,14 @@ class BoostingTree(DecisionTreeRegressor):
         :param node_index: The index of the node to update
         """
         # Optimize node and update impurity
-        g_0 = self.tree_.value[node_index][0][0]
-        g_opt = self.distribution.opt_step(y=y, z=z, w=w, j=j, g_0=g_0)
-        self.tree_.value[node_index] = g_opt
+        node_value_0 = self.tree_.value[node_index][0][0]
+        node_value = self._optimize_node_value(
+            y=y, z=z, w=w, j=j, node_value_0=node_value_0
+        )
+        self.tree_.value[node_index] = node_value
         e = np.eye(self.distribution.n_dim)[:, j : j + 1]  # Indicator vector
         self.tree_.impurity[node_index] = self.distribution.loss(
-            y=y, z=z + e * g_opt, w=w
+            y=y, z=z + e * node_value, w=w
         ).sum()
 
         # Tend to the children
@@ -113,6 +116,35 @@ class BoostingTree(DecisionTreeRegressor):
             j=j,
             node_index=child_right,
         )
+
+    def _optimize_node_value(
+        self,
+        y: np.ndarray,
+        z: np.ndarray,
+        w: np.ndarray,
+        j: int,
+        node_value_0: float = 0,
+    ):
+        """
+        Numerically optimize the node value for the data in specified dimension
+
+        :param y: Target values.
+        :param z: Current parameter estimates.
+        :param w: Weights of the observations.
+        :param j: Index of the dimension to optimize.
+        :param node_value_0: Initial guess for the optimal step size. Default is 0.
+        :return: The optimal node value size.
+        """
+        # Indicator vector for adding step to dimension j
+        e = np.eye(self.distribution.n_dim)[:, j : j + 1]
+        node_value = minimize(
+            fun=lambda step: self.distribution.loss(y=y, z=z + e * step, w=w).sum(),
+            jac=lambda step: self.distribution.grad(
+                y=y, z=z + e * step, j=j, w=w
+            ).sum(),
+            x0=node_value_0,
+        )["x"][0]
+        return node_value
 
     def compute_feature_importances(self) -> np.ndarray:
         """

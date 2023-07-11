@@ -2,6 +2,7 @@ from typing import List, Union, Optional, Dict
 
 import numpy as np
 import pandas as pd
+from scipy.optimize import minimize
 
 from cyc_gbm.utils.distributions import Distribution, initiate_distribution
 from cyc_gbm.utils.logger import CycGBMLogger
@@ -81,24 +82,6 @@ class CyclicalGradientBooster:
             else [hyper_parameter] * self.n_dim
         )
 
-    def _adjust_mle(
-        self,
-        X: Union[np.ndarray, pd.DataFrame],
-        y: Union[np.ndarray, pd.Series, pd.DataFrame],
-        w: Union[np.ndarray, pd.Series, float] = 1,
-    ) -> None:
-        """
-        Adjust the initial values of the model for parameters not modeled by the GBM
-
-        :param X: Input data matrix of shape (n_samples, n_features).
-        :param y: True response values for the input data.
-        :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
-        """
-        z = self.predict(X=X)
-        for j in range(self.n_dim):
-            if self.n_estimators[j] == 0:
-                self.z0[j] += self.distribution.opt_step(y=y, z=z, w=w, j=j)
-
     def fit(
         self,
         X: Union[np.ndarray, pd.DataFrame],
@@ -130,7 +113,10 @@ class CyclicalGradientBooster:
             self.features = {j: list(range(X.shape[1])) for j in range(self.n_dim)}
         self.n_features = X.shape[1]
 
-        self.z0 = self.distribution.mle(y=y, w=w)[:, None]
+        self.z0 = minimize(
+            fun=lambda z: self.distribution.loss(y=y, z=z, w=w).sum(),
+            x0=self.distribution.mme(y=y, w=w),
+        )["x"][:, None]
         z = np.tile(self.z0, (1, len(y)))
 
         for k in range(0, max(self.n_estimators)):
@@ -148,8 +134,6 @@ class CyclicalGradientBooster:
                         total_steps=(max(self.n_estimators) * self.n_dim),
                         verbose=2,
                     )
-
-        self._adjust_mle(X=X, y=y, w=w)
 
     def add_tree(
         self,
