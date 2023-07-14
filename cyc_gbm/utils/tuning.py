@@ -1,5 +1,4 @@
 from typing import Union, List, Dict, Tuple, Optional
-import copy
 from joblib import Parallel, delayed
 
 import numpy as np
@@ -55,7 +54,7 @@ def tune_n_estimators(
         results = Parallel(n_jobs=n_jobs)(
             delayed(_evaluate_fold)(
                 fold=folds[i],
-                model=copy.deepcopy(model),
+                model=model,
                 n_estimators_max=n_estimators_max,
             )
             for i in folds
@@ -67,7 +66,7 @@ def tune_n_estimators(
             results.append(
                 _evaluate_fold(
                     fold=folds[i],
-                    model=copy.deepcopy(model),
+                    model=model,
                     n_estimators_max=n_estimators_max,
                 )
             )
