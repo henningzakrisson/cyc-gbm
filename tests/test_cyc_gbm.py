@@ -219,7 +219,7 @@ class CyclicalGradientBoosterTestCase(unittest.TestCase):
         gbm = CyclicalGradientBooster(
             distribution=distribution,
             n_estimators=self.n_estimators,
-            features={0: ["a", "b"], 1: ["c", "d"]},
+            feature_selection=[["a", "b"], ["c", "d"]],
         )
         gbm.fit(X=X, y=y, w=w)
 

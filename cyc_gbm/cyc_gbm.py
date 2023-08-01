@@ -1,4 +1,4 @@
-from typing import List, Union, Optional, Dict
+from typing import List, Union, Optional
 
 import numpy as np
 import pandas as pd
@@ -6,7 +6,7 @@ from scipy.optimize import minimize
 
 from cyc_gbm.utils.distributions import Distribution, initiate_distribution
 from cyc_gbm.utils.logger import CycGBMLogger
-from cyc_gbm.utils.convert_data import convert_data
+from cyc_gbm.utils.fix_datatype import fix_datatype
 from cyc_gbm.boosting_tree import BoostingTree
 
 
@@ -26,7 +26,7 @@ class CyclicalGradientBooster:
         min_samples_split: Union[int, List[int]] = 2,
         min_samples_leaf: Union[int, List[int]] = 1,
         max_depth: Union[int, List[int]] = 3,
-        features: Optional[Dict[int, List[Union[str, int]]]] = None,
+        feature_selection: Optional[List[List[Union[str, int]]]] = None,
     ):
         """
         Initialize a CyclicalGradientBooster object.
@@ -37,7 +37,7 @@ class CyclicalGradientBooster:
         :param min_samples_split: Minimum number of samples required to split an internal node. Dimension-wise or global for all parameter dimensions.
         :param min_samples_leaf: Minimum number of samples required at a leaf node. Dimension-wise or global for all parameter dimensions.
         :param max_depth: Maximum depths of each decision tree. Dimension-wise or global for all parameter dimensions.
-        :param features: Features to use for each parameter dimension. If None, all features are used for all parameter dimensions.
+        :param feature_selection: Features to use for each parameter dimension. If None, all feature_selection are used for all parameter dimensions.
         """
         if isinstance(distribution, str):
             self.distribution = initiate_distribution(distribution=distribution)
@@ -45,19 +45,40 @@ class CyclicalGradientBooster:
             self.distribution = distribution
         self.n_dim = self.distribution.n_dim
 
-        self.n_estimators = self._setup_hyper_parameter(hyper_parameter=n_estimators)
-        self.learning_rate = self._setup_hyper_parameter(hyper_parameter=learning_rate)
-        self.min_samples_split = self._setup_hyper_parameter(
-            hyper_parameter=min_samples_split
-        )
-        self.min_samples_leaf = self._setup_hyper_parameter(
-            hyper_parameter=min_samples_leaf
-        )
-        self.max_depth = self._setup_hyper_parameter(hyper_parameter=max_depth)
-        self.features = features
+        self.n_estimators = self._setup_hyper_parameter(n_estimators)
+        self.learning_rate = self._setup_hyper_parameter(learning_rate)
+        self.min_samples_split = self._setup_hyper_parameter(min_samples_split)
+        self.min_samples_leaf = self._setup_hyper_parameter(min_samples_leaf)
+        self.max_depth = self._setup_hyper_parameter(max_depth)
+        self.feature_selection = feature_selection
 
         self.z0 = 0
-        self.trees = [
+        self.trees = self._initialize_trees()
+        self.feature_names = None
+        self.n_features = None
+
+    def _setup_hyper_parameter(self, hyper_parameter) -> List:
+        """
+        Initialize parameter to default_value if parameter is not a list or numpy array.
+
+        :param hyperparameter: parameter to initialize
+        """
+        hyper_parameter_list = (
+            hyper_parameter
+            if isinstance(hyper_parameter, (list, np.ndarray))
+            else [hyper_parameter] * self.n_dim
+        )
+        if len(hyper_parameter_list) != self.n_dim:
+            raise ValueError(
+                f"All hyperparameters must be a list as long as the number of parameter dimensions {self.n_dim} or a single value."
+            )
+        return hyper_parameter_list
+
+    def _initialize_trees(self):
+        """
+        Initialize trees for each parameter dimension.
+        """
+        return [
             [
                 BoostingTree(
                     distribution=self.distribution,
@@ -69,20 +90,6 @@ class CyclicalGradientBooster:
             ]
             for j in range(self.n_dim)
         ]
-        self.feature_names = None
-        self.n_features = None
-
-    def _setup_hyper_parameter(self, hyper_parameter) -> List:
-        """
-        Initialize parameter to default_value if parameter is not a list or numpy array.
-
-        :param hyper_parameter: parameter to initialize
-        """
-        return (
-            hyper_parameter
-            if isinstance(hyper_parameter, (list, np.ndarray))
-            else [hyper_parameter] * self.n_dim
-        )
 
     def fit(
         self,
@@ -97,34 +104,24 @@ class CyclicalGradientBooster:
         :param X: Input data matrix of shape (n_samples, n_features).
         :param y: True response values for the input data.
         :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
-        :param features: Dictionary of features to use for each parameter dimension. Default is all for all.
+        :param feature_selection: Dictionary of feature_selection to use for each parameter dimension. Default is all for all.
         :param logger: Logger object to log progress. Default is no logger.
         """
         if logger is None:
             logger = CycGBMLogger(verbose=0)
-        if isinstance(X, pd.DataFrame):
-            self.feature_names = X.columns
-            if self.features is not None:
-                self.features = {
-                    j: [X.columns.get_loc(f) for f in self.features[j]]
-                    for j in range(self.n_dim)
-                }
-        X, y, w = convert_data(X=X, y=y, w=w)
-        if self.features is None:
-            self.features = {j: list(range(X.shape[1])) for j in range(self.n_dim)}
-        self.n_features = X.shape[1]
+        self._initialize_feature_metadata(X=X)
+        X, y, w = fix_datatype(X=X, y=y, w=w)
 
         self.z0 = self.initialize_estimate(y=y, w=w)
         z = np.tile(self.z0, (len(y), 1)).T
-
         for k in range(0, max(self.n_estimators)):
             for j in range(self.n_dim):
                 if k < self.n_estimators[j]:
                     self.trees[j][k].fit_gradients(
-                        X=X[:, self.features[j]], y=y, z=z, w=w, j=j
+                        X=X[:, self.feature_selection[j]], y=y, z=z, w=w, j=j
                     )
                     z[j] += self.learning_rate[j] * self.trees[j][k].predict(
-                        X[:, self.features[j]]
+                        X[:, self.feature_selection[j]]
                     )
 
                     logger.log_progress(
@@ -135,6 +132,27 @@ class CyclicalGradientBooster:
 
         # Adjust initial estimate given current tree estimates
         self.z0 += self.initialize_estimate(y=y, w=w, z=z)
+
+    def _initialize_feature_metadata(self, X: Union[np.ndarray, pd.DataFrame]) -> None:
+        """Get the feature names from the input data.
+        If the input data is a DataFrame, the column names are returned.
+        Otherwise, the features are named 0, 1, ..., p-1.
+        The feature selection is fixed to comply with the numpy array format.
+        """
+        if isinstance(X, pd.DataFrame):
+            self.feature_names = list(X.columns)
+            if self.feature_selection is not None:
+                self.feature_selection = [
+                    [X.columns.get_loc(f) for f in self.feature_selection[j]]
+                    for j in range(self.n_dim)
+                ]
+        else:
+            self.feature_names = list(np.arange(X.shape[1]))
+        if self.feature_selection is None:
+            self.feature_selection = [
+                list(range(X.shape[1])) for j in range(self.n_dim)
+            ]
+        self.n_features = X.shape[1]
 
     def initialize_estimate(
         self,
@@ -174,7 +192,7 @@ class CyclicalGradientBooster:
         :param z: Current predictions of the model. If None, the current predictions are calculated.
         :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
         """
-        X, y, w = convert_data(X=X, y=y, w=w, feature_names=self.feature_names)
+        X, y, w = fix_datatype(X=X, y=y, w=w, feature_names=self.feature_names)
         if z is None:
             z = self.predict(X)
         self.trees[j].append(
@@ -185,7 +203,9 @@ class CyclicalGradientBooster:
                 min_samples_leaf=self.min_samples_leaf[j],
             )
         )
-        self.trees[j][-1].fit_gradients(X=X[:, self.features[j]], y=y, z=z, w=w, j=j)
+        self.trees[j][-1].fit_gradients(
+            X=X[:, self.feature_selection[j]], y=y, z=z, w=w, j=j
+        )
         self.n_estimators[j] += 1
 
     def predict(
@@ -197,12 +217,15 @@ class CyclicalGradientBooster:
         :param X: Input data matrix of shape (n_samples, n_features).
         :return: Predicted response values of shape (d,n_samples).
         """
-        X, _, _ = convert_data(X=X, feature_names=self.feature_names)
+        X = fix_datatype(X=X, feature_names=self.feature_names)
         return self.z0[:, None] + np.array(
             [
                 self.learning_rate[j]
                 * np.sum(
-                    [tree.predict(X[:, self.features[j]]) for tree in self.trees[j]],
+                    [
+                        tree.predict(X[:, self.feature_selection[j]])
+                        for tree in self.trees[j]
+                    ],
                     axis=0,
                 )
                 if self.trees[j]
@@ -226,14 +249,18 @@ class CyclicalGradientBooster:
                 feature_importances_from_trees = np.array(
                     [tree.compute_feature_importances() for tree in self.trees[j]]
                 ).sum(axis=0)
-                feature_importances[self.features[j]] += feature_importances_from_trees
+                feature_importances[
+                    self.feature_selection[j]
+                ] += feature_importances_from_trees
         else:
             feature_importances = np.zeros(self.n_features)
             feature_importances_from_trees = np.array(
                 [tree.compute_feature_importances() for tree in self.trees[j]]
             ).sum(axis=0)
 
-            feature_importances[self.features[j]] = feature_importances_from_trees
+            feature_importances[
+                self.feature_selection[j]
+            ] = feature_importances_from_trees
         if normalize:
             feature_importances /= feature_importances.sum()
 
@@ -256,18 +283,7 @@ class CyclicalGradientBooster:
                 else n_estimators
             )
 
-        self.trees = [
-            [
-                BoostingTree(
-                    distribution=self.distribution,
-                    max_depth=self.max_depth[j],
-                    min_samples_split=self.min_samples_split[j],
-                    min_samples_leaf=self.min_samples_leaf[j],
-                )
-                for _ in range(self.n_estimators[j])
-            ]
-            for j in range(self.n_dim)
-        ]
+        self.trees = self._initialize_trees()
 
         self.z0 = None
         self.n_features = None
