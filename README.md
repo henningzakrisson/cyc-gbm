@@ -55,7 +55,7 @@ model = CyclicalGradientBooster(
 model.fit(X_train, y_train)
 
 # Evaluate
-loss = model.dist.loss(y=y_test, z=model.predict(X_test)).sum()
+loss = model.distribution.loss(y=y_test, z=model.predict(X_test)).sum()
 print(f'negative log likelihood: {loss}')
 ```
 
