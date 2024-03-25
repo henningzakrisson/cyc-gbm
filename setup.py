@@ -8,10 +8,10 @@ with open("requirements.txt") as f:
 
 setup(
     name="cyc-gbm",
-    version="0.0.32",
+    version="0.0.33",
     author="Henning Zakrisson",
     author_email="henning.zakrisson@gmail.com",
-    description="A python package for the Cyclical Gradient Boosting Machine algorithm",
+    description="A python package for the Cyclic Gradient Boosting Machine algorithm",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/henningzakrisson/cyc-gbm",
