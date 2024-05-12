@@ -1,19 +1,22 @@
-import time
-import yaml
 import os
+import time
+
+import yaml
 
 OUTPUT_DIR = "data/results"
 CONFIG_DIR = "config/demo_config.yaml"
 
+
 def _get_run_id() -> str:
-    """ 
+    """
     Get a unique run ID.
-    
+
     Assumes that there is no more than one run per second."""
     return time.strftime("%Y%m%d%H%M%S")
 
+
 def _create_output_folder(output_dir: str, run_id: str) -> str:
-    """ 
+    """
     Create a folder for the current run.
 
     Args:
@@ -27,6 +30,7 @@ def _create_output_folder(output_dir: str, run_id: str) -> str:
     os.makedirs(folder, exist_ok=True)
     return folder
 
+
 def main():
     # Setup the run and output
     run_id = _get_run_id()
@@ -36,7 +40,7 @@ def main():
     with open(CONFIG_DIR, "r") as f:
         config = yaml.safe_load(f)
 
-    # Load data 
+    # Load data
 
 
 if __name__ == "__main__":
