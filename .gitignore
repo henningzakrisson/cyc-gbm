@@ -17,3 +17,4 @@
 /.pytest_cache/
 numerical_illustration_old/
 data/
+.vscode/
