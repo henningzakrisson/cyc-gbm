@@ -1,0 +1,13 @@
+# High level configuuration
+data_source: file
+random_seed: 11
+
+# Simulation setup
+n_samples: 10000
+n_features: 9
+test_size: 0.2
+
+# Model setup
+models:
+  - intercept
+  - cyc-gbm
