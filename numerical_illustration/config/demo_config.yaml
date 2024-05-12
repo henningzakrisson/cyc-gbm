@@ -1,4 +1,5 @@
 # High level configuuration
+output_dir: data/results
 data_source: simulation
 random_seed: 11
 

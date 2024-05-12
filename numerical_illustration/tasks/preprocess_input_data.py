@@ -3,6 +3,7 @@ import pandas as pd
 
 NORMALIZE = "normalize"
 TEST_SIZE = "test_size"
+OUTPUT_DIR = "output_dir"
 
 
 def preprocess_input_data(
@@ -23,7 +24,11 @@ def preprocess_input_data(
     if config[NORMALIZE]:
         data[features] = _normalize_data(data[features])
 
-    return _split_data(data, config[TEST_SIZE], rng)
+    train_data, test_data = _split_data(data, config[TEST_SIZE], rng)
+
+    _save_train_data(train_data, config[OUTPUT_DIR])
+
+    return train_data, test_data
 
 
 def _normalize_data(data: pd.DataFrame) -> pd.DataFrame:
@@ -52,3 +57,14 @@ def _split_data(
     test_data = data.loc[test_indices]
     train_data = data.drop(test_indices)
     return train_data, test_data
+
+
+def _save_train_data(train_data: pd.DataFrame, output_folder: str) -> None:
+    """
+    Save the training data to a CSV file.
+
+    Args:
+        train_data: training data
+        output_folder: output folder
+    """
+    train_data.to_csv(f"{output_folder}/train_data.csv", index=False)
