@@ -14,5 +14,7 @@
 *.egg-info/
 /build/
 numerical_illustration/
+numerical_illustration_new/
 /scripts/
 /.pytest_cache/
+data/
