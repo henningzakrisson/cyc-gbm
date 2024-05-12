@@ -8,7 +8,6 @@ import yaml
 from tasks import (fit_models, load_input_data, preprocess_input_data,
                    setup_pipeline_run)
 
-OUTPUT_DIR = "data/results"
 CONFIG_DIR = "numerical_illustration/config/demo_config.yaml"
 RANDOM_SEED = "random_seed"
 

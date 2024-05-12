@@ -1,6 +1,7 @@
 from typing import Union
 
 import numpy as np
+from scipy.optimize import minimize
 
 from cyc_gbm.utils.distributions import Distribution
 
@@ -33,7 +34,10 @@ class InterceptModel:
         :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
         """
         # TODO: Implement this method
-        self.z0 = np.zeros(self.distribution.n_dim)
+        self.z0 = minimize(
+            fun=lambda z0: self.distribution.loss(y=y, z=z0[:, None], w=w).sum(),
+            x0=self.distribution.mme(y=y, w=w),
+        )["x"]
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """

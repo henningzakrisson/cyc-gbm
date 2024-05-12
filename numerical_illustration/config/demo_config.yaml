@@ -20,4 +20,11 @@ normalize: True
 # Model setup
 models:
   - intercept
-  - cyc-gbm
+  - cglm
+
+# Model hyperparameters
+model_hyperparameters:
+  cglm:
+    max_iter: 1000
+    tolerance: 1e-5
+    step_size: 1e-5
