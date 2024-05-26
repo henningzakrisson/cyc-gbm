@@ -59,7 +59,7 @@ class CyclicGeneralizedLinearModel:
         """
         Predict the response for the given input data.
         """
-        z = np.tile(self.z0, (1, X.shape[0]))
+        z = np.zeros((self.d, X.shape[0]))
         for j in range(self.d):
             z[j] = self.z0[j] + self.beta[j] @ X.T
         return z

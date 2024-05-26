@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from tasks import (fit_models, load_input_data, preprocess_input_data,
-                   setup_pipeline_run)
+                   setup_pipeline_run, predict)
 
 CONFIG_DIR = "numerical_illustration/config/demo_config.yaml"
 RANDOM_SEED = "random_seed"
@@ -27,6 +27,9 @@ def main():
     # Fit models
     models = fit_models(config=config, train_data=train_data, rng=rng)
 
+    # Predict
+    predictions = predict(models=models, test_data=test_data)
+    
 
 if __name__ == "__main__":
     main()

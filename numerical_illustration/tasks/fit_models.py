@@ -20,6 +20,7 @@ CGBM = "cgbm"
 N_ESTIMATORS = "n_estimators"
 LEARNING_RATE = "learning_rate"
 MAX_DEPTH = "max_depth"
+GBM = "gbm"
 
 def fit_models(
     config: Dict[str, Any], train_data: pd.DataFrame, rng: np.random.Generator
@@ -31,7 +32,7 @@ def fit_models(
     """
     # Initiate distribution and get train data
     distribution = initiate_distribution(config[DISTRIBUTION])
-    X_train, y_train, w_train = _get_train_data(train_data)
+    X_train, y_train, w_train = _get_targets_features(train_data)
 
     # Add models
     models = {}
@@ -51,6 +52,14 @@ def fit_models(
             learning_rate= config[MODEL_HYPERPARAMS][CGBM][LEARNING_RATE],
             max_depth=config[MODEL_HYPERPARAMS][CGBM][MAX_DEPTH],
         )
+    if GBM in config[MODELS]:
+        gbm_n_estimators = [config[MODEL_HYPERPARAMS][GBM][N_ESTIMATORS]] + [0] * (distribution.n_dim - 1)
+        models[GBM] = CyclicalGradientBooster(
+            distribution=distribution,
+            n_estimators= gbm_n_estimators,
+            learning_rate= config[MODEL_HYPERPARAMS][GBM][LEARNING_RATE],
+            max_depth=config[MODEL_HYPERPARAMS][GBM][MAX_DEPTH],
+        )
 
     # Fit models
     for model_name in models:
@@ -58,7 +67,8 @@ def fit_models(
 
     return models
 
-def _get_train_data(train_data: pd.DataFrame) -> np.ndarray:
+
+def _get_targets_features(train_data: pd.DataFrame) -> np.ndarray:
     features = [
         col
         for col in train_data.columns

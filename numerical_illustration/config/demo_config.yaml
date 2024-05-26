@@ -21,6 +21,7 @@ normalize: True
 models:
   - intercept
   - cglm
+  - gbm
   - cgbm
 
 # Model hyperparameters
@@ -33,5 +34,9 @@ model_hyperparameters:
     n_estimators: 
      - 100
      - 20
+    max_depth: 3
+    learning_rate: 0.01
+  gbm:
+    n_estimators: 100
     max_depth: 3
     learning_rate: 0.01
