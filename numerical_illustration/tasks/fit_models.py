@@ -1,4 +1,4 @@
-from typing import Any, Dict, Union, List
+from typing import Any, Dict, List, Union
 
 import numpy as np
 import pandas as pd
@@ -21,6 +21,7 @@ N_ESTIMATORS = "n_estimators"
 LEARNING_RATE = "learning_rate"
 MAX_DEPTH = "max_depth"
 GBM = "gbm"
+
 
 def fit_models(
     config: Dict[str, Any], train_data: pd.DataFrame, rng: np.random.Generator
@@ -48,16 +49,18 @@ def fit_models(
     if CGBM in config[MODELS]:
         models[CGBM] = CyclicalGradientBooster(
             distribution=distribution,
-            n_estimators= config[MODEL_HYPERPARAMS][CGBM][N_ESTIMATORS],
-            learning_rate= config[MODEL_HYPERPARAMS][CGBM][LEARNING_RATE],
+            n_estimators=config[MODEL_HYPERPARAMS][CGBM][N_ESTIMATORS],
+            learning_rate=config[MODEL_HYPERPARAMS][CGBM][LEARNING_RATE],
             max_depth=config[MODEL_HYPERPARAMS][CGBM][MAX_DEPTH],
         )
     if GBM in config[MODELS]:
-        gbm_n_estimators = [config[MODEL_HYPERPARAMS][GBM][N_ESTIMATORS]] + [0] * (distribution.n_dim - 1)
+        gbm_n_estimators = [config[MODEL_HYPERPARAMS][GBM][N_ESTIMATORS]] + [0] * (
+            distribution.n_dim - 1
+        )
         models[GBM] = CyclicalGradientBooster(
             distribution=distribution,
-            n_estimators= gbm_n_estimators,
-            learning_rate= config[MODEL_HYPERPARAMS][GBM][LEARNING_RATE],
+            n_estimators=gbm_n_estimators,
+            learning_rate=config[MODEL_HYPERPARAMS][GBM][LEARNING_RATE],
             max_depth=config[MODEL_HYPERPARAMS][GBM][MAX_DEPTH],
         )
 

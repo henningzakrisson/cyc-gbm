@@ -5,8 +5,13 @@ import time
 import numpy as np
 import pandas as pd
 import yaml
-from tasks import (fit_models, load_input_data, preprocess_input_data,
-                   setup_pipeline_run, predict)
+from tasks import (
+    fit_models,
+    load_input_data,
+    predict,
+    preprocess_input_data,
+    setup_pipeline_run,
+)
 
 CONFIG_DIR = "numerical_illustration/config/demo_config.yaml"
 RANDOM_SEED = "random_seed"
@@ -29,7 +34,7 @@ def main():
 
     # Predict
     predictions = predict(models=models, test_data=test_data)
-    
+
 
 if __name__ == "__main__":
     main()
