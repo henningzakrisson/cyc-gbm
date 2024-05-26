@@ -60,7 +60,8 @@ def _simulate_data(config: dict, rng: np.random.Generator) -> pd.DataFrame:
     data["y"] = y
     data["w"] = w
     theta_dim = theta.shape[0]
-    data[[f"theta_{i}" for i in range(theta_dim)]] = theta.T
+    for i in range(theta_dim):
+        data[f"theta_{i}"] = theta[i]
     return data
 
 

@@ -24,8 +24,6 @@ def preprocess_input_data(
 
     train_data, test_data = _split_data(data, config[TEST_SIZE], rng)
 
-    _save_train_data(train_data, config[OUTPUT_DIR])
-
     return train_data, test_data
 
 
@@ -57,12 +55,3 @@ def _split_data(
     return train_data, test_data
 
 
-def _save_train_data(train_data: pd.DataFrame, output_folder: str) -> None:
-    """
-    Save the training data to a CSV file.
-
-    Args:
-        train_data: training data
-        output_folder: output folder
-    """
-    train_data.to_csv(f"{output_folder}/train_data.csv", index=False)

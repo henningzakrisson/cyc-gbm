@@ -14,16 +14,16 @@ def predict(
         str,
         Union[InterceptModel, CyclicGeneralizedLinearModel, CyclicalGradientBooster],
     ],
-    test_data: pd.DataFrame,
+    data: pd.DataFrame,
 ) -> pd.DataFrame:
     """
     Predict the response for the test data using the fitted models.
 
     Args:
         models: dictionary of fitted models
-        test_data: test data
+        data: test data
     """
-    X_test, y_test, w_test = _get_targets_features(test_data)
+    X_test, y_test, w_test = _get_targets_features(data)
 
     predictions = {
         model_name: models[model_name].predict(X_test) for model_name in models
@@ -31,13 +31,12 @@ def predict(
 
     features = [
         col
-        for col in test_data.columns
+        for col in data.columns
         if (col not in ["y", "w"] or col.startswith("theta"))
     ]
-    n_dim = len([col for col in test_data.columns if col.startswith("theta")])
-    result_data = test_data.drop(columns=features)
+    n_dim = len([col for col in data.columns if col.startswith("theta")])
     for model_name in models:
         for j in range(n_dim):
-            result_data[f"{model_name}_theta_{j}"] = predictions[model_name][j]
+            data[f"{model_name}_theta_{j}"] = predictions[model_name][j]
 
-    return result_data
+    return data

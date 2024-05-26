@@ -9,7 +9,7 @@ import yaml
 from .utils.constants import OUTPUT_DIR, RANDOM_SEED
 
 
-def setup_pipeline_run(config_path: str) -> Tuple[Dict[str, Any], np.random.Generator]:
+def setup_pipeline_run(config_path: str) -> Tuple[Dict[str, Any], np.random.Generator, str]:
     """
     Setup the pipeline run.
 
@@ -23,13 +23,13 @@ def setup_pipeline_run(config_path: str) -> Tuple[Dict[str, Any], np.random.Gene
         config = yaml.safe_load(f)
 
     run_id = _get_run_id()
-    output_folder = _create_output_folder(config[OUTPUT_DIR], run_id)
-    shutil.copy(config_path, f"{output_folder}/config.yaml")
+    output_path = _create_output_path(config[OUTPUT_DIR], run_id)
+    shutil.copy(config_path, f"{output_path}/config.yaml")
 
     random_seed = config[RANDOM_SEED] if RANDOM_SEED in config else 1
     rng = np.random.default_rng(random_seed)
 
-    return config, rng
+    return config, rng, output_path
 
 
 def _get_run_id() -> str:
@@ -40,7 +40,7 @@ def _get_run_id() -> str:
     return time.strftime("%Y%m%d%H%M%S")
 
 
-def _create_output_folder(output_dir: str, run_id: str) -> str:
+def _create_output_path(output_dir: str, run_id: str) -> str:
     """
     Create a folder for the current run.
 

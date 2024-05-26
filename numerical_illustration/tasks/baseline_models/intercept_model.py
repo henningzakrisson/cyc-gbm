@@ -11,7 +11,7 @@ class InterceptModel:
     Class for intercept models, i.e., models that only predict a constant value for all parameters.
     """
 
-    def __init__(self, distribution: Union[str, Distribution] = "normal"):
+    def __init__(self, distribution: Distribution) -> None:
         """
         Initialize the model.
 
@@ -33,9 +33,9 @@ class InterceptModel:
         :param y: True response values for the input data.
         :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
         """
-        # TODO: Implement this method
+        z = np.zeros((self.distribution.n_dim, len(y)))
         self.z0 = minimize(
-            fun=lambda z0: self.distribution.loss(y=y, z=z0[:, None], w=w).sum(),
+            fun=lambda z0: self.distribution.loss(y=y, z=z0[:, None] + z, w=w).sum(),
             x0=self.distribution.mme(y=y, w=w),
         )["x"]
 

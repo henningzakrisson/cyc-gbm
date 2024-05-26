@@ -29,8 +29,9 @@ class CyclicGeneralizedLinearModel:
         """
         Fit the model.
         """
+        z = np.zeros((self.d, len(y)))
         self.z0 = minimize(
-            fun=lambda z0: self.distribution.loss(y=y, z=z0[:, None], w=w).sum(),
+            fun=lambda z0: self.distribution.loss(y=y, z=z0[:, None] + z, w=w).sum(),
             x0=self.distribution.mme(y=y, w=w),
         )["x"]
         z = np.tile(self.z0, (X.shape[0], 1)).T
