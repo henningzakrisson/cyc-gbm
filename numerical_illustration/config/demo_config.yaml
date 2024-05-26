@@ -21,6 +21,7 @@ normalize: True
 models:
   - intercept
   - cglm
+  - cgbm
 
 # Model hyperparameters
 model_hyperparameters:
@@ -28,3 +29,9 @@ model_hyperparameters:
     max_iter: 1000
     tolerance: 1e-5
     step_size: 1e-5
+  cgbm: 
+    n_estimators: 
+     - 100
+     - 20
+    max_depth: 3
+    learning_rate: 0.01

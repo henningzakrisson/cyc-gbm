@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Union, List
 
 import numpy as np
 import pandas as pd
@@ -16,7 +16,10 @@ MODEL_HYPERPARAMS = "model_hyperparameters"
 MAX_ITER = "max_iter"
 TOLERANCE = "tolerance"
 STEP_SIZE = "step_size"
-
+CGBM = "cgbm"
+N_ESTIMATORS = "n_estimators"
+LEARNING_RATE = "learning_rate"
+MAX_DEPTH = "max_depth"
 
 def fit_models(
     config: Dict[str, Any], train_data: pd.DataFrame, rng: np.random.Generator
@@ -41,13 +44,19 @@ def fit_models(
             tol=float(config[MODEL_HYPERPARAMS][CGLM][TOLERANCE]),
             eps=float(config[MODEL_HYPERPARAMS][CGLM][STEP_SIZE]),
         )
+    if CGBM in config[MODELS]:
+        models[CGBM] = CyclicalGradientBooster(
+            distribution=distribution,
+            n_estimators= config[MODEL_HYPERPARAMS][CGBM][N_ESTIMATORS],
+            learning_rate= config[MODEL_HYPERPARAMS][CGBM][LEARNING_RATE],
+            max_depth=config[MODEL_HYPERPARAMS][CGBM][MAX_DEPTH],
+        )
 
     # Fit models
     for model_name in models:
         models[model_name].fit(X_train, y_train, w_train)
 
     return models
-
 
 def _get_train_data(train_data: pd.DataFrame) -> np.ndarray:
     features = [
