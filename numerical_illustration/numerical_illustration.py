@@ -11,8 +11,8 @@ from tasks import (
     load_input_data,
     predict,
     preprocess_input_data,
-    setup_pipeline_run,
     save_results,
+    setup_pipeline_run,
 )
 
 CONFIG_DIR = "numerical_illustration/config/demo_config.yaml"
@@ -38,19 +38,20 @@ def main():
     test_data = predict(models=models, data=test_data)
 
     # Evaluate
-    metrics, fig = evaluate_predictions(train_data = train_data, test_data = test_data, config = config)
+    metrics, fig = evaluate_predictions(
+        train_data=train_data, test_data=test_data, config=config
+    )
 
     # Save results
     save_results(
         train_data=train_data,
         test_data=test_data,
         metrics=metrics,
-        figure = fig,
+        figure=fig,
         output_path=output_path,
     )
 
-    print((metrics.astype(float)/1e2).round(2))
-
+    print((metrics.astype(float) / 1e2).round(2))
 
 
 if __name__ == "__main__":

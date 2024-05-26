@@ -53,5 +53,3 @@ def _split_data(
     test_data = data.loc[test_indices]
     train_data = data.drop(test_indices)
     return train_data, test_data
-
-

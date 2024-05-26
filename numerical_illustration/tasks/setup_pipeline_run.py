@@ -9,7 +9,9 @@ import yaml
 from .utils.constants import OUTPUT_DIR, RANDOM_SEED
 
 
-def setup_pipeline_run(config_path: str) -> Tuple[Dict[str, Any], np.random.Generator, str]:
+def setup_pipeline_run(
+    config_path: str,
+) -> Tuple[Dict[str, Any], np.random.Generator, str]:
     """
     Setup the pipeline run.
 
