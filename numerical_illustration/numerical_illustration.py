@@ -38,7 +38,7 @@ def main():
     test_data = predict(models=models, data=test_data)
 
     # Evaluate
-    metrics, fig = evaluate_predictions(
+    metrics = evaluate_predictions(
         train_data=train_data, test_data=test_data, config=config
     )
 
@@ -47,7 +47,6 @@ def main():
         train_data=train_data,
         test_data=test_data,
         metrics=metrics,
-        figure=fig,
         output_path=output_path,
     )
 

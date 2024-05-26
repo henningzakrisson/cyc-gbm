@@ -15,8 +15,11 @@ def preprocess_input_data(
         data: input data
         rng: random number generator
     """
+    # Features is anything that doesnt start with w, y, or theta
     features = [
-        col for col in data.columns if col not in ["y", "w"] or col.startswith("theta")
+        col
+        for col in data.columns
+        if col not in ["w", "y"] and not col.startswith("theta")
     ]
 
     if config[NORMALIZE]:
