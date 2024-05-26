@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from tasks import (
+    evaluate_predictions,
     fit_models,
     load_input_data,
     predict,
@@ -14,7 +15,6 @@ from tasks import (
 )
 
 CONFIG_DIR = "numerical_illustration/config/demo_config.yaml"
-RANDOM_SEED = "random_seed"
 
 
 def main():
@@ -34,6 +34,9 @@ def main():
 
     # Predict
     predictions = predict(models=models, test_data=test_data)
+
+    # Evaluate
+    evaluation = evaluate_predictions(predictions=predictions, config=config)
 
 
 if __name__ == "__main__":

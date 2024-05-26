@@ -3,15 +3,17 @@ import pandas as pd
 
 from cyc_gbm.utils.distributions import initiate_distribution
 
-DATA_SOURCE = "data_source"
-SIMULATION = "simulation"
-FILE = "file"
-N_SAMPLES = "n_samples"
-N_FEATURES = "n_features"
-DISTRIBUTION = "distribution"
-PARAMETER_FUNCTION = "parameter_function"
-FILE_PATH = "file_path"
-PARAMETER = "parameter"
+from .utils.constants import (
+    DATA_SOURCE,
+    DISTRIBUTION,
+    FILE,
+    FILE_PATH,
+    N_FEATURES,
+    N_SAMPLES,
+    PARAMETER,
+    PARAMETER_FUNCTION,
+    SIMULATION,
+)
 
 
 def load_input_data(config: dict, rng: np.random.Generator) -> pd.DataFrame:

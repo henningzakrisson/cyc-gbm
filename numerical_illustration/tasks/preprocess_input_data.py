@@ -1,9 +1,7 @@
 import numpy as np
 import pandas as pd
 
-NORMALIZE = "normalize"
-TEST_SIZE = "test_size"
-OUTPUT_DIR = "output_dir"
+from .utils.constants import NORMALIZE, OUTPUT_DIR, TEST_SIZE
 
 
 def preprocess_input_data(

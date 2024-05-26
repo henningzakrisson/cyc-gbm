@@ -6,8 +6,7 @@ from typing import Any, Dict, Tuple
 import numpy as np
 import yaml
 
-OUTPUT_DIR = "output_dir"
-RANDOM_SEED = "random_seed"
+from .utils.constants import OUTPUT_DIR, RANDOM_SEED
 
 
 def setup_pipeline_run(config_path: str) -> Tuple[Dict[str, Any], np.random.Generator]:

@@ -7,20 +7,21 @@ from cyc_gbm import CyclicalGradientBooster
 from cyc_gbm.utils.distributions import initiate_distribution
 
 from .baseline_models import CyclicGeneralizedLinearModel, InterceptModel
-
-MODELS = "models"
-INTERCEPT = "intercept"
-DISTRIBUTION = "distribution"
-CGLM = "cglm"
-MODEL_HYPERPARAMS = "model_hyperparameters"
-MAX_ITER = "max_iter"
-TOLERANCE = "tolerance"
-STEP_SIZE = "step_size"
-CGBM = "cgbm"
-N_ESTIMATORS = "n_estimators"
-LEARNING_RATE = "learning_rate"
-MAX_DEPTH = "max_depth"
-GBM = "gbm"
+from .utils.constants import (
+    CGBM,
+    CGLM,
+    DISTRIBUTION,
+    GBM,
+    INTERCEPT,
+    LEARNING_RATE,
+    MAX_DEPTH,
+    MAX_ITER,
+    MODEL_HYPERPARAMS,
+    MODELS,
+    N_ESTIMATORS,
+    STEP_SIZE,
+    TOLERANCE,
+)
 
 
 def fit_models(
