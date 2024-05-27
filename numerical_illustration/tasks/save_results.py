@@ -3,8 +3,6 @@ import os
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from .utils.constants import OUTPUT_DIR
-
 
 def save_results(
     train_data: pd.DataFrame,
