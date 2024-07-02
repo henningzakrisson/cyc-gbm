@@ -6,7 +6,7 @@ import pandas as pd
 from cyc_gbm import CyclicalGradientBooster
 
 from .baseline_models import CyclicGeneralizedLinearModel, InterceptModel
-from .fit_models import _get_targets_features
+from .utils.utils import get_targets_features
 
 
 def predict(
@@ -23,7 +23,7 @@ def predict(
         models: dictionary of fitted models
         data: test data
     """
-    X_test, y_test, w_test = _get_targets_features(data)
+    X_test, _,_ = get_targets_features(data)
 
     predictions = {
         model_name: models[model_name].predict(X_test) for model_name in models

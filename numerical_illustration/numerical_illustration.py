@@ -13,6 +13,7 @@ from tasks import (
     preprocess_input_data,
     save_results,
     setup_pipeline_run,
+    tune_models,
 )
 
 CONFIG_DIR = "numerical_illustration/config/demo_config.yaml"
@@ -30,8 +31,13 @@ def main():
         config=config, data=raw_input_data, rng=rng
     )
 
+    # Tune models
+    tuning_results,n_estimators = tune_models(
+        config=config, train_data=train_data, rng=rng,
+    )
+
     # Fit models
-    models = fit_models(config=config, train_data=train_data, rng=rng)
+    models = fit_models(config=config, train_data=train_data, rng=rng, n_estimators = n_estimators)
 
     # Predict
     train_data = predict(models=models, data=train_data)
@@ -46,6 +52,7 @@ def main():
     save_results(
         train_data=train_data,
         test_data=test_data,
+        loss_results=tuning_results,
         metrics=metrics,
         output_path=output_path,
     )

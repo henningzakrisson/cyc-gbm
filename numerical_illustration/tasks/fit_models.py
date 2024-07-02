@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Union
+from typing import Any, Dict,List
 
 import numpy as np
 import pandas as pd
@@ -22,10 +22,10 @@ from .utils.constants import (
     STEP_SIZE,
     TOLERANCE,
 )
-
+from .utils.utils import get_targets_features
 
 def fit_models(
-    config: Dict[str, Any], train_data: pd.DataFrame, rng: np.random.Generator
+    config: Dict[str, Any], train_data: pd.DataFrame, rng: np.random.Generator,n_estimators: Dict[str, List[int]]
 ) -> Dict[str, Any]:
     """
     Fit the models specified in the config, using hyperparameters from the config.
@@ -34,7 +34,7 @@ def fit_models(
     """
     # Initiate distribution and get train data
     distribution = initiate_distribution(config[DISTRIBUTION])
-    X_train, y_train, w_train = _get_targets_features(train_data)
+    X_train, y_train, w_train = get_targets_features(train_data)
 
     # Add models
     models = {}
@@ -50,17 +50,14 @@ def fit_models(
     if CGBM in config[MODELS]:
         models[CGBM] = CyclicalGradientBooster(
             distribution=distribution,
-            n_estimators=config[MODEL_HYPERPARAMS][CGBM][N_ESTIMATORS],
+            n_estimators=n_estimators[CGBM],
             learning_rate=config[MODEL_HYPERPARAMS][CGBM][LEARNING_RATE],
             max_depth=config[MODEL_HYPERPARAMS][CGBM][MAX_DEPTH],
         )
     if GBM in config[MODELS]:
-        gbm_n_estimators = [config[MODEL_HYPERPARAMS][GBM][N_ESTIMATORS]] + [0] * (
-            distribution.n_dim - 1
-        )
         models[GBM] = CyclicalGradientBooster(
             distribution=distribution,
-            n_estimators=gbm_n_estimators,
+            n_estimators=n_estimators[GBM],
             learning_rate=config[MODEL_HYPERPARAMS][GBM][LEARNING_RATE],
             max_depth=config[MODEL_HYPERPARAMS][GBM][MAX_DEPTH],
         )
@@ -70,15 +67,3 @@ def fit_models(
         models[model_name].fit(X_train, y_train, w_train)
 
     return models
-
-
-def _get_targets_features(train_data: pd.DataFrame) -> np.ndarray:
-    features = [
-        col
-        for col in train_data.columns
-        if col not in ["y", "w"] or col.startswith("theta")
-    ]
-    X_train = train_data[features].values
-    y_train = train_data["y"].values
-    w_train = train_data["w"].values
-    return X_train, y_train, w_train
