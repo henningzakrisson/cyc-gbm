@@ -56,22 +56,22 @@ def _simulate_data(config: dict, rng: np.random.Generator) -> pd.DataFrame:
     for i in range(theta_dim):
         data[f"theta_{i}"] = theta[i]
 
-    fig, ax = plt.subplots(2, 1)
-    data_sorted_mean = data.sort_values(by="theta_0").reset_index(drop=True)
-    data_sorted_mean["y"].rolling(window=100, min_periods=1).mean().plot(
-        ax=ax[0], label="True"
-    )
-    data_sorted_mean["theta_0"].plot(ax=ax[0], label="Mean")
+    # fig, ax = plt.subplots(2, 1)
+    # data_sorted_mean = data.sort_values(by="theta_0").reset_index(drop=True)
+    # data_sorted_mean["y"].rolling(window=100, min_periods=1).mean().plot(
+    #     ax=ax[0], label="True"
+    # )
+    # data_sorted_mean["theta_0"].plot(ax=ax[0], label="Mean")
 
-    data_sorted_var = data.sort_values(by="theta_1").reset_index(drop=True)
-    (data_sorted_var["y"] - data_sorted_var["theta_0"]).pow(2).rolling(
-        window=100, min_periods=1
-    ).mean().plot(ax=ax[1], label="True")
-    np.exp(2 * data_sorted_var["theta_1"]).plot(ax=ax[1], label="Variance")
+    # data_sorted_var = data.sort_values(by="theta_1").reset_index(drop=True)
+    # (data_sorted_var["y"] - data_sorted_var["theta_0"]).pow(2).rolling(
+    #     window=100, min_periods=1
+    # ).mean().plot(ax=ax[1], label="True")
+    # np.exp(2 * data_sorted_var["theta_1"]).plot(ax=ax[1], label="Variance")
 
-    plt.legend()
+    # plt.legend()
 
-    fig.savefig("data.png")
+    # fig.savefig("data.png")
 
     return data
 
