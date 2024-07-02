@@ -21,9 +21,9 @@ This will also include a pipeline for reproducing the results in the paper. Foll
     ```bash
     source venv/bin/activate
     ```
-4. Install the required dependencies:
+4. Install the package
     ```bash
-    pip install -r requirements.txt
+    pip install -e .
     ```
 ## Usage example
 Fitting the mean and (log) sigma parameters of a normal distribution to a simulated dataset:
