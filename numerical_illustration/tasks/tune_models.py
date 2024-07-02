@@ -43,7 +43,7 @@ def tune_models(
 
     else:
         n_estimators = {
-            model_name: [config[MODEL_HYPERPARAMS][model_name][N_ESTIMATORS]]
+            model_name: config[MODEL_HYPERPARAMS][model_name][N_ESTIMATORS]
             for model_name in set(config[MODELS]).intersection([GBM, CGBM])
         }
     return loss_results, n_estimators

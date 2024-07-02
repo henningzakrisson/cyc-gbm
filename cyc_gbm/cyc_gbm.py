@@ -1,14 +1,16 @@
 from typing import List, Union, Optional
+import logging
 
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 
 from cyc_gbm.utils.distributions import Distribution, initiate_distribution
-from cyc_gbm.utils.logger import CycGBMLogger
+from cyc_gbm.utils.utils import calculate_progress
 from cyc_gbm.utils.fix_datatype import fix_datatype
 from cyc_gbm.boosting_tree import BoostingTree
 
+logger = logging.getLogger(__name__)
 
 class CyclicalGradientBooster:
     """
@@ -96,7 +98,6 @@ class CyclicalGradientBooster:
         X: Union[np.ndarray, pd.DataFrame],
         y: Union[np.ndarray, pd.Series, pd.DataFrame],
         w: Union[np.ndarray, pd.Series, float] = None,
-        logger: Optional[CycGBMLogger] = None,
     ) -> None:
         """
         Train the model on the given training data.
@@ -105,15 +106,13 @@ class CyclicalGradientBooster:
         :param y: True response values for the input data.
         :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
         :param feature_selection: Dictionary of feature_selection to use for each parameter dimension. Default is all for all.
-        :param logger: Logger object to log progress. Default is no logger.
         """
-        if logger is None:
-            logger = CycGBMLogger(verbose=0)
         self._initialize_feature_metadata(X=X)
         X, y, w = fix_datatype(X=X, y=y, w=w)
 
         self.z0 = self.initialize_estimate(y=y, w=w)
         z = np.tile(self.z0, (len(y), 1)).T
+        progress = 0
         for k in range(0, max(self.n_estimators)):
             for j in range(self.n_dim):
                 if k < self.n_estimators[j]:
@@ -124,11 +123,13 @@ class CyclicalGradientBooster:
                         X[:, self.feature_selection[j]]
                     )
 
-                    logger.log_progress(
-                        step=(k + 1) * (j + 1),
-                        total_steps=(max(self.n_estimators) * self.n_dim),
-                        verbose=2,
+                    # Log progress
+                    new_progress = calculate_progress(
+                        step=(k + 1) * (j + 1), total_steps=(max(self.n_estimators) * self.n_dim)
                     )
+                    if new_progress > progress:
+                        logger.info(f"progress: {int(new_progress * 100)}%")
+                        progress = new_progress
 
         # Adjust initial estimate given current tree estimates
         self.z0 += self.initialize_estimate(y=y, w=w, z=z)
