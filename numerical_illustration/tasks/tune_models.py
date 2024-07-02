@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Tuple
+import logging
 
 import numpy as np
 import pandas as pd
@@ -12,6 +13,7 @@ from .utils.constants import (CGBM, DISTRIBUTION, GBM, LEARNING_RATE,
                               N_ESTIMATORS, N_SPLITS, PARALLEL, TUNING)
 from .utils.utils import get_targets_features
 
+logger = logging.getLogger(__name__)
 
 def tune_models(
     config: Dict[str, Any], train_data: pd.DataFrame, rng: np.random.Generator
@@ -22,6 +24,7 @@ def tune_models(
     n_estimators = {}
     if config[TUNING]:
         for model_name in set(config[MODELS]).intersection([GBM, CGBM]):
+            logger.info(f"Tuning {model_name}")
             model = CyclicalGradientBooster(
                 distribution=distribution,
                 learning_rate=config[MODEL_HYPERPARAMS][model_name][LEARNING_RATE],

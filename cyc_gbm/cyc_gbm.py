@@ -98,6 +98,7 @@ class CyclicalGradientBooster:
         X: Union[np.ndarray, pd.DataFrame],
         y: Union[np.ndarray, pd.Series, pd.DataFrame],
         w: Union[np.ndarray, pd.Series, float] = None,
+        verbose: bool = True,
     ) -> None:
         """
         Train the model on the given training data.
@@ -105,14 +106,16 @@ class CyclicalGradientBooster:
         :param X: Input data matrix of shape (n_samples, n_features).
         :param y: True response values for the input data.
         :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
-        :param feature_selection: Dictionary of feature_selection to use for each parameter dimension. Default is all for all.
+        :param verbose: Whether to log progress.
         """
         self._initialize_feature_metadata(X=X)
         X, y, w = fix_datatype(X=X, y=y, w=w)
 
         self.z0 = self.initialize_estimate(y=y, w=w)
         z = np.tile(self.z0, (len(y), 1)).T
-        progress = 0
+        if verbose:
+            logger.info("Fitting Cyclical Gradient Booster")
+            progress = self._log_progress(step=0, total_steps=max(self.n_estimators))
         for k in range(0, max(self.n_estimators)):
             for j in range(self.n_dim):
                 if k < self.n_estimators[j]:
@@ -124,15 +127,24 @@ class CyclicalGradientBooster:
                     )
 
                     # Log progress
-                    new_progress = calculate_progress(
-                        step=(k + 1) * (j + 1), total_steps=(max(self.n_estimators) * self.n_dim)
-                    )
-                    if new_progress > progress:
-                        logger.info(f"progress: {int(new_progress * 100)}%")
-                        progress = new_progress
+                    if verbose:
+                        progress = self._log_progress(step=k, total_steps=max(self.n_estimators),last_progress=progress)
 
         # Adjust initial estimate given current tree estimates
         self.z0 += self.initialize_estimate(y=y, w=w, z=z)
+
+    def _log_progress(self, step: int, total_steps: int,last_progress: float = -1) -> None:
+        """
+        Log the progress of the simulation.
+
+        :param step: The current step.
+        :param total_steps: The total number of steps.
+        """
+        new_progress = calculate_progress(step=step, total_steps=total_steps)
+        if new_progress > last_progress:
+            last_progress = new_progress
+            logger.info(f"Progress: {int(new_progress * 100)}%")
+        return last_progress
 
     def _initialize_feature_metadata(self, X: Union[np.ndarray, pd.DataFrame]) -> None:
         """Get the feature names from the input data.
