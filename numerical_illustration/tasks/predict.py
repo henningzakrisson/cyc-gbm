@@ -23,7 +23,7 @@ def predict(
         models: dictionary of fitted models
         data: test data
     """
-    X_test, _,_ = get_targets_features(data)
+    X_test, _, _ = get_targets_features(data)
 
     predictions = {
         model_name: models[model_name].predict(X_test) for model_name in models

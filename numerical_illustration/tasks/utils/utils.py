@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 
+
 def get_targets_features(train_data: pd.DataFrame) -> np.ndarray:
     features = [
         col

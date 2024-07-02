@@ -5,16 +5,9 @@ import time
 import numpy as np
 import pandas as pd
 import yaml
-from tasks import (
-    evaluate_predictions,
-    fit_models,
-    load_input_data,
-    predict,
-    preprocess_input_data,
-    save_results,
-    setup_pipeline_run,
-    tune_models,
-)
+from tasks import (evaluate_predictions, fit_models, load_input_data, predict,
+                   preprocess_input_data, save_results, setup_pipeline_run,
+                   tune_models)
 
 CONFIG_DIR = "numerical_illustration/config/demo_config.yaml"
 
@@ -32,12 +25,16 @@ def main():
     )
 
     # Tune models
-    tuning_results,n_estimators = tune_models(
-        config=config, train_data=train_data, rng=rng,
+    tuning_results, n_estimators = tune_models(
+        config=config,
+        train_data=train_data,
+        rng=rng,
     )
 
     # Fit models
-    models = fit_models(config=config, train_data=train_data, rng=rng, n_estimators = n_estimators)
+    models = fit_models(
+        config=config, train_data=train_data, rng=rng, n_estimators=n_estimators
+    )
 
     # Predict
     train_data = predict(models=models, data=train_data)

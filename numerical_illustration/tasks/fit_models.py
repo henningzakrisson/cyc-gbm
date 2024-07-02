@@ -1,4 +1,4 @@
-from typing import Any, Dict,List
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -7,25 +7,18 @@ from cyc_gbm import CyclicalGradientBooster
 from cyc_gbm.utils.distributions import initiate_distribution
 
 from .baseline_models import CyclicGeneralizedLinearModel, InterceptModel
-from .utils.constants import (
-    CGBM,
-    CGLM,
-    DISTRIBUTION,
-    GBM,
-    INTERCEPT,
-    LEARNING_RATE,
-    MAX_DEPTH,
-    MAX_ITER,
-    MODEL_HYPERPARAMS,
-    MODELS,
-    N_ESTIMATORS,
-    STEP_SIZE,
-    TOLERANCE,
-)
+from .utils.constants import (CGBM, CGLM, DISTRIBUTION, GBM, INTERCEPT,
+                              LEARNING_RATE, MAX_DEPTH, MAX_ITER,
+                              MODEL_HYPERPARAMS, MODELS, N_ESTIMATORS,
+                              STEP_SIZE, TOLERANCE)
 from .utils.utils import get_targets_features
 
+
 def fit_models(
-    config: Dict[str, Any], train_data: pd.DataFrame, rng: np.random.Generator,n_estimators: Dict[str, List[int]]
+    config: Dict[str, Any],
+    train_data: pd.DataFrame,
+    rng: np.random.Generator,
+    n_estimators: Dict[str, List[int]],
 ) -> Dict[str, Any]:
     """
     Fit the models specified in the config, using hyperparameters from the config.
