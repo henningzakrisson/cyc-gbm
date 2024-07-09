@@ -31,17 +31,17 @@ model_hyperparameters:
     tolerance: 1e-5
     step_size: 1e-5
   gbm:
-    n_estimators: 600
+    n_estimators: 398 # 600
     max_depth: 3
     learning_rate: 0.01
   cgbm: 
     n_estimators: 
-     - 600
-     - 600
+     - 528 # 600
+     - 468 # 600
     max_depth: 3
     learning_rate: 0.01
 
 # Model tuning
-tuning: true
+tuning: false
 n_splits: 4
 parallel: true

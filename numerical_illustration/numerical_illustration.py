@@ -57,6 +57,7 @@ def main():
         test_data=test_data,
         loss_results=tuning_results,
         metrics=metrics,
+        models=models,
         output_path=output_path,
     )
     logger.info("Results saved")
