@@ -1,5 +1,5 @@
-from typing import Any, Dict, List, Tuple
 import logging
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -14,6 +14,7 @@ from .utils.constants import (CGBM, DISTRIBUTION, GBM, LEARNING_RATE,
 from .utils.utils import get_targets_features
 
 logger = logging.getLogger(__name__)
+
 
 def tune_models(
     config: Dict[str, Any], train_data: pd.DataFrame, rng: np.random.Generator
@@ -34,7 +35,10 @@ def tune_models(
             if model_name == CGBM:
                 n_estimators_max = config[MODEL_HYPERPARAMS][model_name][N_ESTIMATORS]
             elif model_name == GBM:
-                n_estimators_max = [config[MODEL_HYPERPARAMS][model_name][N_ESTIMATORS], 0]
+                n_estimators_max = [
+                    config[MODEL_HYPERPARAMS][model_name][N_ESTIMATORS],
+                    0,
+                ]
 
             tuning_results = tune_n_estimators(
                 X=X_train,

@@ -10,6 +10,7 @@ CONFIG_DIR = "numerical_illustration/config/demo_config.yaml"
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def main():
     # Setup the numerical illustration
     config, rng, output_path = setup_pipeline_run(config_path=CONFIG_DIR)
