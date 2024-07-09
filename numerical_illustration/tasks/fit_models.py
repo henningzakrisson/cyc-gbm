@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Dict, List
 
 import numpy as np
@@ -12,6 +13,8 @@ from .utils.constants import (CGBM, CGLM, DISTRIBUTION, GBM, INTERCEPT,
                               MODEL_HYPERPARAMS, MODELS, N_ESTIMATORS,
                               STEP_SIZE, TOLERANCE)
 from .utils.utils import get_targets_features
+
+logger = logging.getLogger(__name__)
 
 
 def fit_models(
@@ -57,6 +60,7 @@ def fit_models(
 
     # Fit models
     for model_name in models:
+        logger.info(f"Fitting {model_name}")
         models[model_name].fit(X_train, y_train, w_train)
 
     return models

@@ -10,7 +10,7 @@ distribution: normal
 parameter_function: |
   def parameter(X):
       z0 = 1.5*X[:,1] + 2*X[:,3] - 0.65*X[:,2]**2 + 0.5*np.abs(X[:,3])*np.sin(0.5*X[:,2]) + 0.45*X[:,4]*X[:,5]**2
-      z1 = 0.02*X[:,2] + 0.05*X[:,1]*(X[:,1]<2) + 0.18*(X[:,5]>0)
+      z1 = 0.2*X[:,2] + 0.05*X[:,1]*(X[:,1]<2) + 0.18*(X[:,5]>0)
       return np.stack([z0,z1])
 
 # Preprocessing setup
@@ -30,18 +30,18 @@ model_hyperparameters:
     max_iter: 1000
     tolerance: 1e-5
     step_size: 1e-5
-  cgbm: 
-    n_estimators: 
-     - 1000
-     - 1000
+  gbm:
+    n_estimators: 600
     max_depth: 3
     learning_rate: 0.01
-  gbm:
-    n_estimators: 1000
+  cgbm: 
+    n_estimators: 
+     - 600
+     - 600
     max_depth: 3
     learning_rate: 0.01
 
 # Model tuning
 tuning: true
 n_splits: 4
-parallel: false
+parallel: true

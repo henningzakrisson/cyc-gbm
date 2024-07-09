@@ -212,14 +212,16 @@ def _has_tuning_converged(
 
 def _find_n_estimators(
     loss: np.ndarray,
-    n_estimators_max: Union[int, List[int]],
+    n_estimators_max: List[int],
 ) -> List[int]:
     loss_delta = np.zeros_like(loss)
     loss_delta[1:, 0] = loss[1:, 0] - loss[:-1, -1]
     loss_delta[1:, 1:] = loss[1:, 1:] - loss[1:, :-1]
     n_estimators = np.maximum(0, np.argmax(loss_delta > 0, axis=0) - 1)
     did_not_converge = (loss_delta > 0).sum(axis=0) == 0
+    was_tuned = [n_estimator_max>0 for n_estimator_max in n_estimators_max]
     n_estimators[did_not_converge] = np.array(n_estimators_max)[did_not_converge]
+    did_not_converge = np.logical_and(did_not_converge, was_tuned)
     if np.any(did_not_converge):
         logger.info(
             f"tuning did not converge for dimensions {np.where(did_not_converge)}"
