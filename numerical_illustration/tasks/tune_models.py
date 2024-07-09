@@ -31,12 +31,17 @@ def tune_models(
                 max_depth=config[MODEL_HYPERPARAMS][model_name][MAX_DEPTH],
             )
 
+            if model_name == CGBM:
+                n_estimators_max = config[MODEL_HYPERPARAMS][model_name][N_ESTIMATORS]
+            elif model_name == GBM:
+                n_estimators_max = [config[MODEL_HYPERPARAMS][model_name][N_ESTIMATORS], 0]
+
             tuning_results = tune_n_estimators(
                 X=X_train,
                 y=y_train,
                 w=w_train,
                 model=model,
-                n_estimators_max=config[MODEL_HYPERPARAMS][model_name][N_ESTIMATORS],
+                n_estimators_max=n_estimators_max,
                 n_splits=config[N_SPLITS],
                 rng=rng,
                 parallel=config[PARALLEL],
