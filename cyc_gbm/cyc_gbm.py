@@ -277,11 +277,10 @@ class CyclicalGradientBooster:
         if normalize:
             feature_importances /= feature_importances.sum()
 
-        if self.feature_names is not None:
-            feature_importances = pd.Series(
-                feature_importances, index=self.feature_names
-            )
-        return feature_importances
+        return {
+            self.feature_names[i]: feature_importances[i]
+            for i in range(self.n_features)
+        }
 
     def reset(self, n_estimators: Optional[Union[int, List[int]]] = None) -> None:
         """
