@@ -29,16 +29,19 @@ def save_results(
 def _save_tuning_results(
     loss_results: Dict[str, Dict[str, List[float]]], output_path: str
 ) -> None:
-    # Create a loss folder
+    if not loss_results:
+        return
     loss_folder = os.path.join(output_path, "loss")
     os.makedirs(loss_folder, exist_ok=True)
-    for model_name, losses in loss_results.items():
-        df_loss = pd.DataFrame()
-        avg_loss = np.mean(losses["train"], axis=0)
-        # Save the loss after both parameter updates as 0 and 1 respectively
-        df_loss["train_0"] = avg_loss[:, 0]
-        df_loss["train_1"] = avg_loss[:, 1]
-        df_loss.to_csv(os.path.join(loss_folder, f"{model_name}_loss.csv"), index=False)
+    for dataset in ["train", "validation"]:
+        dataset_folder = os.path.join(loss_folder, dataset)
+        for model_name, losses in loss_results.items():
+            df_loss = pd.DataFrame()
+            avg_loss = np.mean(losses["train"], axis=0)
+            # Save the loss after both parameter updates as 0 and 1 respectively
+            df_loss[f"{dataset}_0"] = avg_loss[:, 0]
+            df_loss[f"{dataset}_1"] = avg_loss[:, 1]
+            df_loss.to_csv(os.path.join(dataset_folder, f"{model_name}_loss.csv"), index=True)
 
 def _save_feature_importances(models: Dict[str, CyclicalGradientBooster],output_path: str) -> None:
     feature_importances_folder = os.path.join(output_path, "feature_importances")
@@ -49,4 +52,4 @@ def _save_feature_importances(models: Dict[str, CyclicalGradientBooster],output_
             j: models[model].compute_feature_importances(j = j) 
             for j in [0,1,"all"]
             }
-        ).to_csv(f"{feature_importances_folder}/{model}_feature_importances.csv", index=False)
+        ).to_csv(f"{feature_importances_folder}/{model}_feature_importances.csv", index=True)

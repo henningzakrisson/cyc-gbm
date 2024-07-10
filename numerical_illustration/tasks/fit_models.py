@@ -51,10 +51,9 @@ def fit_models(
             max_depth=config[MODEL_HYPERPARAMS][CGBM][MAX_DEPTH],
         )
     if GBM in config[MODELS]:
-        n_estimators_gbm = [n_estimators[GBM]] + [0] * (len(n_estimators[CGBM])-1)
         models[GBM] = CyclicalGradientBooster(
             distribution=distribution,
-            n_estimators=n_estimators_gbm,
+            n_estimators=n_estimators[GBM],
             learning_rate=config[MODEL_HYPERPARAMS][GBM][LEARNING_RATE],
             max_depth=config[MODEL_HYPERPARAMS][GBM][MAX_DEPTH],
         )

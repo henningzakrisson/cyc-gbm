@@ -2,15 +2,15 @@
 output_dir: data/results
 data_source: simulation
 random_seed: 11
-
+ 
 # Simulation setup
 n_samples: 10000
-n_features: 9
+n_features: 2
 distribution: normal
 parameter_function: |
   def parameter(X):
-      z0 = 1.5*X[:,1] + 2*X[:,3] - 0.65*X[:,2]**2 + 0.5*np.abs(X[:,3])*np.sin(0.5*X[:,2]) + 0.45*X[:,4]*X[:,5]**2
-      z1 = 0.2*X[:,2] + 0.05*X[:,1]*(X[:,1]<2) + 0.18*(X[:,5]>0)
+      z0 = 1.5*X[:,0]**2
+      z1 = 0.1 + 0.2*(X[:,1]>0)
       return np.stack([z0,z1])
 
 # Preprocessing setup
@@ -31,17 +31,17 @@ model_hyperparameters:
     tolerance: 1e-5
     step_size: 1e-5
   gbm:
-    n_estimators: 398 # 600
+    n_estimators: 442 # 600
     max_depth: 3
     learning_rate: 0.01
   cgbm: 
     n_estimators: 
-     - 528 # 600
-     - 468 # 600
+     - 487 # 600
+     - 439 # 600
     max_depth: 3
     learning_rate: 0.01
 
 # Model tuning
-tuning: false
+tuning: true
 n_splits: 4
 parallel: true
