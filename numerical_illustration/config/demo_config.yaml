@@ -42,6 +42,6 @@ model_hyperparameters:
     learning_rate: 0.01
 
 # Model tuning
-tuning: true
+tuning: false
 n_splits: 4
 parallel: true
