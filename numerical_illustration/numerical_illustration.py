@@ -4,7 +4,7 @@ from tasks import (evaluate_predictions, fit_models, load_input_data, predict,
                    preprocess_input_data, save_results, setup_pipeline_run,
                    tune_models)
 
-CONFIG_DIR = "numerical_illustration/config/demo_config.yaml"
+CONFIG_DIR = "numerical_illustration/config/gaussian.yaml"
 
 # Set up a logger
 logging.basicConfig(level=logging.INFO)

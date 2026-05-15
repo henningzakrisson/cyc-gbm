@@ -43,18 +43,18 @@ class CyclicGeneralizedLinearModel:
             for j in range(self.d):
                 g = self.distribution.grad(y=y, z=z, w=w, j=j)
                 # Update patameter estimate
-                beta[i, j] = beta[i - 1, j] - self.eps * g @ X
+                beta[i, j] = beta[i - 1, j] - self.eps * g @ X / len(y)
                 # Update parameter estimate
                 z[j] = self.z0[j] + beta[i, j] @ X.T
 
             # Check convergence
             if i > 0 and np.linalg.norm(beta[i] - beta[i - 1]) < self.tol:
+                self.beta = beta[i]
                 break
 
             if i == self.max_iter - 1:
                 Warning("CGLM model did not converge")
-
-        self.beta = beta[-1]
+                self.beta = beta[i]
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """
