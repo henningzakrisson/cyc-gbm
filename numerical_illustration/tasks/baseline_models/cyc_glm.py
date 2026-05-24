@@ -55,7 +55,7 @@ class CyclicGeneralizedLinearModel:
             if i == self.max_iter - 1:
                 Warning("CGLM model did not converge")
 
-        self.beta = beta[-1]
+        self.beta = beta[i]
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """

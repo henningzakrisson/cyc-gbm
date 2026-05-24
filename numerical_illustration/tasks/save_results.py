@@ -35,6 +35,7 @@ def _save_tuning_results(
     os.makedirs(loss_folder, exist_ok=True)
     for dataset in ["train", "validation"]:
         dataset_folder = os.path.join(loss_folder, dataset)
+        os.makedirs(dataset_folder, exist_ok=True)
         for model_name, losses in loss_results.items():
             df_loss = pd.DataFrame()
             avg_loss = np.mean(losses["train"], axis=0)

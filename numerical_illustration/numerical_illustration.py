@@ -1,10 +1,17 @@
 import logging
 
-from tasks import (evaluate_predictions, fit_models, load_input_data, predict,
-                   preprocess_input_data, save_results, setup_pipeline_run,
-                   tune_models)
+from tasks import (
+    evaluate_predictions,
+    fit_models,
+    load_input_data,
+    predict,
+    preprocess_input_data,
+    save_results,
+    setup_pipeline_run,
+    tune_models,
+)
 
-CONFIG_DIR = "numerical_illustration/config/demo_config.yaml"
+CONFIG_DIR = "numerical_illustration/config/large_config.yaml"
 
 # Set up a logger
 logging.basicConfig(level=logging.INFO)
@@ -62,7 +69,7 @@ def main():
     )
     logger.info("Results saved")
 
-    logger.info((metrics.astype(float) / 1e2).round(2))
+    logger.info(metrics.astype(float).round(4))
 
 
 if __name__ == "__main__":
