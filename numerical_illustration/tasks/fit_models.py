@@ -7,10 +7,10 @@ import pandas as pd
 from cyc_gbm import CyclicalGradientBooster
 from cyc_gbm.utils.distributions import initiate_distribution
 
-from .baseline_models import CyclicGeneralizedLinearModel, InterceptModel
+from .baseline_models import CyclicGeneralizedLinearModel, InterceptModel, NGBoostModel
 from .utils.constants import (CGBM, CGLM, DISTRIBUTION, GBM, INTERCEPT,
                               LEARNING_RATE, MAX_DEPTH, MAX_ITER,
-                              MODEL_HYPERPARAMS, MODELS, N_ESTIMATORS,
+                              MODEL_HYPERPARAMS, MODELS, N_ESTIMATORS, NGBOOST,
                               STEP_SIZE, TOLERANCE)
 from .utils.utils import get_targets_features
 
@@ -57,10 +57,17 @@ def fit_models(
             learning_rate=config[MODEL_HYPERPARAMS][GBM][LEARNING_RATE],
             max_depth=config[MODEL_HYPERPARAMS][GBM][MAX_DEPTH],
         )
+    if NGBOOST in config[MODELS]:
+        models[NGBOOST] = NGBoostModel(
+            n_estimators=n_estimators[NGBOOST],
+            learning_rate=float(config[MODEL_HYPERPARAMS][NGBOOST][LEARNING_RATE]),
+        )
 
     # Fit models
     for model_name in models:
         logger.info(f"Fitting {model_name}")
         models[model_name].fit(X_train, y_train, w_train)
+        if model_name == NGBOOST:
+            logger.info(f"NGBoost fitted with n_estimators={n_estimators[NGBOOST]}")
 
     return models

@@ -32,6 +32,7 @@ models:
   - intercept
   - cglm
   - gbm
+  - ngboost
   - cgbm
 
 # Model hyperparameters
@@ -44,6 +45,10 @@ model_hyperparameters:
     n_estimators: 600
     max_depth: 4
     learning_rate: 0.05
+  ngboost:
+    n_estimators: 2000
+    learning_rate: 0.01
+    early_stopping_rounds: 50
   cgbm:
     n_estimators:
      - 500
