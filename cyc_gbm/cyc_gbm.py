@@ -12,6 +12,7 @@ from cyc_gbm.boosting_tree import BoostingTree
 
 logger = logging.getLogger(__name__)
 
+
 class CyclicalGradientBooster:
     """
     Class for cyclical gradient boosting regressors.
@@ -128,12 +129,17 @@ class CyclicalGradientBooster:
 
                     # Log progress
                     if verbose:
-                        progress = self._log_progress(step=k, total_steps=max(self.n_estimators),last_progress=progress)
+                        progress = self._log_progress(
+                            step=k,
+                            total_steps=max(self.n_estimators),
+                            last_progress=progress,
+                        )
 
-        # Adjust initial estimate given current tree estimates
         self.z0 += self.initialize_estimate(y=y, w=w, z=z)
 
-    def _log_progress(self, step: int, total_steps: int,last_progress: float = -1) -> None:
+    def _log_progress(
+        self, step: int, total_steps: int, last_progress: float = -1
+    ) -> None:
         """
         Log the progress of the simulation.
 
@@ -262,18 +268,18 @@ class CyclicalGradientBooster:
                 feature_importances_from_trees = np.array(
                     [tree.compute_feature_importances() for tree in self.trees[j]]
                 ).sum(axis=0)
-                feature_importances[
-                    self.feature_selection[j]
-                ] += feature_importances_from_trees
+                feature_importances[self.feature_selection[j]] += (
+                    feature_importances_from_trees
+                )
         else:
             feature_importances = np.zeros(self.n_features)
             feature_importances_from_trees = np.array(
                 [tree.compute_feature_importances() for tree in self.trees[j]]
             ).sum(axis=0)
 
-            feature_importances[
-                self.feature_selection[j]
-            ] = feature_importances_from_trees
+            feature_importances[self.feature_selection[j]] = (
+                feature_importances_from_trees
+            )
         if normalize:
             feature_importances /= feature_importances.sum()
 
