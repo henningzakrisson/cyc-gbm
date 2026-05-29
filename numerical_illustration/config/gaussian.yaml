@@ -11,7 +11,7 @@ distribution: normal
 parameter_function: |
   def parameter(X):
       z0 = 0.8*X[:,0] + 0.6*X[:,1]**2 + 0.7*np.abs(X[:,2])*np.sin(X[:,1]) + 0.5*X[:,3]*X[:,4]**2
-      z1 = 0.4*X[:,1] + 0.3*np.abs(X[:,0])*np.sin(X[:,1]) + 0.3*(X[:,1]>0)
+      z1 = 0.2*X[:,1] + 0.15*np.abs(X[:,0])*np.sin(X[:,1]) + 0.15*(X[:,1]>0)
       return np.stack([z0,z1])
 
 # Preprocessing setup
@@ -30,19 +30,27 @@ model_hyperparameters:
   cglm:
     max_iter: 1000
     tolerance: 1e-5
-    step_size: 1e-5
+    step_size: 0.1
   gbm:
     n_estimators: 500
-    max_depth: 3
+    max_depth: 2
     learning_rate: 0.05
   cgbm: 
     n_estimators: 
      - 500
      - 500
-    max_depth: 3
+    max_depth: 2
     learning_rate: 0.05
+  cgbm: 
+    n_estimators: 
+     - 500
+     - 500
+    max_depth: 4
+    learning_rate:
+      - 0.050
+      - 0.025
 
 # Model tuning
 tuning: true
-n_splits: 10
+n_splits: 4
 parallel: true
