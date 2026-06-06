@@ -1,4 +1,5 @@
 matplotlib
+ngboost
 numpy
 pandas
 PyYAML
