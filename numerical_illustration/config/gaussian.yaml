@@ -2,6 +2,7 @@
 output_dir: data/results
 data_source: simulation
 random_seed: 11
+n_bootstraps: 1
 
 # Simulation setup
 n_samples: 100000
