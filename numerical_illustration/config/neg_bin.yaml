@@ -1,0 +1,59 @@
+# High level configuration
+output_dir: data/results
+data_source: simulation
+random_seed: 42
+
+# Simulation setup
+n_samples: 100000
+n_features: 6
+distribution: neg_bin
+parameter_function: |
+  def parameter(X):
+      # log(mu) = a0 + a1*min(a2, x5)^2 + a3*min(a4, x2) + a5*sin(a6*x3)
+      # a0=1.5, a1=0.15, a2=1.5, a3=1.0, a4=0.5, a5=0.6, a6=1.5
+      z0 = (1.5
+            + 0.15 * np.minimum(1.5, X[:,4])**2
+            + 1.0 * np.minimum(0.5, X[:,1])
+            + 0.6 * np.sin(1.5 * X[:,2]))
+      # log(theta) = b0 + b1*1{x2>0} + b2*|x3|*1{x6>0} + b3*x4
+      # b0=-1.0, b1=2.0, b2=1.2, b3=0.8
+      z1 = (-1.0
+            + 2.0 * (X[:,1] > 0).astype(float)
+            + 1.2 * np.abs(X[:,2]) * (X[:,5] > 0).astype(float)
+            + 0.8 * X[:,3])
+      return np.stack([z0, z1])
+
+# Preprocessing setup
+test_size: 0.2
+normalize: True
+
+# Model setup
+models:
+  - intercept
+  - cglm
+  - gbm
+  - cgbm
+
+# Model hyperparameters
+model_hyperparameters:
+  cglm:
+    max_iter: 2000
+    tolerance: 1e-5
+    step_size: 0.1
+  gbm:
+    n_estimators: 600
+    max_depth: 4
+    learning_rate: 0.05
+  cgbm:
+    n_estimators:
+     - 500
+     - 500
+    max_depth: 4
+    learning_rate:
+      - 0.1
+      - 0.1
+
+# Model tuning
+tuning: true
+n_splits: 2
+parallel: false
