@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 def _run_single_iteration(
-    config: dict, rng: np.random.Generator, iteration: int, n_bootstraps: int
+    config: dict, rng: np.random.Generator, iteration: int = 1, n_bootstraps: int = 1
 ):
     """Run one full simulation iteration: load, preprocess, tune, fit, predict, evaluate."""
     logger.info(f"Bootstrap iteration {iteration + 1}/{n_bootstraps}")
