@@ -1,0 +1,64 @@
+# High level configuration
+output_dir: data/results
+data_source: simulation
+random_seed: 11
+
+# Simulation setup
+n_samples: 100000
+n_features: 5
+distribution: normal
+parameter_function: |
+  def parameter(X):
+      # mu = a1*x1 + a2*x2^2 + a3*|x3|*sin(a4*x2) + a5*x4*x5^2
+      # a1=1.5, a2=0.8, a3=0.5, a4=1.5, a5=0.2
+      z0 = (1.5 * X[:,0]
+            + 0.8 * X[:,1]**2
+            + 0.5 * np.abs(X[:,2]) * np.sin(1.5 * X[:,1])
+            + 0.2 * X[:,3] * X[:,4]**2)
+      # log(sigma) = b0 + b1*x2 + b2*|x1|*sin(b3*x2) + b4*1{x2>0}
+      # b0=-0.5, b1=0.4, b2=0.3, b3=1.0, b4=0.5
+      z1 = (-0.5
+            + 0.4 * X[:,1]
+            + 0.3 * np.abs(X[:,0]) * np.sin(1.0 * X[:,1])
+            + 0.5 * (X[:,1] > 0).astype(float))
+      return np.stack([z0, z1])
+
+# Preprocessing setup
+test_size: 0.2
+normalize: True
+
+# Model setup
+models:
+  - intercept
+  - cglm
+  - gbm
+  - ngboost
+  - cgbm
+
+# Model hyperparameters
+model_hyperparameters:
+  cglm:
+    max_iter: 2000
+    tolerance: 1e-5
+    step_size: 0.1
+  gbm:
+    n_estimators: 600
+    max_depth: 4
+    learning_rate: 0.05
+  ngboost:
+    n_estimators: 2000
+    learning_rate: 0.01
+    early_stopping_rounds: 50
+  cgbm:
+    n_estimators:
+     - 500
+     - 500
+    max_depth: 4
+    learning_rate:
+      - 0.05
+      - 0.01
+
+# Model tuning
+tuning: true
+n_splits: 4
+parallel: false
