@@ -4,14 +4,15 @@ Runs the full pipeline: data loading, preprocessing, tuning, fitting,
 prediction, evaluation, and saving results.
 
 Usage:
-    python numerical_illustration/numerical_illustration.py
+    python numerical_illustration
+    python -m numerical_illustration
     python numerical_illustration/numerical_illustration.py --config path/to/config.yaml
 """
 
 import argparse
 import logging
 
-from tasks import (
+from .tasks import (
     evaluate_predictions,
     fit_models,
     load_input_data,
