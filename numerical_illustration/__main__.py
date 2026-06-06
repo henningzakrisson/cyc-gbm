@@ -5,6 +5,11 @@ Usage:
     python numerical_illustration
 """
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from numerical_illustration.numerical_illustration import main
 
 main()
