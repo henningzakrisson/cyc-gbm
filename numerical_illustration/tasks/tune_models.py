@@ -54,7 +54,6 @@ def tune_models(
             n_estimators[model_name] = tuning_results["n_estimators"]
 
     else:
-        n_estimators = {}
         n_estimators[CGBM] = config[MODEL_HYPERPARAMS][CGBM][N_ESTIMATORS]
-        n_estimators[GBM] = [config[MODEL_HYPERPARAMS][GBM][N_ESTIMATORS]] + [0]*(len(n_estimators[CGBM])-1)
+        n_estimators[GBM] = [config[MODEL_HYPERPARAMS][GBM][N_ESTIMATORS]] + [0] * (len(n_estimators[CGBM]) - 1)
     return loss_results, n_estimators
