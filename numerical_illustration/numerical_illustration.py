@@ -35,6 +35,26 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def _run_single_iteration(config: dict, rng: np.random.Generator):
+    """Run one full simulation iteration: load, preprocess, tune, fit, predict, evaluate."""
+    raw_input_data = load_input_data(config=config, rng=rng)
+    train_data, test_data = preprocess_input_data(
+        config=config, data=raw_input_data, rng=rng
+    )
+    tuning_results, n_estimators = tune_models(
+        config=config, train_data=train_data, rng=rng
+    )
+    models = fit_models(
+        config=config, train_data=train_data, rng=rng, n_estimators=n_estimators
+    )
+    train_data = predict(models=models, data=train_data)
+    test_data = predict(models=models, data=test_data)
+    metrics = evaluate_predictions(
+        train_data=train_data, test_data=test_data, config=config
+    )
+    return train_data, test_data, tuning_results, models, metrics.astype(float)
+
+
 def _format_metrics(mean: pd.DataFrame, std: pd.DataFrame) -> pd.DataFrame:
     """Format mean ± std into a single DataFrame of strings."""
     formatted = mean.copy().astype(object)
@@ -63,52 +83,24 @@ def main():
     n_bootstraps = config.get(N_BOOTSTRAPS, 1)
     child_rngs = rng.spawn(n_bootstraps)
 
-    all_metrics: list[pd.DataFrame] = []
-
-    for b in range(n_bootstraps):
-        logger.info(f"Bootstrap iteration {b + 1}/{n_bootstraps}")
-        b_rng = child_rngs[b]
-
-        # Load data
-        raw_input_data = load_input_data(config=config, rng=b_rng)
-
-        # Preprocess data
-        train_data, test_data = preprocess_input_data(
-            config=config, data=raw_input_data, rng=b_rng
-        )
-
-        # Tune models
-        tuning_results, n_estimators = tune_models(
-            config=config,
-            train_data=train_data,
-            rng=b_rng,
-        )
-
-        # Fit models
-        models = fit_models(
-            config=config, train_data=train_data, rng=b_rng, n_estimators=n_estimators
-        )
-
-        # Predict
-        train_data = predict(models=models, data=train_data)
-        test_data = predict(models=models, data=test_data)
-
-        # Evaluate
-        metrics = evaluate_predictions(
-            train_data=train_data, test_data=test_data, config=config
-        )
-        all_metrics.append(metrics.astype(float))
+    results = [
+        _run_single_iteration(config=config, rng=child_rngs[b])
+        for b in range(n_bootstraps)
+    ]
+    train_data, test_data, tuning_results, models, _ = results[-1]
+    all_metrics = [r[4] for r in results]
 
     logger.info("All bootstrap iterations complete")
 
     # Aggregate metrics across bootstrap iterations
     stacked = np.stack([m.values for m in all_metrics], axis=0)
-    mean_values = np.mean(stacked, axis=0)
-    std_values = np.std(stacked, axis=0)
-
     ref = all_metrics[0]
-    metrics_mean = pd.DataFrame(mean_values, index=ref.index, columns=ref.columns)
-    metrics_std = pd.DataFrame(std_values, index=ref.index, columns=ref.columns)
+    metrics_mean = pd.DataFrame(
+        np.mean(stacked, axis=0), index=ref.index, columns=ref.columns
+    )
+    metrics_std = pd.DataFrame(
+        np.std(stacked, axis=0), index=ref.index, columns=ref.columns
+    )
 
     # Save results (last iteration's data + aggregated metrics)
     save_results(
