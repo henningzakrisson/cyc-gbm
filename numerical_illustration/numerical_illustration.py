@@ -1,10 +1,28 @@
+"""Numerical illustration pipeline for CycGBM.
+
+Runs the full pipeline: data loading, preprocessing, tuning, fitting,
+prediction, evaluation, and saving results.
+
+Usage:
+    python numerical_illustration/numerical_illustration.py
+    python numerical_illustration/numerical_illustration.py --config path/to/config.yaml
+"""
+
+import argparse
 import logging
 
-from tasks import (evaluate_predictions, fit_models, load_input_data, predict,
-                   preprocess_input_data, save_results, setup_pipeline_run,
-                   tune_models)
+from tasks import (
+    evaluate_predictions,
+    fit_models,
+    load_input_data,
+    predict,
+    preprocess_input_data,
+    save_results,
+    setup_pipeline_run,
+    tune_models,
+)
 
-CONFIG_DIR = "numerical_illustration/config/demo_config.yaml"
+DEFAULT_CONFIG_DIR = "numerical_illustration/config/demo_config.yaml"
 
 # Set up a logger
 logging.basicConfig(level=logging.INFO)
@@ -12,8 +30,17 @@ logger = logging.getLogger(__name__)
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Run the numerical illustration pipeline.")
+    parser.add_argument(
+        "--config",
+        default=DEFAULT_CONFIG_DIR,
+        help="Path to config YAML (default: %(default)s)",
+    )
+    args = parser.parse_args()
+    logger.info(f"Using config: {args.config}")
+
     # Setup the numerical illustration
-    config, rng, output_path = setup_pipeline_run(config_path=CONFIG_DIR)
+    config, rng, output_path = setup_pipeline_run(config_path=args.config)
     logger.info("Setup complete")
 
     # Load data
@@ -62,7 +89,7 @@ def main():
     )
     logger.info("Results saved")
 
-    logger.info((metrics.astype(float) / 1e2).round(2))
+    logger.info(metrics.astype(float).round(4))
 
 
 if __name__ == "__main__":

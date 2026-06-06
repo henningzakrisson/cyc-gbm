@@ -43,6 +43,6 @@ def evaluate_predictions(
             y = data_set["y"].values
             w = data_set["w"].values
             z = data_set[theta_cols].values.T
-            metrics.at[model_name, data_name] = distribution.loss(y=y, z=z, w=w).sum()
+            metrics.at[model_name, data_name] = distribution.loss(y=y, z=z, w=w).mean()
 
     return metrics

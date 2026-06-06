@@ -29,7 +29,8 @@ class CyclicGeneralizedLinearModel:
         """
         Fit the model.
         """
-        z = np.zeros((self.d, len(y)))
+        n = len(y)
+        z = np.zeros((self.d, n))
         self.z0 = minimize(
             fun=lambda z0: self.distribution.loss(y=y, z=z0[:, None] + z, w=w).sum(),
             x0=self.distribution.mme(y=y, w=w),
@@ -42,8 +43,8 @@ class CyclicGeneralizedLinearModel:
         for i in range(self.max_iter):
             for j in range(self.d):
                 g = self.distribution.grad(y=y, z=z, w=w, j=j)
-                # Update patameter estimate
-                beta[i, j] = beta[i - 1, j] - self.eps * g @ X
+                # Update parameter estimate; divide by n so step size is data-size invariant
+                beta[i, j] = beta[i - 1, j] - (self.eps / n) * g @ X
                 # Update parameter estimate
                 z[j] = self.z0[j] + beta[i, j] @ X.T
 
@@ -54,7 +55,7 @@ class CyclicGeneralizedLinearModel:
             if i == self.max_iter - 1:
                 Warning("CGLM model did not converge")
 
-        self.beta = beta[-1]
+        self.beta = beta[i]
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """
