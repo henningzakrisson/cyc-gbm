@@ -1,4 +1,4 @@
-from typing import Callable, Type, Union, Optional
+from typing import Callable
 
 import numpy as np
 from scipy.optimize import minimize
@@ -23,7 +23,7 @@ def sigm_inv(x: np.ndarray) -> np.ndarray:
     return np.log(x / (1 - x))
 
 
-def inherit_docstrings(cls: Type) -> Type:
+def inherit_docstrings(cls: type) -> type:
     """
     Decorator to copy docstrings from base class to derived class methods.
 
@@ -43,13 +43,13 @@ def inherit_docstrings(cls: Type) -> Type:
 class Distribution:
     def __init__(
         self,
-        n_dim: Optional[int] = None,
+        n_dim: int | None = None,
     ):
         """Initialize a distribution object."""
         self.n_dim = n_dim
 
     def loss(
-        self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
+        self, y: np.ndarray, z: np.ndarray, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         """
         Calculates the loss of the parameter estimates and the response.
@@ -62,7 +62,7 @@ class Distribution:
         pass
 
     def grad(
-        self, y: np.ndarray, z: np.ndarray, j: int, w: Union[np.ndarray, float] = 1.0
+        self, y: np.ndarray, z: np.ndarray, j: int, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         """
         Calculates the gradients of the loss function with respect to the parameters.
@@ -88,9 +88,9 @@ class Distribution:
     def simulate(
         self,
         z: np.ndarray,
-        w: Union[np.ndarray, float] = 1.0,
-        random_state: Union[int, None] = None,
-        rng: Union[np.random.Generator, None] = None,
+        w: np.ndarray | float = 1.0,
+        random_state: int | None = None,
+        rng: np.random.Generator | None = None,
     ) -> np.ndarray:
         """Simulate values given parameter values in z
 
@@ -129,7 +129,7 @@ class MultivariateNormalDistribution(Distribution):
         super().__init__(n_dim=3)
 
     def loss(
-        self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
+        self, y: np.ndarray, z: np.ndarray, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         if np.any(w != 1):
             raise NotImplementedError(
@@ -148,7 +148,7 @@ class MultivariateNormalDistribution(Distribution):
         return z[1] + 0.5 * mu_term * rho_term / s2
 
     def grad(
-        self, y: np.ndarray, z: np.ndarray, j: int, w: Union[np.ndarray, float] = 1.0
+        self, y: np.ndarray, z: np.ndarray, j: int, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         if np.any(w != 1):
             raise NotImplementedError(
@@ -191,7 +191,7 @@ class MultivariateNormalDistribution(Distribution):
                 )
             )
 
-    def mme(self, y: np.ndarray, w: Union[np.ndarray, float] = 1.0) -> np.ndarray:
+    def mme(self, y: np.ndarray, w: np.ndarray | float = 1.0) -> np.ndarray:
         # Return the mean, variance and correlation of a 2d normal distribution
         if np.any(w != 1):
             raise NotImplementedError(
@@ -205,9 +205,9 @@ class MultivariateNormalDistribution(Distribution):
     def simulate(
         self,
         z: np.ndarray,
-        w: Union[np.ndarray, float] = 1.0,
-        random_state: Union[int, None] = None,
-        rng: Union[np.random.Generator, None] = None,
+        w: np.ndarray | float = 1.0,
+        random_state: int | None = None,
+        rng: np.random.Generator | None = None,
     ) -> np.ndarray:
         if np.any(w != 1):
             raise NotImplementedError(
@@ -228,7 +228,7 @@ class MultivariateNormalDistribution(Distribution):
         )
 
     def moment(
-        self, z: np.ndarray, k: int, w: Union[np.ndarray, float] = 1.0
+        self, z: np.ndarray, k: int, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         if np.any(w != 1):
             raise NotImplementedError(
@@ -254,7 +254,7 @@ class NormalDistribution(Distribution):
         super().__init__(n_dim=2)
 
     def loss(
-        self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
+        self, y: np.ndarray, z: np.ndarray, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         return (
             0.5 * np.log(w)
@@ -263,14 +263,14 @@ class NormalDistribution(Distribution):
         )
 
     def grad(
-        self, y: np.ndarray, z: np.ndarray, j: int, w: Union[np.ndarray, float] = 1.0
+        self, y: np.ndarray, z: np.ndarray, j: int, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         if j == 0:
             return -np.exp(-2 * z[1]) * (y - w * z[0])
         elif j == 1:
             return 1 - np.exp(-2 * z[1]) * (y - w * z[0]) ** 2 / w
 
-    def mme(self, y: np.ndarray, w: Union[np.ndarray, float] = 1.0) -> np.ndarray:
+    def mme(self, y: np.ndarray, w: np.ndarray | float = 1.0) -> np.ndarray:
         if not isinstance(w, np.ndarray):
             w = np.array([w] * len(y))
         mean = y.sum() / w.sum()
@@ -280,16 +280,16 @@ class NormalDistribution(Distribution):
     def simulate(
         self,
         z: np.ndarray,
-        w: Union[np.ndarray, float] = 1.0,
-        random_state: Union[int, None] = None,
-        rng: Union[np.random.Generator, None] = None,
+        w: np.ndarray | float = 1.0,
+        random_state: int | None = None,
+        rng: np.random.Generator | None = None,
     ) -> np.ndarray:
         if rng is None:
             rng = np.random.default_rng(seed=random_state)
         return rng.normal(w * z[0], w**0.5 * np.exp(z[1]))
 
     def moment(
-        self, z: np.ndarray, k: int, w: Union[np.ndarray, float] = 1.0
+        self, z: np.ndarray, k: int, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         if k == 1:
             return w * z[0]
@@ -309,7 +309,7 @@ class NegativeBinomialDistribution(Distribution):
         super().__init__(n_dim=2)
 
     def loss(
-        self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
+        self, y: np.ndarray, z: np.ndarray, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         return (
             loggamma(w * np.exp(z[1]))
@@ -320,7 +320,7 @@ class NegativeBinomialDistribution(Distribution):
         )
 
     def grad(
-        self, y: np.ndarray, z: np.ndarray, j: int, w: Union[np.ndarray, float] = 1.0
+        self, y: np.ndarray, z: np.ndarray, j: int, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         if j == 0:
             return (w * np.exp(z[1]) + y) * np.exp(z[0]) / (
@@ -340,7 +340,7 @@ class NegativeBinomialDistribution(Distribution):
                 )
             )
 
-    def mme(self, y: np.ndarray, w: Union[np.ndarray, float] = 1.0) -> np.ndarray:
+    def mme(self, y: np.ndarray, w: np.ndarray | float = 1.0) -> np.ndarray:
         if isinstance(w, float):
             w = np.array([w] * len(y))
         mean = y.sum() / w.sum()
@@ -351,9 +351,9 @@ class NegativeBinomialDistribution(Distribution):
     def simulate(
         self,
         z: np.ndarray,
-        w: Union[np.ndarray, float] = 1.0,
-        random_state: Union[int, None] = None,
-        rng: Union[np.random.Generator, None] = None,
+        w: np.ndarray | float = 1.0,
+        random_state: int | None = None,
+        rng: np.random.Generator | None = None,
     ) -> np.ndarray:
         if rng is None:
             rng = np.random.default_rng(seed=random_state)
@@ -363,7 +363,7 @@ class NegativeBinomialDistribution(Distribution):
         return y.astype(float)
 
     def moment(
-        self, z: np.ndarray, k: int, w: Union[np.ndarray, float] = 1.0
+        self, z: np.ndarray, k: int, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         if k == 1:
             return w * np.exp(z[0])
@@ -383,7 +383,7 @@ class InverseGaussianDistribution(Distribution):
         super().__init__(n_dim=2)
 
     def loss(
-        self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
+        self, y: np.ndarray, z: np.ndarray, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         if np.any(w != 1):
             raise NotImplementedError(
@@ -395,7 +395,7 @@ class InverseGaussianDistribution(Distribution):
         )
 
     def grad(
-        self, y: np.ndarray, z: np.ndarray, j: int, w: Union[np.ndarray, float] = 1.0
+        self, y: np.ndarray, z: np.ndarray, j: int, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         if np.any(w != 1):
             raise NotImplementedError(
@@ -409,7 +409,7 @@ class InverseGaussianDistribution(Distribution):
                 - 1
             )
 
-    def mme(self, y: np.ndarray, w: Union[np.ndarray, float] = 1.0) -> np.ndarray:
+    def mme(self, y: np.ndarray, w: np.ndarray | float = 1.0) -> np.ndarray:
         if np.any(w != 1):
             raise NotImplementedError(
                 "Weighted loss not implemented for InverseGaussianDistribution"
@@ -423,9 +423,9 @@ class InverseGaussianDistribution(Distribution):
     def simulate(
         self,
         z: np.ndarray,
-        w: Union[np.ndarray, float] = 1.0,
-        random_state: Union[int, None] = None,
-        rng: Union[np.random.Generator, None] = None,
+        w: np.ndarray | float = 1.0,
+        random_state: int | None = None,
+        rng: np.random.Generator | None = None,
     ) -> np.ndarray:
         if np.any(w != 1):
             raise NotImplementedError(
@@ -436,7 +436,7 @@ class InverseGaussianDistribution(Distribution):
         return rng.wald(np.exp(z[0]), np.exp(z[1]))
 
     def moment(
-        self, z: np.ndarray, k: int, w: Union[np.ndarray, float] = 1.0
+        self, z: np.ndarray, k: int, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         if np.any(w != 1):
             raise NotImplementedError(
@@ -461,7 +461,7 @@ class GammaDistribution(Distribution):
         super().__init__(n_dim=2)
 
     def loss(
-        self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
+        self, y: np.ndarray, z: np.ndarray, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         return (
             loggamma(w * np.exp(-z[1]))
@@ -470,7 +470,7 @@ class GammaDistribution(Distribution):
         )
 
     def grad(
-        self, y: np.ndarray, z: np.ndarray, j: int, w: Union[np.ndarray, float] = 1.0
+        self, y: np.ndarray, z: np.ndarray, j: int, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         if j == 0:
             return np.exp(-z[1]) * (w - y * np.exp(-z[0]))
@@ -488,7 +488,7 @@ class GammaDistribution(Distribution):
                 )
             )
 
-    def mme(self, y: np.ndarray, w: Union[np.ndarray, float] = 1.0) -> np.ndarray:
+    def mme(self, y: np.ndarray, w: np.ndarray | float = 1.0) -> np.ndarray:
         if isinstance(w, float):
             w = np.array([w] * len(y))
         mean = y.sum() / w.sum()
@@ -501,9 +501,9 @@ class GammaDistribution(Distribution):
     def simulate(
         self,
         z: np.ndarray,
-        w: Union[np.ndarray, float] = 1.0,
-        random_state: Union[int, None] = None,
-        rng: Union[np.random.Generator, None] = None,
+        w: np.ndarray | float = 1.0,
+        random_state: int | None = None,
+        rng: np.random.Generator | None = None,
     ) -> np.ndarray:
         if rng is None:
             rng = np.random.default_rng(seed=random_state)
@@ -512,7 +512,7 @@ class GammaDistribution(Distribution):
         return rng.gamma(shape=shape, scale=scale)
 
     def moment(
-        self, z: np.ndarray, k: int, w: Union[np.ndarray, float] = 1.0
+        self, z: np.ndarray, k: int, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         if k == 1:
             return w * np.exp(z[0])
@@ -533,7 +533,7 @@ class BetaPrimeDistribution(Distribution):
         super().__init__(n_dim=2)
 
     def loss(
-        self, y: np.ndarray, z: np.ndarray, w: Union[np.ndarray, float] = 1.0
+        self, y: np.ndarray, z: np.ndarray, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         if np.any(np.any(w != 1)):
             raise NotImplementedError(
@@ -548,7 +548,7 @@ class BetaPrimeDistribution(Distribution):
         )
 
     def grad(
-        self, y: np.ndarray, z: np.ndarray, j: int, w: Union[np.ndarray, float] = 1.0
+        self, y: np.ndarray, z: np.ndarray, j: int, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         if np.any(w != 1):
             raise NotImplementedError(
@@ -580,7 +580,7 @@ class BetaPrimeDistribution(Distribution):
                 )
             )
 
-    def mme(self, y: np.ndarray, w: Union[np.ndarray, float] = 1.0) -> np.ndarray:
+    def mme(self, y: np.ndarray, w: np.ndarray | float = 1.0) -> np.ndarray:
         if np.any(w != 1):
             raise NotImplementedError(
                 "Weighted loss not implemented for BetaPrimeDistribution"
@@ -595,9 +595,9 @@ class BetaPrimeDistribution(Distribution):
     def simulate(
         self,
         z: np.ndarray,
-        w: Union[np.ndarray, float] = 1.0,
-        random_state: Union[int, None] = None,
-        rng: Union[np.random.Generator, None] = None,
+        w: np.ndarray | float = 1.0,
+        random_state: int | None = None,
+        rng: np.random.Generator | None = None,
     ) -> np.ndarray:
         if np.any(w != 1):
             raise NotImplementedError(
@@ -613,7 +613,7 @@ class BetaPrimeDistribution(Distribution):
         return y0 / (1 - y0)
 
     def moment(
-        self, z: np.ndarray, k: int, w: Union[np.ndarray, float] = 1.0
+        self, z: np.ndarray, k: int, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
         if np.any(w != 1):
             raise NotImplementedError(
@@ -629,21 +629,21 @@ class BetaPrimeDistribution(Distribution):
 class CustomDistribution(Distribution):
     def __init__(
         self,
-        loss: Callable[[np.ndarray, np.ndarray, Union[np.ndarray, float]], np.ndarray],
+        loss: Callable[[np.ndarray, np.ndarray, np.ndarray | float], np.ndarray],
         grad: Callable[
-            [np.ndarray, np.ndarray, int, Union[np.ndarray, float]], np.ndarray
+            [np.ndarray, np.ndarray, int, np.ndarray | float], np.ndarray
         ],
-        mme: Callable[[np.ndarray, Union[np.ndarray, float]], np.ndarray],
+        mme: Callable[[np.ndarray, np.ndarray | float], np.ndarray],
         simulate: Callable[
             [
                 np.ndarray,
-                Union[np.ndarray, float],
-                Union[int, None],
-                Union[np.random.Generator, None],
+                np.ndarray | float,
+                int | None,
+                np.random.Generator | None,
             ],
             np.ndarray,
         ],
-        moment: Callable[[np.ndarray, int, Union[np.ndarray, float]], np.ndarray],
+        moment: Callable[[np.ndarray, int, np.ndarray | float], np.ndarray],
         d: int,
     ):
         """
@@ -666,31 +666,19 @@ class CustomDistribution(Distribution):
 
 def initiate_distribution(
     distribution: str = "custom",
-    loss: Union[
-        None, Callable[[np.ndarray, np.ndarray, Union[np.ndarray, float]], np.ndarray]
-    ] = None,
-    grad: Union[
-        None,
-        Callable[[np.ndarray, np.ndarray, int, Union[np.ndarray, float]], np.ndarray],
-    ] = None,
-    mme: Union[
-        None, Callable[[np.ndarray, Union[np.ndarray, float]], np.ndarray]
-    ] = None,
-    simulate: Union[
-        None,
-        Callable[
-            [
-                np.ndarray,
-                Union[np.ndarray, float],
-                Union[int, None],
-                Union[np.random.Generator, None],
-            ],
+    loss: Callable[[np.ndarray, np.ndarray, np.ndarray | float], np.ndarray] | None = None,
+    grad: Callable[[np.ndarray, np.ndarray, int, np.ndarray | float], np.ndarray] | None = None,
+    mme: Callable[[np.ndarray, np.ndarray | float], np.ndarray] | None = None,
+    simulate: Callable[
+        [
             np.ndarray,
+            np.ndarray | float,
+            int | None,
+            np.random.Generator | None,
         ],
-    ] = None,
-    moment: Union[
-        None, Callable[[np.ndarray, int, Union[np.ndarray, float]], np.ndarray]
-    ] = None,
+        np.ndarray,
+    ] | None = None,
+    moment: Callable[[np.ndarray, int, np.ndarray | float], np.ndarray] | None = None,
     n_dim: int = 2,
 ) -> Distribution:
     """

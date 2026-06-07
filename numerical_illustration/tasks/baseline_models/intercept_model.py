@@ -1,5 +1,3 @@
-from typing import Union
-
 import numpy as np
 from scipy.optimize import minimize
 
@@ -26,7 +24,7 @@ class InterceptModel:
         self,
         X: np.ndarray,
         y: np.ndarray,
-        w: Union[np.ndarray, float] = 1,
+        w: np.ndarray | float = 1,
     ) -> None:
         """
         Fit the model.

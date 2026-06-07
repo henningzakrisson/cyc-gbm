@@ -1,6 +1,6 @@
 """Root configuration model that composes all sub-configs."""
 
-from typing import Annotated, Dict, List, Self, Union
+from typing import Annotated, Self
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -24,7 +24,7 @@ class NumericalIllustrationConfig(BaseModel):
     """
 
     data: Annotated[
-        Union[SimulationConfig, LocalDataConfig],
+        SimulationConfig | LocalDataConfig,
         Field(discriminator="data_source"),
     ]
     output: DumpingConfig = Field(default_factory=DumpingConfig)
@@ -33,21 +33,18 @@ class NumericalIllustrationConfig(BaseModel):
     tuning: TuningConfig = Field(default_factory=TuningConfig)
 
     @property
-    def model_names(self) -> List[str]:
+    def model_names(self) -> list[str]:
         """List of model class name strings."""
         return [m.model_class for m in self.models]
 
     @property
-    def model_configs_by_class(self) -> Dict[ModelClass, ModelConfig]:
+    def model_configs_by_class(self) -> dict[ModelClass, ModelConfig]:
         """Lookup of model configs keyed by their ModelClass."""
         return {m.model_class: m for m in self.models}
 
     @model_validator(mode="after")
     def no_bootstrap_with_local_data(self) -> Self:
-        if (
-            self.bootstrap.n_bootstraps > 1
-            and isinstance(self.data, LocalDataConfig)
-        ):
+        if self.bootstrap.n_bootstraps > 1 and isinstance(self.data, LocalDataConfig):
             raise ValueError(
                 "Bootstrap (n_bootstraps > 1) is not supported with local file "
                 "data source. Use simulation or set n_bootstraps to 1."

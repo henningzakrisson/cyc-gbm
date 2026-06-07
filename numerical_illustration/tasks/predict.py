@@ -1,5 +1,3 @@
-from typing import Dict, Union
-
 import numpy as np
 import pandas as pd
 
@@ -10,9 +8,9 @@ from .utils.utils import get_targets_features
 
 
 def predict(
-    models: Dict[
+    models: dict[
         str,
-        Union[InterceptModel, CyclicGeneralizedLinearModel, CyclicalGradientBooster],
+        InterceptModel | CyclicGeneralizedLinearModel | CyclicalGradientBooster,
     ],
     data: pd.DataFrame,
 ) -> pd.DataFrame:

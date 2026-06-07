@@ -1,6 +1,6 @@
 import logging
 from collections.abc import Iterable
-from typing import Any, Dict, List
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -28,9 +28,9 @@ def fit_models(
     distribution: Distribution,
     train_data: pd.DataFrame,
     rng: np.random.Generator,
-    n_estimators: Dict[str, List[int]],
+    n_estimators: dict[str, list[int]],
     log_prefix: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Fit the models specified in the config.
 
     Args:
@@ -60,7 +60,7 @@ def fit_models(
 def _build_and_fit(
     model_config: ModelConfig,
     distribution: Distribution,
-    n_estimators: Dict[str, List[int]],
+    n_estimators: dict[str, list[int]],
     X: np.ndarray,
     y: np.ndarray,
     w: np.ndarray,
