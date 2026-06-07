@@ -27,7 +27,7 @@ from .tasks import (
     setup_pipeline_run,
     tune_models,
 )
-from .tasks.utils.constants import N_BOOTSTRAPS
+from .tasks.utils.constants import N_BOOTSTRAPS, N_JOBS, PARALLEL
 
 DEFAULT_CONFIG_DIR = "numerical_illustration/config/demo_config.yaml"
 
@@ -87,9 +87,9 @@ def main():
     n_bootstraps = config.get(N_BOOTSTRAPS, 1)
     child_rngs = rng.spawn(n_bootstraps)
 
-    parallel = config.get("parallel", False)
+    parallel = config.get(PARALLEL, False)
     if parallel and n_bootstraps > 1:
-        n_jobs = config.get("n_jobs", -1)
+        n_jobs = config.get(N_JOBS, -1)
         logger.info(
             f"Running {n_bootstraps} bootstrap iterations in parallel (n_jobs={n_jobs})"
         )

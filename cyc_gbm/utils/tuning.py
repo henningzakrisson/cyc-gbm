@@ -45,17 +45,14 @@ def tune_n_estimators(
     folds = _fold_split(X=X, y=y, w=w, n_splits=n_splits, rng=rng)
 
     logger.info(f"Performing cross-validation on {n_splits} folds")
-    results = []
-    for i in folds:
-        model.reset(n_estimators=0)
-        logger.info(f"Fold {i+1}/{n_splits}")
-        results.append(
-            _evaluate_fold(
-                fold=folds[i],
-                model=model,
-                n_estimators_max=n_estimators_max,
-            )
+    results = [
+        _evaluate_fold(
+            fold=folds[i],
+            model=model,
+            n_estimators_max=n_estimators_max,
         )
+        for i in folds
+    ]
 
     loss = {
         "train": [result[0] for result in results],
@@ -118,7 +115,8 @@ def _evaluate_fold(
 ):
     X_train, y_train, w_train, X_valid, y_valid, w_valid = fold
 
-    model.fit(X=X_train, y=y_train, w=w_train,verbose=False)
+    model.reset(n_estimators=0)
+    model.fit(X=X_train, y=y_train, w=w_train, verbose=False)
     z_train = model.predict(X=X_train)
     z_valid = model.predict(X=X_valid)
 
