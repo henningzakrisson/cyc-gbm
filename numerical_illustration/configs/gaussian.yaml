@@ -17,9 +17,9 @@ data:
         # log(sigma) = b0 + b1*x2 + b2*|x1|*sin(b3*x2) + b4*1{x2>0}
         # b0=-0.5, b1=0.4, b2=0.3, b3=1.0, b4=0.5
         z1 = (-0.5
-              + 0.3 * X[:,1]
+              + 0.4 * X[:,1]
               + 0.3 * np.abs(X[:,0]) * np.sin(1.0 * X[:,1])
-              + 0.3 * (X[:,1] > 0).astype(float))
+              + 0.5 * (X[:,1] > 0).astype(float))
         return np.stack([z0, z1])
 
 output:
@@ -32,21 +32,21 @@ models:
     tolerance: 1e-5
     step_size: 0.1
   - model_class: gbm
-    n_estimators: 500
+    n_estimators: 600
     max_depth: 4
     learning_rate: 0.05
   - model_class: ngboost
-    n_estimators: 500
+    n_estimators: 2000
     max_depth: 4
-    learning_rate: 0.05
+    learning_rate: 0.01
   - model_class: cgbm
     n_estimators: [500, 500]
     max_depth: 4
-    learning_rate: [0.05, 0.025]
+    learning_rate: [0.05, 0.01]
 
 bootstrap:
-  n_bootstraps: 1
-  parallel: false
+  n_bootstraps: 3
+  parallel: true
   n_jobs: -1
 
 tuning:
