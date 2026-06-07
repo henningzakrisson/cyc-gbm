@@ -22,6 +22,7 @@ class BoostingTree(DecisionTreeRegressor):
         max_depth: int,
         min_samples_split: int,
         min_samples_leaf: int,
+        categorical_features: list[int] | None = None,
     ):
         """
         Constructs a new BoostingTree instance.
@@ -30,12 +31,18 @@ class BoostingTree(DecisionTreeRegressor):
         :param max_depth: The maximum depth of the tree.
         :param min_samples_split: The minimum number of samples required to split an internal node.
         :param min_samples_leaf: The minimum number of samples required to be at a leaf node.
+        :param categorical_features: Indices of categorical features within the feature subset.
         """
-        super().__init__(
+        categorical_features = categorical_features or []
+        init_kwargs = dict(
             max_depth=max_depth,
             min_samples_split=min_samples_split,
             min_samples_leaf=min_samples_leaf,
         )
+        if categorical_features:
+            init_kwargs["categorical_features"] = categorical_features
+        super().__init__(**init_kwargs)
+        self.categorical_features = categorical_features
         self.distribution = distribution
 
     def fit_gradients(
@@ -57,7 +64,53 @@ class BoostingTree(DecisionTreeRegressor):
         """
         g = self.distribution.grad(y=y, z=z, w=w, j=j)
         self.fit(X, -g)
+        if self.categorical_features:
+            X = self._encode_categorical_columns(X)
         self._adjust_node_values(X=X, y=y, z=z, w=w, j=j)
+
+    def _encode_categorical_columns(self, X: np.ndarray) -> np.ndarray:
+        """Encode categorical columns using the encoder fitted by sklearn during fit().
+
+        :param X: Input data (may contain raw categorical values).
+        :return: Copy of X with categorical columns replaced by integer codes.
+        """
+        X = X.copy()
+        X_cat = X[:, self.categorical_features]
+        if X_cat.ndim == 1:
+            X_cat = X_cat.reshape(-1, 1)
+        X_cat_encoded = self._categorical_encoder.transform(X_cat)
+        X[:, self.categorical_features] = X_cat_encoded
+        return X
+
+    @staticmethod
+    def _split_numerical(X: np.ndarray, feature: int, threshold: float) -> np.ndarray:
+        """Compute boolean mask for samples going to the left child at a numerical split.
+
+        :param X: Input data of shape (n_samples, n_features).
+        :param feature: Feature index used for the split.
+        :param threshold: Split threshold.
+        :return: Boolean array where True means the sample goes left.
+        """
+        return X[:, feature] <= threshold
+
+    @staticmethod
+    def _split_categorical(
+        X: np.ndarray, feature: int, bitset: np.ndarray
+    ) -> np.ndarray:
+        """Compute boolean mask for samples going to the left child at a categorical split.
+
+        Uses the bitset stored by sklearn's tree: bit k set means category k goes left.
+
+        :param X: Input data of shape (n_samples, n_features), with integer-encoded categoricals.
+        :param feature: Feature index used for the split.
+        :param bitset: Array of shape (8,) with dtype uint32 — the left_cat_bitset for this node.
+        :return: Boolean array where True means the sample goes left.
+        """
+        cat_values = X[:, feature].astype(np.intp)
+        word_idx = cat_values >> 5       # cat_value // 32
+        bit_idx = cat_values & 31        # cat_value % 32
+        words = bitset[word_idx]
+        return ((words >> bit_idx) & 1).astype(bool)
 
     def _adjust_node_values(
         self,
@@ -96,8 +149,12 @@ class BoostingTree(DecisionTreeRegressor):
         if feature == -2:
             # This is a leaf
             return
-        threshold = self.tree_.threshold[node_index]
-        index_left = X[:, feature] <= threshold
+        if feature in self.categorical_features:
+            bitset = self.tree_.left_cat_bitset[node_index]
+            index_left = self._split_categorical(X, feature, bitset)
+        else:
+            threshold = self.tree_.threshold[node_index]
+            index_left = self._split_numerical(X, feature, threshold)
         child_left = self.tree_.children_left[node_index]
         child_right = self.tree_.children_right[node_index]
         self._adjust_node_values(

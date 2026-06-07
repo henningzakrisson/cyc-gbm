@@ -54,5 +54,34 @@ loss = model.distribution.loss(y=y_test, z=model.predict(X_test)).sum()
 print(f'negative log likelihood: {loss}')
 ```
 
+## Experimental: Categorical feature support
+
+The base learner in `cyc-gbm` is scikit-learn's `DecisionTreeRegressor`, which
+currently does not support native categorical splits. There is an
+[open PR (scikit-learn #33354)](https://github.com/scikit-learn/scikit-learn/pull/33354)
+that adds this functionality. **Once that PR is merged and released, this
+workaround will no longer be required.**
+
+To experiment with categorical features, install scikit-learn from the PR branch:
+
+```bash
+uv pip install "scikit-learn @ git+https://github.com/adam2392/scikit-learn.git@nocats-v2" --force-reinstall
+```
+
+> **Note:** This builds scikit-learn from source (C/Cython compilation) and
+> requires a C compiler. On macOS this is included in the Xcode Command Line
+> Tools (`xcode-select --install`); on Linux install `gcc`/`g++` from your
+> package manager. The build takes roughly 5–15 minutes. To revert to the stable
+> release, run:
+> ```bash
+> uv pip install scikit-learn==1.8.0 --force-reinstall
+> ```
+
+After installing the PR branch, use `.venv/bin/python` to run scripts — **not**
+`uv run`. `uv run` re-syncs dependencies from `pyproject.toml` and will
+downgrade scikit-learn back to `1.8.0`, undoing the workaround.
+
+This is experimental and depends on an unmerged PR — the API may change.
+
 ## Contact
 If you have any questions, feel free to contact me [here](mailto:henning.zakrisson@gmail.com).

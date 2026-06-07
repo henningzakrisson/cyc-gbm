@@ -1,3 +1,4 @@
+import inspect
 import logging
 
 import numpy as np
@@ -56,9 +57,8 @@ class CyclicalGradientBooster:
         self.feature_selection = feature_selection
 
         self.z0 = 0
-        self.trees = self._initialize_trees()
-        self.feature_names = None
-        self.n_features = None
+        self.trees = None
+        self._feature_names = None
 
     def _setup_hyper_parameter(self, hyper_parameter) -> list:
         """
@@ -88,6 +88,9 @@ class CyclicalGradientBooster:
                     max_depth=self.max_depth[j],
                     min_samples_split=self.min_samples_split[j],
                     min_samples_leaf=self.min_samples_leaf[j],
+                    categorical_features=self._categorical_features_for_subset(
+                        self._feature_selection[j]
+                    ),
                 )
                 for _ in range(self.n_estimators[j])
             ]
@@ -110,6 +113,7 @@ class CyclicalGradientBooster:
         :param verbose: Whether to log progress.
         """
         self._initialize_feature_metadata(X=X)
+        self.trees = self._initialize_trees()
         X, y, w = fix_datatype(X=X, y=y, w=w)
 
         self.z0 = self.initialize_estimate(y=y, w=w)
@@ -121,10 +125,10 @@ class CyclicalGradientBooster:
             for j in range(self.n_dim):
                 if k < self.n_estimators[j]:
                     self.trees[j][k].fit_gradients(
-                        X=X[:, self.feature_selection[j]], y=y, z=z, w=w, j=j
+                        X=X[:, self._feature_selection[j]], y=y, z=z, w=w, j=j
                     )
                     z[j] += self.learning_rate[j] * self.trees[j][k].predict(
-                        X[:, self.feature_selection[j]]
+                        X[:, self._feature_selection[j]]
                     )
 
                     # Log progress
@@ -152,21 +156,69 @@ class CyclicalGradientBooster:
         If the input data is a DataFrame, the column names are returned.
         Otherwise, the features are named 0, 1, ..., p-1.
         The feature selection is fixed to comply with the numpy array format.
+        Categorical features (pd.CategoricalDtype columns) are detected and stored.
         """
         if isinstance(X, pd.DataFrame):
-            self.feature_names = list(X.columns)
+            self._feature_names = list(X.columns)
+            self._categorical_features = {
+                col
+                for col in X.columns
+                if isinstance(X[col].dtype, pd.CategoricalDtype)
+            }
             if self.feature_selection is not None:
-                self.feature_selection = [
+                self._feature_selection = [
                     [X.columns.get_loc(f) for f in self.feature_selection[j]]
                     for j in range(self.n_dim)
                 ]
+            else:
+                self._feature_selection = None
         else:
-            self.feature_names = list(np.arange(X.shape[1]))
-        if self.feature_selection is None:
-            self.feature_selection = [
+            self._feature_names = list(np.arange(X.shape[1]))
+            self._categorical_features = set()
+            self._feature_selection = None
+        if self._feature_selection is None:
+            self._feature_selection = [
                 list(range(X.shape[1])) for j in range(self.n_dim)
             ]
-        self.n_features = X.shape[1]
+        if self._categorical_features:
+            self._check_categorical_support()
+
+    @property
+    def _n_features(self) -> int | None:
+        """Number of features, derived from stored feature names."""
+        return len(self._feature_names) if self._feature_names else None
+
+    @staticmethod
+    def _check_categorical_support() -> None:
+        """Raise if the installed scikit-learn does not support categorical features."""
+        from sklearn.tree import DecisionTreeRegressor
+
+        has_support = "categorical_features" in inspect.signature(
+            DecisionTreeRegressor.__init__
+        ).parameters
+        if not has_support:
+            msg = (
+                "The installed version of scikit-learn does not support categorical "
+                "features in DecisionTreeRegressor. Install the branch from "
+                "https://github.com/scikit-learn/scikit-learn/pull/33354 :\n\n"
+                '  uv pip install "scikit-learn @ git+https://github.com/adam2392/'
+                'scikit-learn.git@nocats-v2" --force-reinstall'
+            )
+            raise RuntimeError(msg)
+
+    def _categorical_features_for_subset(self, feature_indices: list[int]) -> list[int]:
+        """Map categorical feature names to positions within a feature subset.
+
+        :param feature_indices: Column indices for the subset (from _feature_selection[j]).
+        :return: List of positions within the subset that are categorical.
+        """
+        if not self._categorical_features:
+            return []
+        return [
+            i
+            for i, col_idx in enumerate(feature_indices)
+            if self._feature_names[col_idx] in self._categorical_features
+        ]
 
     def initialize_estimate(
         self,
@@ -206,7 +258,7 @@ class CyclicalGradientBooster:
         :param z: Current predictions of the model. If None, the current predictions are calculated.
         :param w: Weights for the training data, of shape (n_samples,). Default is 1 for all samples.
         """
-        X, y, w = fix_datatype(X=X, y=y, w=w, feature_names=self.feature_names)
+        X, y, w = fix_datatype(X=X, y=y, w=w, feature_names=self._feature_names)
         if z is None:
             z = self.predict(X)
         self.trees[j].append(
@@ -215,10 +267,13 @@ class CyclicalGradientBooster:
                 max_depth=self.max_depth[j],
                 min_samples_split=self.min_samples_split[j],
                 min_samples_leaf=self.min_samples_leaf[j],
+                categorical_features=self._categorical_features_for_subset(
+                    self._feature_selection[j]
+                ),
             )
         )
         self.trees[j][-1].fit_gradients(
-            X=X[:, self.feature_selection[j]], y=y, z=z, w=w, j=j
+            X=X[:, self._feature_selection[j]], y=y, z=z, w=w, j=j
         )
         self.n_estimators[j] += 1
 
@@ -231,13 +286,13 @@ class CyclicalGradientBooster:
         :param X: Input data matrix of shape (n_samples, n_features).
         :return: Predicted response values of shape (d,n_samples).
         """
-        X = fix_datatype(X=X, feature_names=self.feature_names)
+        X = fix_datatype(X=X, feature_names=self._feature_names)
         return self.z0[:, None] + np.array(
             [
                 self.learning_rate[j]
                 * np.sum(
                     [
-                        tree.predict(X[:, self.feature_selection[j]])
+                        tree.predict(X[:, self._feature_selection[j]])
                         for tree in self.trees[j]
                     ],
                     axis=0,
@@ -258,29 +313,29 @@ class CyclicalGradientBooster:
         :return: Feature importance of shape (n_features,)
         """
         if j == "all":
-            feature_importances = np.zeros(self.n_features)
+            feature_importances = np.zeros(self._n_features)
             for j in range(self.n_dim):
                 feature_importances_from_trees = np.array(
                     [tree.compute_feature_importances() for tree in self.trees[j]]
                 ).sum(axis=0)
                 feature_importances[
-                    self.feature_selection[j]
+                    self._feature_selection[j]
                 ] += feature_importances_from_trees
         else:
-            feature_importances = np.zeros(self.n_features)
+            feature_importances = np.zeros(self._n_features)
             feature_importances_from_trees = np.array(
                 [tree.compute_feature_importances() for tree in self.trees[j]]
             ).sum(axis=0)
 
             feature_importances[
-                self.feature_selection[j]
+                self._feature_selection[j]
             ] = feature_importances_from_trees
         if normalize:
             feature_importances /= feature_importances.sum()
 
         return {
-            self.feature_names[i]: feature_importances[i]
-            for i in range(self.n_features)
+            self._feature_names[i]: feature_importances[i]
+            for i in range(self._n_features)
         }
 
     def reset(self, n_estimators: int | list[int] | None = None) -> None:
@@ -296,8 +351,6 @@ class CyclicalGradientBooster:
                 else n_estimators
             )
 
-        self.trees = self._initialize_trees()
-
+        self.trees = None
         self.z0 = None
-        self.n_features = None
-        self.feature_names = None
+        self._feature_names = None
