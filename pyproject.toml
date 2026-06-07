@@ -12,15 +12,17 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "matplotlib==3.10.9",
-    "ngboost==0.5.10",
     "numpy==2.4.6",
     "pandas==2.3.3",
-    "pydantic==2.13.4",
-    "PyYAML==6.0.3",
     "scikit-learn==1.8.0",
     "scipy==1.17.1",
-    "tikzplotlib==0.10.1",
+]
+
+[project.optional-dependencies]
+numerical-illustration = [
+    "ngboost==0.5.10",
+    "pydantic==2.13.4",
+    "PyYAML==6.0.3",
 ]
 
 [project.urls]
