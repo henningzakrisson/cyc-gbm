@@ -37,19 +37,29 @@ logger = logging.getLogger(__name__)
 
 
 def _run_single_iteration(
-    config: dict, rng: np.random.Generator, iteration: int = 1, n_bootstraps: int = 1
+    config: dict,
+    rng: np.random.Generator,
+    iteration: int = 1,
+    n_bootstraps: int = 1,
+    log_prefix: str = "",
 ):
     """Run one full simulation iteration: load, preprocess, tune, fit, predict, evaluate."""
-    logger.info(f"Bootstrap iteration {iteration + 1}/{n_bootstraps}")
+    if n_bootstraps > 1:
+        log_prefix = f"[bootstrap {iteration + 1}/{n_bootstraps}] "
+    logger.info(f"{log_prefix}Starting iteration")
     raw_input_data = load_input_data(config=config, rng=rng)
     train_data, test_data = preprocess_input_data(
         config=config, data=raw_input_data, rng=rng
     )
     tuning_results, n_estimators = tune_models(
-        config=config, train_data=train_data, rng=rng
+        config=config, train_data=train_data, rng=rng, log_prefix=log_prefix
     )
     models = fit_models(
-        config=config, train_data=train_data, rng=rng, n_estimators=n_estimators
+        config=config,
+        train_data=train_data,
+        rng=rng,
+        n_estimators=n_estimators,
+        log_prefix=log_prefix,
     )
     train_data = predict(models=models, data=train_data)
     test_data = predict(models=models, data=test_data)

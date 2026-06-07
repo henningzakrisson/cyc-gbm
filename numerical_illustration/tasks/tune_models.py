@@ -21,7 +21,10 @@ logger = logging.getLogger(__name__)
 
 
 def tune_models(
-    config: Dict[str, Any], train_data: pd.DataFrame, rng: np.random.Generator
+    config: Dict[str, Any],
+    train_data: pd.DataFrame,
+    rng: np.random.Generator,
+    log_prefix: str = "",
 ) -> Tuple[Dict[str, pd.DataFrame], Dict[str, List[int]]]:
     distribution = initiate_distribution(config[DISTRIBUTION])
     X_train, y_train, w_train = get_targets_features(train_data)
@@ -29,7 +32,7 @@ def tune_models(
     n_estimators = {}
     if config[TUNING]:
         for model_name in set(config[MODELS]).intersection([GBM, CGBM]):
-            logger.info(f"Tuning {model_name}")
+            logger.info(f"{log_prefix}Tuning {model_name}")
             model = CyclicalGradientBooster(
                 distribution=distribution,
                 learning_rate=config[MODEL_HYPERPARAMS][model_name][LEARNING_RATE],
@@ -52,12 +55,13 @@ def tune_models(
                 n_estimators_max=n_estimators_max,
                 n_splits=config[N_SPLITS],
                 rng=rng,
+                log_prefix=log_prefix,
             )
             loss_results[model_name] = tuning_results["loss"]
             n_estimators[model_name] = tuning_results["n_estimators"]
 
         if NGBOOST in config[MODELS]:
-            logger.info(f"Tuning {NGBOOST}")
+            logger.info(f"{log_prefix}Tuning {NGBOOST}")
             tuning_results = _tune_ngboost(
                 X=X_train,
                 y=y_train,
@@ -68,6 +72,7 @@ def tune_models(
                 early_stopping_rounds=int(config[MODEL_HYPERPARAMS][NGBOOST][EARLY_STOPPING_ROUNDS]),
                 n_splits=config[N_SPLITS],
                 rng=rng,
+                log_prefix=log_prefix,
             )
             loss_results[NGBOOST] = tuning_results["loss"]
             n_estimators[NGBOOST] = tuning_results["n_estimators"]
@@ -90,6 +95,7 @@ def _tune_ngboost(
     early_stopping_rounds: int,
     n_splits: int,
     rng: np.random.Generator,
+    log_prefix: str = "",
 ) -> Dict[str, Any]:
     """Tune NGBoost n_estimators via k-fold CV using staged_pred_dist,
     mirroring the same fold split and loss computation as CGBM tuning."""
@@ -101,7 +107,7 @@ def _tune_ngboost(
 
     for i, fold in folds.items():
         X_tr, y_tr, w_tr, X_val, y_val, w_val = fold
-        logger.info(f"NGBoost fold {i + 1}/{n_splits}")
+        logger.info(f"{log_prefix}NGBoost fold {i + 1}/{n_splits}")
 
         model = NGBRegressor(
             Dist=Normal,
@@ -134,8 +140,8 @@ def _tune_ngboost(
 
     # Average best iteration across folds
     best_n_estimators = int(np.mean(fold_best_iters))
-    logger.info(f"NGBoost per-fold best iters: {fold_best_iters}")
-    logger.info(f"NGBoost optimal n_estimators: {best_n_estimators}")
+    logger.info(f"{log_prefix}NGBoost per-fold best iters: {fold_best_iters}")
+    logger.info(f"{log_prefix}NGBoost optimal n_estimators: {best_n_estimators}")
 
     return {
         "n_estimators": best_n_estimators,
