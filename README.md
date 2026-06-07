@@ -62,16 +62,7 @@ currently does not support native categorical splits. There is an
 that adds this functionality. **Once that PR is merged and released, this
 workaround will no longer be required.**
 
-### Caveats
-
-- `cyc-gbm` itself does not yet pass `categorical_features` through to the
-  underlying `DecisionTreeRegressor`. Code changes are needed before categorical
-  splits are actually used during fitting.
-- This is experimental and depends on an unmerged PR — the API may change.
-
-### Installation
-
-Install scikit-learn from the PR branch to get categorical support:
+To experiment with categorical features, install scikit-learn from the PR branch:
 
 ```bash
 uv pip install "scikit-learn @ git+https://github.com/adam2392/scikit-learn.git@nocats-v2" --force-reinstall
@@ -85,6 +76,8 @@ uv pip install "scikit-learn @ git+https://github.com/adam2392/scikit-learn.git@
 > ```bash
 > uv pip install scikit-learn==1.8.0 --force-reinstall
 > ```
+
+This is experimental and depends on an unmerged PR — the API may change.
 
 ## Contact
 If you have any questions, feel free to contact me [here](mailto:henning.zakrisson@gmail.com).
