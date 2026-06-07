@@ -1,4 +1,3 @@
-from typing import Union, List, Dict, Tuple, Optional
 import logging
 
 import numpy as np
@@ -12,14 +11,14 @@ logger = logging.getLogger(__name__)
 def tune_n_estimators(
     X: np.ndarray,
     y: np.ndarray,
-    w: Union[np.ndarray, float] = 1.0,
+    w: np.ndarray | float = 1.0,
     model: CyclicalGradientBooster = CyclicalGradientBooster(),
-    n_estimators_max: Union[int, List[int]] = 1000,
+    n_estimators_max: int | list[int] = 1000,
     n_splits: int = 4,
-    rng: Optional[np.random.Generator] = None,
-    random_state: Optional[int] = None,
+    rng: np.random.Generator | None = None,
+    random_state: int | None = None,
     log_prefix: str = "",
-) -> Dict[str, Union[List[int], np.ndarray]]:
+) -> dict[str, list[int] | np.ndarray]:
     """Finds a suitable n_estimators hyperparameter of a CycGBM model using k-fold cross-validation.
 
     :param X: The input data matrix of shape (n_samples, n_features).
@@ -79,11 +78,11 @@ def tune_n_estimators(
 def _fold_split(
     X: np.ndarray,
     y: np.ndarray,
-    w: Union[float, np.ndarray],
+    w: float | np.ndarray,
     n_splits: int,
     rng: np.random.Generator,
-) -> Dict[
-    int, Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+) -> dict[
+    int, tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
 ]:
     """Split data into k folds.
 
@@ -113,9 +112,9 @@ def _fold_split(
 
 
 def _evaluate_fold(
-    fold: Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+    fold: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray],
     model: CyclicalGradientBooster,
-    n_estimators_max: List[int],
+    n_estimators_max: list[int],
     log_prefix: str = "",
 ):
     X_train, y_train, w_train, X_valid, y_valid, w_valid = fold
@@ -200,9 +199,9 @@ def _has_tuning_converged(
 
 def _find_n_estimators(
     loss: np.ndarray,
-    n_estimators_max: List[int],
+    n_estimators_max: list[int],
     log_prefix: str = "",
-) -> List[int]:
+) -> list[int]:
     loss_delta = np.zeros_like(loss)
     loss_delta[1:, 0] = loss[1:, 0] - loss[:-1, -1]
     loss_delta[1:, 1:] = loss[1:, 1:] - loss[1:, :-1]

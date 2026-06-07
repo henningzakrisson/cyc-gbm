@@ -1,4 +1,3 @@
-from typing import List, Union, Optional
 import logging
 
 import numpy as np
@@ -24,13 +23,13 @@ class CyclicalGradientBooster:
 
     def __init__(
         self,
-        distribution: Union[str, Distribution] = "normal",
-        learning_rate: Union[float, List[float]] = 0.1,
-        n_estimators: Union[int, List[int]] = 100,
-        min_samples_split: Union[int, List[int]] = 2,
-        min_samples_leaf: Union[int, List[int]] = 1,
-        max_depth: Union[int, List[int]] = 3,
-        feature_selection: Optional[List[List[Union[str, int]]]] = None,
+        distribution: str | Distribution = "normal",
+        learning_rate: float | list[float] = 0.1,
+        n_estimators: int | list[int] = 100,
+        min_samples_split: int | list[int] = 2,
+        min_samples_leaf: int | list[int] = 1,
+        max_depth: int | list[int] = 3,
+        feature_selection: list[list[str | int]] | None = None,
     ):
         """
         Initialize a CyclicalGradientBooster object.
@@ -61,7 +60,7 @@ class CyclicalGradientBooster:
         self.feature_names = None
         self.n_features = None
 
-    def _setup_hyper_parameter(self, hyper_parameter) -> List:
+    def _setup_hyper_parameter(self, hyper_parameter) -> list:
         """
         Initialize parameter to default_value if parameter is not a list or numpy array.
 
@@ -97,9 +96,9 @@ class CyclicalGradientBooster:
 
     def fit(
         self,
-        X: Union[np.ndarray, pd.DataFrame],
-        y: Union[np.ndarray, pd.Series, pd.DataFrame],
-        w: Union[np.ndarray, pd.Series, float] = None,
+        X: np.ndarray | pd.DataFrame,
+        y: np.ndarray | pd.Series | pd.DataFrame,
+        w: np.ndarray | pd.Series | float = None,
         verbose: bool = True,
     ) -> None:
         """
@@ -148,7 +147,7 @@ class CyclicalGradientBooster:
             logger.info(f"Progress: {int(new_progress * 100)}%")
         return last_progress
 
-    def _initialize_feature_metadata(self, X: Union[np.ndarray, pd.DataFrame]) -> None:
+    def _initialize_feature_metadata(self, X: np.ndarray | pd.DataFrame) -> None:
         """Get the feature names from the input data.
         If the input data is a DataFrame, the column names are returned.
         Otherwise, the features are named 0, 1, ..., p-1.
@@ -173,7 +172,7 @@ class CyclicalGradientBooster:
         self,
         y: np.ndarray,
         w: np.ndarray,
-        z: Optional[np.ndarray] = None,
+        z: np.ndarray | None = None,
     ) -> np.ndarray:
         """
         Initialize the estimate of the parameter vector z0.
@@ -192,11 +191,11 @@ class CyclicalGradientBooster:
 
     def add_tree(
         self,
-        X: Union[np.ndarray, pd.DataFrame],
-        y: Union[np.ndarray, pd.Series, pd.DataFrame],
+        X: np.ndarray | pd.DataFrame,
+        y: np.ndarray | pd.Series | pd.DataFrame,
         j: int,
-        z: Optional[Union[np.ndarray, pd.DataFrame]] = None,
-        w: Union[np.ndarray, pd.Series, float] = 1,
+        z: np.ndarray | pd.DataFrame | None = None,
+        w: np.ndarray | pd.Series | float = 1,
     ) -> None:
         """
         Updates the current boosting model with one additional tree at dimension j.
@@ -224,8 +223,8 @@ class CyclicalGradientBooster:
         self.n_estimators[j] += 1
 
     def predict(
-        self, X: Union[np.ndarray, pd.DataFrame]
-    ) -> Union[np.ndarray, pd.DataFrame]:
+        self, X: np.ndarray | pd.DataFrame
+    ) -> np.ndarray | pd.DataFrame:
         """
         Predict response values for the input data using the trained model.
 
@@ -250,8 +249,8 @@ class CyclicalGradientBooster:
         )
 
     def compute_feature_importances(
-        self, j: Union[str, int] = "all", normalize: bool = True
-    ) -> Union[np.ndarray, pd.Series]:
+        self, j: str | int = "all", normalize: bool = True
+    ) -> np.ndarray | pd.Series:
         """
         Computes the feature importances for parameter dimension j
 
@@ -284,7 +283,7 @@ class CyclicalGradientBooster:
             for i in range(self.n_features)
         }
 
-    def reset(self, n_estimators: Optional[Union[int, List[int]]] = None) -> None:
+    def reset(self, n_estimators: int | list[int] | None = None) -> None:
         """
         Resets the model to its initial state.
 

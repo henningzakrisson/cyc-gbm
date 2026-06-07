@@ -1,5 +1,3 @@
-from typing import List, Union
-
 import numpy as np
 from scipy.optimize import minimize
 
@@ -15,7 +13,7 @@ class CyclicGeneralizedLinearModel:
         distribution: Distribution,
         max_iter: int = 1000,
         tol: float = 1e-5,
-        eps: Union[List[float], float] = 1e-7,
+        eps: list[float] | float = 1e-7,
     ):
         """
         Initialize the model.

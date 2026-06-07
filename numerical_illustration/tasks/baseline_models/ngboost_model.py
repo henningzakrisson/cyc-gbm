@@ -1,5 +1,4 @@
 import logging
-from typing import Union
 
 import numpy as np
 from ngboost import NGBRegressor
@@ -55,7 +54,7 @@ class NGBoostModel:
         self,
         X: np.ndarray,
         y: np.ndarray,
-        w: Union[np.ndarray, float] = 1,
+        w: np.ndarray | float = 1,
     ) -> None:
         self._model = NGBRegressor(
             Dist=Normal,

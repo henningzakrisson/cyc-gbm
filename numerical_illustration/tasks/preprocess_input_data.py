@@ -1,5 +1,3 @@
-from typing import List, Tuple
-
 import numpy as np
 import pandas as pd
 
@@ -10,7 +8,7 @@ def preprocess_input_data(
     data_config: DataConfig,
     data: pd.DataFrame,
     rng: np.random.Generator,
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Preprocess the input data.
 
     Args:
@@ -35,8 +33,8 @@ def preprocess_input_data(
 def _normalize_features(
     train_data: pd.DataFrame,
     test_data: pd.DataFrame,
-    features: List[str],
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    features: list[str],
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Normalize features using training-set statistics only.
 
     Args:
@@ -53,7 +51,7 @@ def _normalize_features(
 
 def _split_data(
     data: pd.DataFrame, test_size: float, rng: np.random.Generator
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Split the data into training and test data.
 
     Args:

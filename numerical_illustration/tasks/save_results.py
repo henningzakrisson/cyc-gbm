@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, List
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -8,11 +8,11 @@ import pandas as pd
 def save_results(
     train_data: pd.DataFrame,
     test_data: pd.DataFrame,
-    loss_results: Dict[str, Dict[str, List[float]]],
+    loss_results: dict[str, dict[str, list[float]]],
     metrics_mean: pd.DataFrame,
     metrics_std: pd.DataFrame,
     mean_rank: pd.DataFrame,
-    models: Dict[str, Any],
+    models: dict[str, Any],
     output_path: str,
 ) -> None:
     train_data.to_csv(os.path.join(output_path, "train_data.csv"), index=False)
@@ -45,7 +45,7 @@ def _save_metrics(
 
 
 def _save_tuning_results(
-    loss_results: Dict[str, Dict[str, List[float]]], output_path: str
+    loss_results: dict[str, dict[str, list[float]]], output_path: str
 ) -> None:
     if not loss_results:
         return
@@ -62,7 +62,7 @@ def _save_tuning_results(
             df_loss.to_csv(os.path.join(dataset_folder, f"{model_name}_loss.csv"), index=True)
 
 
-def _save_feature_importances(models: Dict[str, Any], output_path: str) -> None:
+def _save_feature_importances(models: dict[str, Any], output_path: str) -> None:
     feature_importances_folder = os.path.join(output_path, "feature_importances")
     os.makedirs(feature_importances_folder, exist_ok=True)
     for model_name, model in models.items():

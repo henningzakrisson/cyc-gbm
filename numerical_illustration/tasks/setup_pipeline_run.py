@@ -1,6 +1,5 @@
 import os
 import time
-from typing import Tuple
 
 import numpy as np
 import yaml
@@ -10,7 +9,7 @@ from ..schema import NumericalIllustrationConfig
 
 def setup_pipeline_run(
     config_path: str,
-) -> Tuple[NumericalIllustrationConfig, np.random.Generator, str]:
+) -> tuple[NumericalIllustrationConfig, np.random.Generator, str]:
     """
     Setup the pipeline run.
 

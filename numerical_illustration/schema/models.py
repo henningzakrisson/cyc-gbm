@@ -1,6 +1,6 @@
 """Model configuration models (one per model type)."""
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -50,7 +50,7 @@ class CyclicalGradientBoostingMachineConfig(BaseModel):
     model_class: Literal[ModelClass.CGBM]
     n_estimators: list[int] = Field(default_factory=lambda: [600, 600])
     max_depth: int = 3
-    learning_rate: Union[float, list[float]] = 0.05
+    learning_rate: float | list[float] = 0.05
 
 
 class NaturalGradientBoostingMachineConfig(BaseModel):
@@ -100,12 +100,10 @@ class InterceptConfig(BaseModel):
 
 
 ModelConfig = Annotated[
-    Union[
-        GradientBoostingMachineConfig,
-        CyclicalGradientBoostingMachineConfig,
-        NaturalGradientBoostingMachineConfig,
-        CyclicalGeneralizedLinearModelConfig,
-        InterceptConfig,
-    ],
+    GradientBoostingMachineConfig
+    | CyclicalGradientBoostingMachineConfig
+    | NaturalGradientBoostingMachineConfig
+    | CyclicalGeneralizedLinearModelConfig
+    | InterceptConfig,
     Field(discriminator="model_class"),
 ]

@@ -1,5 +1,4 @@
 from collections import deque
-from typing import List
 
 import numpy as np
 import pandas as pd
@@ -11,7 +10,7 @@ def evaluate_predictions(
     train_data: pd.DataFrame,
     test_data: pd.DataFrame,
     distribution: Distribution,
-    model_names: List[str],
+    model_names: list[str],
     is_simulation: bool,
 ) -> pd.DataFrame:
     """Evaluate the predictions.

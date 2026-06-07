@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -28,7 +28,7 @@ def tune_models(
     train_data: pd.DataFrame,
     rng: np.random.Generator,
     log_prefix: str = "",
-) -> Tuple[Dict[str, pd.DataFrame], Dict[str, List[int]]]:
+) -> tuple[dict[str, pd.DataFrame], dict[str, list[int]]]:
     distribution = config.data.distribution_object
     X_train, y_train, w_train = get_targets_features(train_data)
     loss_results = {}
@@ -118,7 +118,7 @@ def _tune_ngboost(
     n_folds: int,
     rng: np.random.Generator,
     log_prefix: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Tune NGBoost n_estimators via k-fold CV using staged_pred_dist,
     mirroring the same fold split and loss computation as CGBM tuning."""
     folds = _fold_split(X=X, y=y, w=w, n_splits=n_folds, rng=rng)
