@@ -60,7 +60,7 @@ def tune_models(
                 w=w_train,
                 model=model,
                 n_estimators_max=n_estimators_max,
-                n_splits=config.tuning.n_splits,
+                n_splits=config.tuning.n_folds,
                 rng=rng,
                 log_prefix=log_prefix,
             )
@@ -78,7 +78,7 @@ def tune_models(
                 n_estimators_max=mc.n_estimators,
                 learning_rate=mc.learning_rate,
                 max_depth=mc.max_depth,
-                n_splits=config.tuning.n_splits,
+                n_folds=config.tuning.n_folds,
                 rng=rng,
                 log_prefix=log_prefix,
             )
@@ -115,13 +115,13 @@ def _tune_ngboost(
     n_estimators_max: int,
     learning_rate: float,
     max_depth: int,
-    n_splits: int,
+    n_folds: int,
     rng: np.random.Generator,
     log_prefix: str = "",
 ) -> Dict[str, Any]:
     """Tune NGBoost n_estimators via k-fold CV using staged_pred_dist,
     mirroring the same fold split and loss computation as CGBM tuning."""
-    folds = _fold_split(X=X, y=y, w=w, n_splits=n_splits, rng=rng)
+    folds = _fold_split(X=X, y=y, w=w, n_splits=n_folds, rng=rng)
 
     fold_train_losses = []
     fold_valid_losses = []
@@ -129,7 +129,7 @@ def _tune_ngboost(
 
     for i, fold in folds.items():
         X_tr, y_tr, w_tr, X_val, y_val, w_val = fold
-        logger.info(f"{log_prefix}NGBoost fold {i + 1}/{n_splits}")
+        logger.info(f"{log_prefix}NGBoost fold {i + 1}/{n_folds}")
 
         model = NGBRegressor(
             Dist=Normal,

@@ -32,23 +32,23 @@ models:
     tolerance: 1e-5
     step_size: 0.1
   - model_class: gbm
-    n_estimators: 600
+    n_estimators: 500
     max_depth: 4
-    learning_rate: 0.05
+    learning_rate: 0.1
   - model_class: ngboost
-    n_estimators: 2000
+    n_estimators: 500
     max_depth: 4
-    learning_rate: 0.01
+    learning_rate: 0.1
   - model_class: cgbm
     n_estimators: [500, 500]
     max_depth: 4
-    learning_rate: [0.05, 0.01]
+    learning_rate: [0.1, 0.1]
 
 bootstrap:
-  n_bootstraps: 3
-  parallel: true
+  n_bootstraps: 1
+  parallel: false
   n_jobs: -1
 
 tuning:
   perform_tuning: true
-  n_splits: 2
+  n_folds: 2

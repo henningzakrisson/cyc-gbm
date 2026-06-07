@@ -12,8 +12,8 @@ class TuningConfig(BaseModel):
 
     Attributes:
         perform_tuning: Whether to run CV-based tuning of ``n_estimators``.
-        n_splits: Number of CV folds.
+        n_folds: Number of CV folds.
     """
 
     perform_tuning: bool = False
-    n_splits: int = 4
+    n_folds: int = 4

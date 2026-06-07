@@ -46,4 +46,4 @@ bootstrap:
 
 tuning:
   perform_tuning: true
-  n_splits: 4
+  n_folds: 4
