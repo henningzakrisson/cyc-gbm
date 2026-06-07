@@ -59,4 +59,5 @@ model_hyperparameters:
 # Model tuning
 tuning: true
 n_splits: 4
-parallel: false
+parallel: true
+n_jobs: -1

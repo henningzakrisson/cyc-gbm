@@ -13,6 +13,7 @@ Usage:
 import argparse
 import logging
 
+from joblib import Parallel, delayed
 import numpy as np
 import pandas as pd
 
@@ -86,12 +87,31 @@ def main():
     n_bootstraps = config.get(N_BOOTSTRAPS, 1)
     child_rngs = rng.spawn(n_bootstraps)
 
-    results = [
-        _run_single_iteration(
-            config=config, rng=child_rngs[b], iteration=b, n_bootstraps=n_bootstraps
+    parallel = config.get("parallel", False)
+    if parallel and n_bootstraps > 1:
+        n_jobs = config.get("n_jobs", -1)
+        logger.info(
+            f"Running {n_bootstraps} bootstrap iterations in parallel (n_jobs={n_jobs})"
         )
-        for b in range(n_bootstraps)
-    ]
+        results = Parallel(n_jobs=n_jobs)(
+            delayed(_run_single_iteration)(
+                config=config,
+                rng=child_rngs[b],
+                iteration=b,
+                n_bootstraps=n_bootstraps,
+            )
+            for b in range(n_bootstraps)
+        )
+    else:
+        results = [
+            _run_single_iteration(
+                config=config,
+                rng=child_rngs[b],
+                iteration=b,
+                n_bootstraps=n_bootstraps,
+            )
+            for b in range(n_bootstraps)
+        ]
     train_data, test_data, tuning_results, models, _ = results[-1]
     all_metrics = [r[4] for r in results]
 

@@ -1,5 +1,4 @@
 from typing import Union, List, Dict, Tuple, Optional
-from joblib import Parallel, delayed
 import logging
 
 import numpy as np
@@ -19,8 +18,6 @@ def tune_n_estimators(
     n_splits: int = 4,
     rng: Optional[np.random.Generator] = None,
     random_state: Optional[int] = None,
-    parallel: bool = True,
-    n_jobs: int = -1,
 ) -> Dict[str, Union[List[int], np.ndarray]]:
     """Finds a suitable n_estimators hyperparameter of a CycGBM model using k-fold cross-validation.
 
@@ -32,8 +29,6 @@ def tune_n_estimators(
     :param n_splits: The number of folds to use for k-fold cross-validation.
     :param rng: The random number generator.
     :param random_state: The random state to use for the k-fold split. Will be ignored if rng is not None.
-    :param parallel: Whether to use parallel processing for the cross-validation.
-    :param n_jobs: The number of jobs to use for parallel processing. Default is -1, which uses all available cores.
     :return: A dictionary containing the following keys:
         - "n_estimators": The optimal n_estimators parameter value for each parameter dimension.
         - "loss": The loss results for every boosting step in the cross-validation.
@@ -50,27 +45,17 @@ def tune_n_estimators(
     folds = _fold_split(X=X, y=y, w=w, n_splits=n_splits, rng=rng)
 
     logger.info(f"Performing cross-validation on {n_splits} folds")
-    if parallel:
-        results = Parallel(n_jobs=n_jobs)(
-            delayed(_evaluate_fold)(
+    results = []
+    for i in folds:
+        model.reset(n_estimators=0)
+        logger.info(f"Fold {i+1}/{n_splits}")
+        results.append(
+            _evaluate_fold(
                 fold=folds[i],
                 model=model,
                 n_estimators_max=n_estimators_max,
             )
-            for i in folds
         )
-    else:
-        results = []
-        for i in folds:
-            model.reset(n_estimators=0)
-            logger.info(f"Fold {i+1}/{n_splits}")
-            results.append(
-                _evaluate_fold(
-                    fold=folds[i],
-                    model=model,
-                    n_estimators_max=n_estimators_max,
-                )
-            )
 
     loss = {
         "train": [result[0] for result in results],

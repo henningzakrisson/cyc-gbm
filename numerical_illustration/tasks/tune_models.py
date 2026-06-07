@@ -14,7 +14,7 @@ from cyc_gbm.utils.tuning import _fold_split, tune_n_estimators
 from .utils.constants import (CGBM, DISTRIBUTION, EARLY_STOPPING_ROUNDS, GBM,
                                LEARNING_RATE, MAX_DEPTH, MODEL_HYPERPARAMS,
                                MODELS, N_ESTIMATORS, N_SPLITS, NGBOOST,
-                               PARALLEL, TUNING)
+                               TUNING)
 from .utils.utils import get_targets_features
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,6 @@ def tune_models(
                 n_estimators_max=n_estimators_max,
                 n_splits=config[N_SPLITS],
                 rng=rng,
-                parallel=config[PARALLEL],
             )
             loss_results[model_name] = tuning_results["loss"]
             n_estimators[model_name] = tuning_results["n_estimators"]
