@@ -67,7 +67,7 @@ def _run_single_iteration(
         train_data=train_data,
         test_data=test_data,
         distribution=config.data.distribution_object,
-        model_names=[m.model_class for m in config.models],
+        model_names=config.model_names,
         is_simulation=isinstance(config.data, SimulationConfig),
     )
     return train_data, test_data, tuning_results, models, metrics.astype(float)

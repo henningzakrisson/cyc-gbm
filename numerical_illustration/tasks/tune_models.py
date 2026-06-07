@@ -34,7 +34,7 @@ def tune_models(
     loss_results = {}
     n_estimators = {}
 
-    model_configs = {m.model_class: m for m in config.models}
+    model_configs = config.model_configs_by_class
 
     if config.tuning.perform_tuning:
         for mc_name in [ModelClass.GBM, ModelClass.CGBM]:
@@ -52,7 +52,7 @@ def tune_models(
             if isinstance(mc, CyclicalGradientBoostingMachineConfig):
                 n_estimators_max = mc.n_estimators
             elif isinstance(mc, GradientBoostingMachineConfig):
-                n_estimators_max = [mc.n_estimators, 0]
+                n_estimators_max = mc.n_estimators_as_list(distribution.n_dim)
 
             tuning_results = tune_n_estimators(
                 X=X_train,
@@ -91,12 +91,14 @@ def tune_models(
             n_estimators[ModelClass.CGBM] = mc_cgbm.n_estimators
             if ModelClass.GBM in model_configs:
                 mc_gbm = model_configs[ModelClass.GBM]
-                n_estimators[ModelClass.GBM] = [mc_gbm.n_estimators] + [0] * (
-                    len(mc_cgbm.n_estimators) - 1
+                n_estimators[ModelClass.GBM] = mc_gbm.n_estimators_as_list(
+                    len(mc_cgbm.n_estimators)
                 )
         elif ModelClass.GBM in model_configs:
             mc_gbm = model_configs[ModelClass.GBM]
-            n_estimators[ModelClass.GBM] = [mc_gbm.n_estimators, 0]
+            n_estimators[ModelClass.GBM] = mc_gbm.n_estimators_as_list(
+                distribution.n_dim
+            )
 
         if ModelClass.NGBOOST in model_configs:
             mc_ngb = model_configs[ModelClass.NGBOOST]

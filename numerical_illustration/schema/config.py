@@ -1,10 +1,11 @@
 """Root configuration model that composes all sub-configs."""
 
-from typing import Annotated, Self, Union
+from typing import Annotated, Dict, List, Self, Union
 
 from pydantic import BaseModel, Field, model_validator
 
 from .bootstrap import BootstrapConfig
+from .constants import ModelClass
 from .data import LocalDataConfig, SimulationConfig
 from .models import ModelConfig
 from .output import DumpingConfig
@@ -30,6 +31,16 @@ class NumericalIllustrationConfig(BaseModel):
     models: list[ModelConfig]
     bootstrap: BootstrapConfig = Field(default_factory=BootstrapConfig)
     tuning: TuningConfig = Field(default_factory=TuningConfig)
+
+    @property
+    def model_names(self) -> List[str]:
+        """List of model class name strings."""
+        return [m.model_class for m in self.models]
+
+    @property
+    def model_configs_by_class(self) -> Dict[ModelClass, ModelConfig]:
+        """Lookup of model configs keyed by their ModelClass."""
+        return {m.model_class: m for m in self.models}
 
     @model_validator(mode="after")
     def no_bootstrap_with_local_data(self) -> Self:

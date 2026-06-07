@@ -25,6 +25,14 @@ class GradientBoostingMachineConfig(BaseModel):
     max_depth: int = 3
     learning_rate: float = 0.05
 
+    def n_estimators_as_list(self, n_dim: int) -> list[int]:
+        """Return n_estimators as a per-dimension list for CyclicalGradientBooster.
+
+        GBM only boosts the first parameter dimension; remaining dimensions
+        get zero estimators.
+        """
+        return [self.n_estimators] + [0] * (n_dim - 1)
+
 
 class CyclicalGradientBoostingMachineConfig(BaseModel):
     """Hyperparameters for the cyclical gradient boosting machine.
