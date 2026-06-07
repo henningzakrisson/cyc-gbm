@@ -1,20 +1,29 @@
-/venv/
-.idea/
-*/.idea
-.idea/c-gbm.iml
-.idea/misc.xml
-/__pychache__/
-/cyc_gbm/__pycache__/
-/numerical_illustration/data/
-/notebooks/
-.DS_STORE
-/scripts/
+# Python
+__pycache__/
 *.pyc
-/dist/
 *.egg-info/
+/dist/
 /build/
-/scripts/
-/.pytest_cache/
-numerical_illustration_old/
-data/
+
+# Virtual environments
+.venv/
+/venv/
+
+# IDE
+.idea/
 .vscode/
+
+# OS
+.DS_Store
+
+# Project-specific
+/data/
+/notebooks/
+/scripts/
+numerical_illustration_old/
+
+# Testing
+.pytest_cache/
+
+# uv
+uv.lock

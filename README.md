@@ -7,24 +7,19 @@ You can install the package using pip:
 pip install cyc-gbm
 ```
 Alternatively, you can install the package from source.
-This will also include a pipeline for reproducing the results in the paper. Follow these steps:
+This will also include a pipeline for reproducing the results in the paper:
 
-1. Clone this repository to your local machine:
-    ```bash
-    git clone https://github.com/henningzakrisson/cyc-gbm.git
-    ```
-2. Create a virtual environment in the root directory of the repository:
-    ```bash
-    python3 -m venv venv
-    ```
-3. Activate the virtual environment:
-    ```bash
-    source venv/bin/activate
-    ```
-4. Install the package
-    ```bash
-    pip install -e .
-    ```
+```bash
+git clone https://github.com/henningzakrisson/cyc-gbm.git
+cd cyc-gbm
+uv sync
+```
+
+To also install the numerical illustration dependencies:
+```bash
+uv sync --extra numerical-illustration
+```
+
 ## Usage example
 Fitting the mean and (log) sigma parameters of a normal distribution to a simulated dataset:
 
@@ -61,4 +56,3 @@ print(f'negative log likelihood: {loss}')
 
 ## Contact
 If you have any questions, feel free to contact me [here](mailto:henning.zakrisson@gmail.com).
-

@@ -1,0 +1,36 @@
+[project]
+name = "cyc-gbm"
+version = "0.0.33"
+description = "A python package for the Cyclic Gradient Boosting Machine algorithm"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "Henning Zakrisson", email = "henning.zakrisson@gmail.com" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy==2.4.6",
+    "pandas==2.3.3",
+    "scikit-learn==1.8.0",
+    "scipy==1.17.1",
+]
+
+[project.optional-dependencies]
+numerical-illustration = [
+    "ngboost==0.5.10",
+    "pydantic==2.13.4",
+    "PyYAML==6.0.3",
+]
+
+[project.urls]
+Homepage = "https://github.com/henningzakrisson/cyc-gbm"
+
+[dependency-groups]
+dev = ["pytest==9.0.3"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
