@@ -22,6 +22,7 @@ class BoostingTree(DecisionTreeRegressor):
         max_depth: int,
         min_samples_split: int,
         min_samples_leaf: int,
+        categorical_features: list[int] | None = None,
     ):
         """
         Constructs a new BoostingTree instance.
@@ -30,12 +31,17 @@ class BoostingTree(DecisionTreeRegressor):
         :param max_depth: The maximum depth of the tree.
         :param min_samples_split: The minimum number of samples required to split an internal node.
         :param min_samples_leaf: The minimum number of samples required to be at a leaf node.
+        :param categorical_features: Indices of categorical features within the feature subset, or None.
         """
-        super().__init__(
+        init_kwargs = dict(
             max_depth=max_depth,
             min_samples_split=min_samples_split,
             min_samples_leaf=min_samples_leaf,
         )
+        if categorical_features is not None:
+            init_kwargs["categorical_features"] = categorical_features
+        super().__init__(**init_kwargs)
+        self.categorical_features = categorical_features
         self.distribution = distribution
 
     def fit_gradients(

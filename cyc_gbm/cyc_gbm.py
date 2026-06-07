@@ -1,8 +1,10 @@
+import inspect
 import logging
 
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
+from sklearn.tree import DecisionTreeRegressor
 
 from cyc_gbm.utils.distributions import Distribution, initiate_distribution
 from cyc_gbm.utils.utils import calculate_progress
@@ -10,6 +12,10 @@ from cyc_gbm.utils.fix_datatype import fix_datatype
 from cyc_gbm.boosting_tree import BoostingTree
 
 logger = logging.getLogger(__name__)
+
+_SKLEARN_HAS_CATEGORICAL = "categorical_features" in inspect.signature(
+    DecisionTreeRegressor.__init__
+).parameters
 
 class CyclicalGradientBooster:
     """
@@ -88,6 +94,11 @@ class CyclicalGradientBooster:
                     max_depth=self.max_depth[j],
                     min_samples_split=self.min_samples_split[j],
                     min_samples_leaf=self.min_samples_leaf[j],
+                    categorical_features=self._categorical_features_for_subset(
+                        self.feature_selection[j]
+                    )
+                    if hasattr(self, "_categorical_features")
+                    else None,
                 )
                 for _ in range(self.n_estimators[j])
             ]
@@ -110,6 +121,7 @@ class CyclicalGradientBooster:
         :param verbose: Whether to log progress.
         """
         self._initialize_feature_metadata(X=X)
+        self.trees = self._initialize_trees()
         X, y, w = fix_datatype(X=X, y=y, w=w)
 
         self.z0 = self.initialize_estimate(y=y, w=w)
@@ -152,9 +164,15 @@ class CyclicalGradientBooster:
         If the input data is a DataFrame, the column names are returned.
         Otherwise, the features are named 0, 1, ..., p-1.
         The feature selection is fixed to comply with the numpy array format.
+        Categorical features (pd.CategoricalDtype columns) are detected and stored.
         """
         if isinstance(X, pd.DataFrame):
             self.feature_names = list(X.columns)
+            self._categorical_features = {
+                col
+                for col in X.columns
+                if isinstance(X[col].dtype, pd.CategoricalDtype)
+            }
             if self.feature_selection is not None:
                 self.feature_selection = [
                     [X.columns.get_loc(f) for f in self.feature_selection[j]]
@@ -162,11 +180,41 @@ class CyclicalGradientBooster:
                 ]
         else:
             self.feature_names = list(np.arange(X.shape[1]))
+            self._categorical_features = set()
         if self.feature_selection is None:
             self.feature_selection = [
                 list(range(X.shape[1])) for j in range(self.n_dim)
             ]
         self.n_features = X.shape[1]
+        if self._categorical_features:
+            self._check_categorical_support()
+
+    @staticmethod
+    def _check_categorical_support() -> None:
+        """Raise if the installed scikit-learn does not support categorical features."""
+        if not _SKLEARN_HAS_CATEGORICAL:
+            raise RuntimeError(
+                "The installed version of scikit-learn does not support categorical "
+                "features in DecisionTreeRegressor. Install the branch from "
+                "https://github.com/scikit-learn/scikit-learn/pull/33354 :\n\n"
+                '  uv pip install "scikit-learn @ git+https://github.com/adam2392/'
+                'scikit-learn.git@nocats-v2" --force-reinstall'
+            )
+
+    def _categorical_features_for_subset(self, feature_indices: list[int]) -> list[int] | None:
+        """Map categorical feature names to positions within a feature subset.
+
+        :param feature_indices: Column indices for the subset (from feature_selection[j]).
+        :return: List of positions within the subset that are categorical, or None if empty.
+        """
+        if not self._categorical_features:
+            return None
+        positions = [
+            i
+            for i, col_idx in enumerate(feature_indices)
+            if self.feature_names[col_idx] in self._categorical_features
+        ]
+        return positions if positions else None
 
     def initialize_estimate(
         self,
@@ -215,6 +263,9 @@ class CyclicalGradientBooster:
                 max_depth=self.max_depth[j],
                 min_samples_split=self.min_samples_split[j],
                 min_samples_leaf=self.min_samples_leaf[j],
+                categorical_features=self._categorical_features_for_subset(
+                    self.feature_selection[j]
+                ),
             )
         )
         self.trees[j][-1].fit_gradients(
