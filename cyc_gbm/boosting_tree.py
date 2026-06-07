@@ -33,6 +33,7 @@ class BoostingTree(DecisionTreeRegressor):
         :param min_samples_leaf: The minimum number of samples required to be at a leaf node.
         :param categorical_features: Indices of categorical features within the feature subset.
         """
+        categorical_features = categorical_features or []
         init_kwargs = dict(
             max_depth=max_depth,
             min_samples_split=min_samples_split,
@@ -41,7 +42,7 @@ class BoostingTree(DecisionTreeRegressor):
         if categorical_features:
             init_kwargs["categorical_features"] = categorical_features
         super().__init__(**init_kwargs)
-        self.categorical_features = categorical_features or []
+        self.categorical_features = categorical_features
         self.distribution = distribution
 
     def fit_gradients(
