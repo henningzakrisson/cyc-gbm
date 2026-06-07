@@ -6,46 +6,54 @@ import pandas as pd
 from ngboost import NGBRegressor
 from ngboost.distns import Normal
 from ngboost.scores import MLE
+from sklearn.tree import DecisionTreeRegressor
 
 from cyc_gbm import CyclicalGradientBooster
 from cyc_gbm.utils.distributions import initiate_distribution
 from cyc_gbm.utils.tuning import _fold_split, tune_n_estimators
 
-from .utils.constants import (CGBM, DISTRIBUTION, EARLY_STOPPING_ROUNDS, GBM,
-                               LEARNING_RATE, MAX_DEPTH, MODEL_HYPERPARAMS,
-                               MODELS, N_ESTIMATORS, N_SPLITS, NGBOOST,
-                               TUNING)
+from ..config.config_models import (
+    CyclicalGradientBoostingMachineConfig,
+    GradientBoostingMachineConfig,
+    NaturalGradientBoostingMachineConfig,
+    NumericalIllustrationConfig,
+)
 from .utils.utils import get_targets_features
 
 logger = logging.getLogger(__name__)
 
 
 def tune_models(
-    config: Dict[str, Any],
+    config: NumericalIllustrationConfig,
     train_data: pd.DataFrame,
     rng: np.random.Generator,
     log_prefix: str = "",
 ) -> Tuple[Dict[str, pd.DataFrame], Dict[str, List[int]]]:
-    distribution = initiate_distribution(config[DISTRIBUTION])
+    distribution = initiate_distribution(config.data.distribution)
     X_train, y_train, w_train = get_targets_features(train_data)
     loss_results = {}
     n_estimators = {}
-    if config[TUNING]:
-        for model_name in set(config[MODELS]).intersection([GBM, CGBM]):
-            logger.info(f"{log_prefix}Tuning {model_name}")
+
+    # Build lookup of model configs by model_class
+    model_configs = {m.model_class: m for m in config.models}
+
+    if config.tuning.perform_tuning:
+        for mc_name in ["gbm", "cgbm"]:
+            if mc_name not in model_configs:
+                continue
+            mc = model_configs[mc_name]
+            logger.info(f"{log_prefix}Tuning {mc_name}")
+
             model = CyclicalGradientBooster(
                 distribution=distribution,
-                learning_rate=config[MODEL_HYPERPARAMS][model_name][LEARNING_RATE],
-                max_depth=config[MODEL_HYPERPARAMS][model_name][MAX_DEPTH],
+                learning_rate=mc.learning_rate,
+                max_depth=mc.max_depth,
             )
 
-            if model_name == CGBM:
-                n_estimators_max = config[MODEL_HYPERPARAMS][model_name][N_ESTIMATORS]
-            elif model_name == GBM:
-                n_estimators_max = [
-                    config[MODEL_HYPERPARAMS][model_name][N_ESTIMATORS],
-                    0,
-                ]
+            if isinstance(mc, CyclicalGradientBoostingMachineConfig):
+                n_estimators_max = mc.n_estimators
+            elif isinstance(mc, GradientBoostingMachineConfig):
+                n_estimators_max = [mc.n_estimators, 0]
 
             tuning_results = tune_n_estimators(
                 X=X_train,
@@ -53,35 +61,48 @@ def tune_models(
                 w=w_train,
                 model=model,
                 n_estimators_max=n_estimators_max,
-                n_splits=config[N_SPLITS],
+                n_splits=config.tuning.n_splits,
                 rng=rng,
                 log_prefix=log_prefix,
             )
-            loss_results[model_name] = tuning_results["loss"]
-            n_estimators[model_name] = tuning_results["n_estimators"]
+            loss_results[mc_name] = tuning_results["loss"]
+            n_estimators[mc_name] = tuning_results["n_estimators"]
 
-        if NGBOOST in config[MODELS]:
-            logger.info(f"{log_prefix}Tuning {NGBOOST}")
+        if "ngboost" in model_configs:
+            mc = model_configs["ngboost"]
+            logger.info(f"{log_prefix}Tuning ngboost")
             tuning_results = _tune_ngboost(
                 X=X_train,
                 y=y_train,
                 w=w_train,
                 distribution=distribution,
-                n_estimators_max=int(config[MODEL_HYPERPARAMS][NGBOOST][N_ESTIMATORS]),
-                learning_rate=float(config[MODEL_HYPERPARAMS][NGBOOST][LEARNING_RATE]),
-                early_stopping_rounds=int(config[MODEL_HYPERPARAMS][NGBOOST][EARLY_STOPPING_ROUNDS]),
-                n_splits=config[N_SPLITS],
+                n_estimators_max=mc.n_estimators,
+                learning_rate=mc.learning_rate,
+                max_depth=mc.max_depth,
+                n_splits=config.tuning.n_splits,
                 rng=rng,
                 log_prefix=log_prefix,
             )
-            loss_results[NGBOOST] = tuning_results["loss"]
-            n_estimators[NGBOOST] = tuning_results["n_estimators"]
+            loss_results["ngboost"] = tuning_results["loss"]
+            n_estimators["ngboost"] = tuning_results["n_estimators"]
 
     else:
-        n_estimators[CGBM] = config[MODEL_HYPERPARAMS][CGBM][N_ESTIMATORS]
-        n_estimators[GBM] = [config[MODEL_HYPERPARAMS][GBM][N_ESTIMATORS]] + [0] * (len(n_estimators[CGBM]) - 1)
-        if NGBOOST in config[MODELS]:
-            n_estimators[NGBOOST] = int(config[MODEL_HYPERPARAMS][NGBOOST][N_ESTIMATORS])
+        if "cgbm" in model_configs:
+            mc_cgbm = model_configs["cgbm"]
+            n_estimators["cgbm"] = mc_cgbm.n_estimators
+            if "gbm" in model_configs:
+                mc_gbm = model_configs["gbm"]
+                n_estimators["gbm"] = [mc_gbm.n_estimators] + [0] * (
+                    len(mc_cgbm.n_estimators) - 1
+                )
+        elif "gbm" in model_configs:
+            mc_gbm = model_configs["gbm"]
+            n_estimators["gbm"] = [mc_gbm.n_estimators, 0]
+
+        if "ngboost" in model_configs:
+            mc_ngb = model_configs["ngboost"]
+            n_estimators["ngboost"] = mc_ngb.n_estimators
+
     return loss_results, n_estimators
 
 
@@ -92,7 +113,7 @@ def _tune_ngboost(
     distribution,
     n_estimators_max: int,
     learning_rate: float,
-    early_stopping_rounds: int,
+    max_depth: int,
     n_splits: int,
     rng: np.random.Generator,
     log_prefix: str = "",
@@ -112,6 +133,7 @@ def _tune_ngboost(
         model = NGBRegressor(
             Dist=Normal,
             Score=MLE,
+            Base=DecisionTreeRegressor(max_depth=max_depth),
             n_estimators=n_estimators_max,
             learning_rate=learning_rate,
             verbose=False,

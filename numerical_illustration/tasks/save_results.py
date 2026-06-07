@@ -1,10 +1,10 @@
 import os
 from typing import Dict, List
 
-from cyc_gbm import CyclicalGradientBooster
-from .utils.constants import CGBM, GBM
 import numpy as np
 import pandas as pd
+
+from cyc_gbm import CyclicalGradientBooster
 
 
 def save_results(
@@ -21,7 +21,11 @@ def save_results(
     test_data.to_csv(os.path.join(output_path, "test_data.csv"), index=False)
     _save_tuning_results(loss_results, output_path)
     _save_metrics(metrics_mean, metrics_std, mean_rank, output_path)
-    gbm_models = {k: models[k] for k in [CGBM, GBM] if k in models}
+    gbm_models = {
+        k: models[k]
+        for k in ["cgbm", "gbm"]
+        if k in models
+    }
     _save_feature_importances(models=gbm_models, output_path=output_path)
 
 
@@ -58,13 +62,13 @@ def _save_tuning_results(
             df_loss[f"{dataset}_1"] = avg_loss[:, 1]
             df_loss.to_csv(os.path.join(dataset_folder, f"{model_name}_loss.csv"), index=True)
 
-def _save_feature_importances(models: Dict[str, CyclicalGradientBooster],output_path: str) -> None:
+def _save_feature_importances(models: Dict[str, CyclicalGradientBooster], output_path: str) -> None:
     feature_importances_folder = os.path.join(output_path, "feature_importances")
     os.makedirs(feature_importances_folder)
     for model in models:
         pd.DataFrame(
             {
-            j: models[model].compute_feature_importances(j = j) 
+            j: models[model].compute_feature_importances(j = j)
             for j in [0,1,"all"]
             }
         ).to_csv(f"{feature_importances_folder}/{model}_feature_importances.csv", index=True)

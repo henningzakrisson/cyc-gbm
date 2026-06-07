@@ -1,29 +1,30 @@
 from collections import deque
-from typing import Tuple
 
 import numpy as np
 import pandas as pd
 
 from cyc_gbm.utils.distributions import initiate_distribution
 
-from .utils.constants import DISTRIBUTION, MODELS
+from ..config.config_models import NumericalIllustrationConfig
 
 
 def evaluate_predictions(
-    train_data: pd.DataFrame, test_data: pd.DataFrame, config: dict
+    train_data: pd.DataFrame,
+    test_data: pd.DataFrame,
+    config: NumericalIllustrationConfig,
 ) -> pd.DataFrame:
     """
     Evaluate the predictions.
 
     Args:
-        predictions: predictions from the models
-        config: configuration dictionary
+        train_data: training data with prediction columns
+        test_data: test data with prediction columns
+        config: validated pipeline configuration
     """
-    # Evaluate the predictions
-    distribution = initiate_distribution(config[DISTRIBUTION])
+    distribution = initiate_distribution(config.data.distribution)
     n_dim = distribution.n_dim
 
-    model_names = deque(config[MODELS])
+    model_names = deque(m.model_class for m in config.models)
     # Check if the true parameters are present
     if "theta_0" in train_data.columns:
         model_names.appendleft("true")

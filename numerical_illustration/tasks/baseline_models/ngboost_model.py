@@ -5,6 +5,7 @@ import numpy as np
 from ngboost import NGBRegressor
 from ngboost.distns import Normal
 from ngboost.scores import MLE
+from sklearn.tree import DecisionTreeRegressor
 
 from cyc_gbm.utils.distributions import Distribution, NormalDistribution
 
@@ -33,6 +34,7 @@ class NGBoostModel:
         distribution: Distribution,
         n_estimators: int = 500,
         learning_rate: float = 0.01,
+        max_depth: int = 3,
         random_state: int = 0,
     ):
         if not isinstance(distribution, NormalDistribution):
@@ -43,6 +45,7 @@ class NGBoostModel:
         self.distribution = distribution
         self.n_estimators = n_estimators
         self.learning_rate = learning_rate
+        self.max_depth = max_depth
         self.random_state = random_state
         self._model = None
 
@@ -55,6 +58,7 @@ class NGBoostModel:
         self._model = NGBRegressor(
             Dist=Normal,
             Score=MLE,
+            Base=DecisionTreeRegressor(max_depth=self.max_depth),
             n_estimators=self.n_estimators,
             learning_rate=self.learning_rate,
             verbose=False,

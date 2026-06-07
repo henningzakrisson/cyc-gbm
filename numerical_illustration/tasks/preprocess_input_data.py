@@ -1,31 +1,31 @@
 import numpy as np
 import pandas as pd
 
-from .utils.constants import NORMALIZE, OUTPUT_DIR, TEST_SIZE
+from ..config.config_models import NumericalIllustrationConfig
 
 
 def preprocess_input_data(
-    config: dict, data: pd.DataFrame, rng: np.random.Generator
+    config: NumericalIllustrationConfig, data: pd.DataFrame, rng: np.random.Generator
 ) -> pd.DataFrame:
     """
     Preprocess the input data.
 
     Args:
-        config: configuration dictionary
+        config: validated pipeline configuration
         data: input data
         rng: random number generator
     """
-    # Features is anything that doesnt start with w, y, or theta
+    # Features is anything that doesn't start with w, y, or theta
     features = [
         col
         for col in data.columns
         if col not in ["w", "y"] and not col.startswith("theta")
     ]
 
-    if config[NORMALIZE]:
+    if config.data.normalize_features:
         data[features] = _normalize_data(data[features])
 
-    train_data, test_data = _split_data(data, config[TEST_SIZE], rng)
+    train_data, test_data = _split_data(data, config.data.test_size, rng)
 
     return train_data, test_data
 

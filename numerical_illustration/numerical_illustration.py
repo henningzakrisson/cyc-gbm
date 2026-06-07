@@ -17,6 +17,7 @@ from joblib import Parallel, delayed
 import numpy as np
 import pandas as pd
 
+from .config.config_models import NumericalIllustrationConfig
 from .tasks import (
     evaluate_predictions,
     fit_models,
@@ -27,7 +28,6 @@ from .tasks import (
     setup_pipeline_run,
     tune_models,
 )
-from .tasks.utils.constants import N_BOOTSTRAPS, N_JOBS, PARALLEL
 
 DEFAULT_CONFIG_DIR = "numerical_illustration/config/demo_config.yaml"
 
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 def _run_single_iteration(
-    config: dict,
+    config: NumericalIllustrationConfig,
     rng: np.random.Generator,
     iteration: int = 1,
     n_bootstraps: int = 1,
@@ -70,7 +70,7 @@ def _run_single_iteration(
 
 
 def _format_metrics(mean: pd.DataFrame, std: pd.DataFrame) -> pd.DataFrame:
-    """Format mean ± std into a single DataFrame of strings."""
+    """Format mean +/- std into a single DataFrame of strings."""
     formatted = mean.copy().astype(object)
     for col in mean.columns:
         for idx in mean.index:
@@ -94,12 +94,12 @@ def main():
     config, rng, output_path = setup_pipeline_run(config_path=args.config)
     logger.info("Setup complete")
 
-    n_bootstraps = config.get(N_BOOTSTRAPS, 1)
+    n_bootstraps = config.bootstrap.n_bootstraps
     child_rngs = rng.spawn(n_bootstraps)
 
-    parallel = config.get(PARALLEL, False)
+    parallel = config.bootstrap.parallel
     if parallel and n_bootstraps > 1:
-        n_jobs = config.get(N_JOBS, -1)
+        n_jobs = config.bootstrap.n_jobs
         logger.info(
             f"Running {n_bootstraps} bootstrap iterations in parallel (n_jobs={n_jobs})"
         )

@@ -2,6 +2,7 @@ matplotlib
 ngboost
 numpy
 pandas
+pydantic
 PyYAML
 scikit_learn
 scipy
