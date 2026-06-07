@@ -206,20 +206,19 @@ class CyclicalGradientBooster:
             )
             raise RuntimeError(msg)
 
-    def _categorical_features_for_subset(self, feature_indices: list[int]) -> list[int] | None:
+    def _categorical_features_for_subset(self, feature_indices: list[int]) -> list[int]:
         """Map categorical feature names to positions within a feature subset.
 
         :param feature_indices: Column indices for the subset (from _feature_selection[j]).
-        :return: List of positions within the subset that are categorical, or None if empty.
+        :return: List of positions within the subset that are categorical.
         """
         if not self._categorical_features:
-            return None
-        positions = [
+            return []
+        return [
             i
             for i, col_idx in enumerate(feature_indices)
             if self._feature_names[col_idx] in self._categorical_features
         ]
-        return positions if positions else None
 
     def initialize_estimate(
         self,
