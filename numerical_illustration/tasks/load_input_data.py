@@ -1,29 +1,24 @@
-from typing import Union
-
 import numpy as np
 import pandas as pd
 
-from cyc_gbm.utils.distributions import initiate_distribution
-
-from ..schema import LocalDataConfig, SimulationConfig
+from ..schema import DataConfig, DataSource, SimulationConfig
 
 
 def load_input_data(
-    data_config: Union[SimulationConfig, LocalDataConfig],
+    data_config: DataConfig,
     rng: np.random.Generator,
 ) -> pd.DataFrame:
     """Load or create the data.
 
     Args:
-        data_config: data source configuration (simulation or local file)
+        data_config: data source configuration
         rng: random number generator (used for simulation)
     """
-    if isinstance(data_config, SimulationConfig):
+    if data_config.data_source == DataSource.SIMULATION:
         return _simulate_data(data_config, rng)
-    elif isinstance(data_config, LocalDataConfig):
+    if data_config.data_source == DataSource.FILE:
         return _load_data_from_file(data_config)
-    else:
-        raise ValueError(f"Unknown data source type: {type(data_config)}")
+    raise ValueError(f"Unknown data source: {data_config.data_source}")
 
 
 def _simulate_data(data_config: SimulationConfig, rng: np.random.Generator) -> pd.DataFrame:
@@ -33,7 +28,7 @@ def _simulate_data(data_config: SimulationConfig, rng: np.random.Generator) -> p
         data_config: simulation configuration
         rng: random number generator
     """
-    distribution = initiate_distribution(data_config.distribution)
+    distribution = data_config.distribution_object
     parameter_function = _compile_function_from_string(data_config.parameter_function)
 
     X = rng.normal(size=(data_config.n_samples, data_config.n_features))
@@ -62,7 +57,7 @@ def _compile_function_from_string(function_string: str) -> callable:
     return local_vars["parameter"]
 
 
-def _load_data_from_file(data_config: LocalDataConfig) -> pd.DataFrame:
+def _load_data_from_file(data_config: DataConfig) -> pd.DataFrame:
     """Load the data from a file.
 
     Args:

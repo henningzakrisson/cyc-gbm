@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterable
 from typing import Any, Dict, List
 
 import numpy as np
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def fit_models(
-    model_configs: List[ModelConfig],
+    model_configs: Iterable[ModelConfig],
     distribution: Distribution,
     train_data: pd.DataFrame,
     rng: np.random.Generator,

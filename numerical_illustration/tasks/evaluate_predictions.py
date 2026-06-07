@@ -12,6 +12,7 @@ def evaluate_predictions(
     test_data: pd.DataFrame,
     distribution: Distribution,
     model_names: List[str],
+    is_simulation: bool,
 ) -> pd.DataFrame:
     """Evaluate the predictions.
 
@@ -20,11 +21,13 @@ def evaluate_predictions(
         test_data: test data with prediction columns
         distribution: instantiated distribution object
         model_names: list of model class name strings
+        is_simulation: whether the data was generated via simulation
+            (if so, include the true parameter loss in the metrics)
     """
     n_dim = distribution.n_dim
 
     names = deque(model_names)
-    if "theta_0" in train_data.columns:
+    if is_simulation:
         names.appendleft("true")
 
     metrics = pd.DataFrame(columns=["train", "test"], index=names)

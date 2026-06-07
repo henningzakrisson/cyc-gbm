@@ -17,7 +17,7 @@ from joblib import Parallel, delayed
 import numpy as np
 import pandas as pd
 
-from .schema import NumericalIllustrationConfig
+from .schema import NumericalIllustrationConfig, SimulationConfig
 from .tasks import (
     evaluate_predictions,
     fit_models,
@@ -68,6 +68,7 @@ def _run_single_iteration(
         test_data=test_data,
         distribution=config.data.distribution_object,
         model_names=[m.model_class for m in config.models],
+        is_simulation=isinstance(config.data, SimulationConfig),
     )
     return train_data, test_data, tuning_results, models, metrics.astype(float)
 

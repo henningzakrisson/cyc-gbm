@@ -9,7 +9,6 @@ from ngboost.scores import MLE
 from sklearn.tree import DecisionTreeRegressor
 
 from cyc_gbm import CyclicalGradientBooster
-from cyc_gbm.utils.distributions import initiate_distribution
 from cyc_gbm.utils.tuning import _fold_split, tune_n_estimators
 
 from ..schema import (
@@ -30,7 +29,7 @@ def tune_models(
     rng: np.random.Generator,
     log_prefix: str = "",
 ) -> Tuple[Dict[str, pd.DataFrame], Dict[str, List[int]]]:
-    distribution = initiate_distribution(config.data.distribution)
+    distribution = config.data.distribution_object
     X_train, y_train, w_train = get_targets_features(train_data)
     loss_results = {}
     n_estimators = {}

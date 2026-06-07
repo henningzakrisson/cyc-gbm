@@ -1,13 +1,13 @@
-from typing import Tuple, Union
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
 
-from ..schema import LocalDataConfig, SimulationConfig
+from ..schema import DataConfig
 
 
 def preprocess_input_data(
-    data_config: Union[SimulationConfig, LocalDataConfig],
+    data_config: DataConfig,
     data: pd.DataFrame,
     rng: np.random.Generator,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -24,21 +24,31 @@ def preprocess_input_data(
         if col not in ["w", "y"] and not col.startswith("theta")
     ]
 
-    if data_config.normalize_features:
-        data[features] = _normalize_data(data[features])
-
     train_data, test_data = _split_data(data, data_config.test_size, rng)
+
+    if data_config.normalize_features:
+        train_data, test_data = _normalize_features(train_data, test_data, features)
 
     return train_data, test_data
 
 
-def _normalize_data(data: pd.DataFrame) -> pd.DataFrame:
-    """Normalize the data.
+def _normalize_features(
+    train_data: pd.DataFrame,
+    test_data: pd.DataFrame,
+    features: List[str],
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Normalize features using training-set statistics only.
 
     Args:
-        data: input data
+        train_data: training data
+        test_data: test data
+        features: list of feature column names to normalize
     """
-    return (data - data.mean()) / data.std()
+    mean = train_data[features].mean()
+    std = train_data[features].std()
+    train_data[features] = (train_data[features] - mean) / std
+    test_data[features] = (test_data[features] - mean) / std
+    return train_data, test_data
 
 
 def _split_data(
