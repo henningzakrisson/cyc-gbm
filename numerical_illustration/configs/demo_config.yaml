@@ -1,0 +1,40 @@
+data:
+  data_source: simulation
+  distribution: normal
+  random_seed: 11
+  n_samples: 10000
+  n_features: 2
+  test_size: 0.2
+  normalize_features: true
+  parameter_function: |
+    def parameter(X):
+        z0 = 1.5*X[:,0]**2
+        z1 = 0.1 + 0.2*(X[:,1]>0)
+        return np.stack([z0,z1])
+
+output:
+  output_dir: data/results
+
+models:
+  - model_class: intercept
+  - model_class: cglm
+    max_iter: 1000
+    tolerance: 1e-5
+    step_size: 1e-5
+  - model_class: gbm
+    n_estimators: 442
+    max_depth: 3
+    learning_rate: 0.01
+  - model_class: cgbm
+    n_estimators: [487, 439]
+    max_depth: 3
+    learning_rate: 0.01
+
+bootstrap:
+  n_bootstraps: 1
+  parallel: true
+  n_jobs: -1
+
+tuning:
+  perform_tuning: false
+  n_folds: 4

@@ -1,36 +1,38 @@
 from collections import deque
-from typing import Tuple
+from typing import List
 
 import numpy as np
 import pandas as pd
 
-from cyc_gbm.utils.distributions import initiate_distribution
-
-from .utils.constants import DISTRIBUTION, MODELS
+from cyc_gbm.utils.distributions import Distribution
 
 
 def evaluate_predictions(
-    train_data: pd.DataFrame, test_data: pd.DataFrame, config: dict
+    train_data: pd.DataFrame,
+    test_data: pd.DataFrame,
+    distribution: Distribution,
+    model_names: List[str],
+    is_simulation: bool,
 ) -> pd.DataFrame:
-    """
-    Evaluate the predictions.
+    """Evaluate the predictions.
 
     Args:
-        predictions: predictions from the models
-        config: configuration dictionary
+        train_data: training data with prediction columns
+        test_data: test data with prediction columns
+        distribution: instantiated distribution object
+        model_names: list of model class name strings
+        is_simulation: whether the data was generated via simulation
+            (if so, include the true parameter loss in the metrics)
     """
-    # Evaluate the predictions
-    distribution = initiate_distribution(config[DISTRIBUTION])
     n_dim = distribution.n_dim
 
-    model_names = deque(config[MODELS])
-    # Check if the true parameters are present
-    if "theta_0" in train_data.columns:
-        model_names.appendleft("true")
+    names = deque(model_names)
+    if is_simulation:
+        names.appendleft("true")
 
-    metrics = pd.DataFrame(columns=["train", "test"], index=model_names)
+    metrics = pd.DataFrame(columns=["train", "test"], index=names)
     for data_set, data_name in zip([train_data, test_data], metrics.columns):
-        for model_name in model_names:
+        for model_name in names:
             if model_name == "true":
                 theta_cols = ["theta_" + str(i) for i in range(n_dim)]
             else:

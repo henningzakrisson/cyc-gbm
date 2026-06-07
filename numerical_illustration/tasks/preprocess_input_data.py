@@ -1,50 +1,60 @@
+from typing import List, Tuple
+
 import numpy as np
 import pandas as pd
 
-from .utils.constants import NORMALIZE, OUTPUT_DIR, TEST_SIZE
+from ..schema import DataConfig
 
 
 def preprocess_input_data(
-    config: dict, data: pd.DataFrame, rng: np.random.Generator
-) -> pd.DataFrame:
-    """
-    Preprocess the input data.
+    data_config: DataConfig,
+    data: pd.DataFrame,
+    rng: np.random.Generator,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Preprocess the input data.
 
     Args:
-        config: configuration dictionary
+        data_config: data configuration (used for normalize_features and test_size)
         data: input data
         rng: random number generator
     """
-    # Features is anything that doesnt start with w, y, or theta
     features = [
         col
         for col in data.columns
         if col not in ["w", "y"] and not col.startswith("theta")
     ]
 
-    if config[NORMALIZE]:
-        data[features] = _normalize_data(data[features])
+    train_data, test_data = _split_data(data, data_config.test_size, rng)
 
-    train_data, test_data = _split_data(data, config[TEST_SIZE], rng)
+    if data_config.normalize_features:
+        train_data, test_data = _normalize_features(train_data, test_data, features)
 
     return train_data, test_data
 
 
-def _normalize_data(data: pd.DataFrame) -> pd.DataFrame:
-    """
-    Normalize the data.
+def _normalize_features(
+    train_data: pd.DataFrame,
+    test_data: pd.DataFrame,
+    features: List[str],
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Normalize features using training-set statistics only.
 
     Args:
-        data: input data
+        train_data: training data
+        test_data: test data
+        features: list of feature column names to normalize
     """
-    return (data - data.mean()) / data.std()
+    mean = train_data[features].mean()
+    std = train_data[features].std()
+    train_data[features] = (train_data[features] - mean) / std
+    test_data[features] = (test_data[features] - mean) / std
+    return train_data, test_data
 
 
 def _split_data(
     data: pd.DataFrame, test_size: float, rng: np.random.Generator
-) -> pd.DataFrame:
-    """
-    Split the data into training and test data.
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Split the data into training and test data.
 
     Args:
         data: input data

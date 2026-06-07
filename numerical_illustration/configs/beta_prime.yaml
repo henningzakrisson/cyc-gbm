@@ -1,0 +1,49 @@
+data:
+  data_source: simulation
+  distribution: beta_prime
+  random_seed: 11
+  n_samples: 100000
+  n_features: 6
+  test_size: 0.2
+  normalize_features: true
+  parameter_function: |
+    def parameter(X):
+        # log(mu) = a0 + a1*sin(a2*x2) + a3*x3*x4
+        # a0=0.3, a1=0.5, a2=2.0, a3=0.3
+        z0 = (0.3
+              + 0.5 * np.sin(2.0 * X[:,1])
+              + 0.3 * X[:,2] * X[:,3])
+        # log(v) = b0 + min(b1, b2*x2) + b3*min(b4, b5*|x3|) + b6*x6*x3
+        # b0=1.5, b1=0.5, b2=0.4, b3=0.3, b4=0.8, b5=0.6, b6=0.2
+        z1 = (1.5
+              + np.minimum(0.5, 0.4 * X[:,1])
+              + 0.3 * np.minimum(0.8, 0.6 * np.abs(X[:,2]))
+              + 0.2 * X[:,5] * X[:,2])
+        return np.stack([z0, z1])
+
+output:
+  output_dir: data/results
+
+models:
+  - model_class: intercept
+  - model_class: cglm
+    max_iter: 2000
+    tolerance: 1e-5
+    step_size: 0.1
+  - model_class: gbm
+    n_estimators: 600
+    max_depth: 4
+    learning_rate: 0.05
+  - model_class: cgbm
+    n_estimators: [500, 500]
+    max_depth: 4
+    learning_rate: [0.1, 0.1]
+
+bootstrap:
+  n_bootstraps: 1
+  parallel: true
+  n_jobs: -1
+
+tuning:
+  perform_tuning: true
+  n_folds: 4

@@ -20,6 +20,8 @@ class CyclicalGradientBooster:
     y is assumed to be observations of Y ~ F(theta(X)), where F is a distribution.
     """
 
+    supports_feature_importance: bool = True
+
     def __init__(
         self,
         distribution: Union[str, Distribution] = "normal",

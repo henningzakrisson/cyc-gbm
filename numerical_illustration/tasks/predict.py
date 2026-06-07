@@ -29,11 +29,6 @@ def predict(
         model_name: models[model_name].predict(X_test) for model_name in models
     }
 
-    features = [
-        col
-        for col in data.columns
-        if (col not in ["y", "w"] or col.startswith("theta"))
-    ]
     n_dim = len([col for col in data.columns if col.startswith("theta")])
     for model_name in models:
         for j in range(n_dim):
