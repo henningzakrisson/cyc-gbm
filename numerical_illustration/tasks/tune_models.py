@@ -134,7 +134,7 @@ def _tune_ngboost(
         model = NGBRegressor(
             Dist=Normal,
             Score=MLE,
-            Base=DecisionTreeRegressor(max_depth=max_depth),
+            Base=DecisionTreeRegressor(criterion="squared_error", max_depth=max_depth),
             n_estimators=n_estimators_max,
             learning_rate=learning_rate,
             verbose=False,

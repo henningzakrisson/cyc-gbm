@@ -60,7 +60,7 @@ class NGBoostModel:
         self._model = NGBRegressor(
             Dist=Normal,
             Score=MLE,
-            Base=DecisionTreeRegressor(max_depth=self.max_depth),
+            Base=DecisionTreeRegressor(criterion="squared_error", max_depth=self.max_depth),
             n_estimators=self.n_estimators,
             learning_rate=self.learning_rate,
             verbose=False,
