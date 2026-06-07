@@ -44,7 +44,7 @@ class Distribution:
     def __init__(
         self,
         n_dim: int | None = None,
-    ):
+    ) -> None:
         """Initialize a distribution object."""
         self.n_dim = n_dim
 
@@ -117,7 +117,7 @@ class Distribution:
 class MultivariateNormalDistribution(Distribution):
     def __init__(
         self,
-    ):
+    ) -> None:
         """Initialize a multivariate normal distribution object with equal means and variances and
         correlation
 
@@ -246,7 +246,7 @@ class MultivariateNormalDistribution(Distribution):
 class NormalDistribution(Distribution):
     def __init__(
         self,
-    ):
+    ) -> None:
         """Initialize a normal distribution object.
 
         Parameterization: z[0] = mu, z[1] = log(sigma), where E[Y] = w*mu, Var(Y) = w*sigma^2
@@ -301,7 +301,7 @@ class NormalDistribution(Distribution):
 class NegativeBinomialDistribution(Distribution):
     def __init__(
         self,
-    ):
+    ) -> None:
         """Initialize a negative binomial distribution object.
 
         Parameterization: z[0] = np.log(mu), z[1] = log(theta), where E[Y] = w*mu, Var(Y) = w*mu*(1+mu/theta)
@@ -375,7 +375,7 @@ class NegativeBinomialDistribution(Distribution):
 class InverseGaussianDistribution(Distribution):
     def __init__(
         self,
-    ):
+    ) -> None:
         """Initialize a inverse Gaussian distribution object.
 
         Parameterization: z[0] = log(mu), z[1] = log(lambda), where E[Y] = w*mu, Var(Y) =w*mu^3 / lambda
@@ -452,7 +452,7 @@ class InverseGaussianDistribution(Distribution):
 class GammaDistribution(Distribution):
     def __init__(
         self,
-    ):
+    ) -> None:
         """
         Initialize a gamma distribution object.
 
@@ -524,7 +524,7 @@ class GammaDistribution(Distribution):
 class BetaPrimeDistribution(Distribution):
     def __init__(
         self,
-    ):
+    ) -> None:
         """
         Initialize a beta prime distribution object.
 
@@ -645,7 +645,7 @@ class CustomDistribution(Distribution):
         ],
         moment: Callable[[np.ndarray, int, np.ndarray | float], np.ndarray],
         d: int,
-    ):
+    ) -> None:
         """
         Initialize a custom distribution object.
 

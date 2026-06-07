@@ -37,7 +37,7 @@ class NGBoostModel:
         learning_rate: float = 0.01,
         max_depth: int = 3,
         random_state: int = 0,
-    ):
+    ) -> None:
         if not isinstance(distribution, NormalDistribution):
             raise NotImplementedError(
                 f"NGBoost wrapper only supports NormalDistribution, "
@@ -76,7 +76,7 @@ class NGBoostModel:
         log_sigma = np.log(dist.scale)
         return np.stack([mu, log_sigma])
 
-    def compute_feature_importances(self, j=None):
+    def compute_feature_importances(self, j: str | int | None = None) -> np.ndarray:
         """Compute feature importances from the fitted NGBoost model.
 
         Args:

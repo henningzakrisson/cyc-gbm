@@ -9,6 +9,7 @@ from ngboost.scores import MLE
 from sklearn.tree import DecisionTreeRegressor
 
 from cyc_gbm import CyclicalGradientBooster
+from cyc_gbm.utils.distributions import Distribution
 from cyc_gbm.utils.tuning import _fold_split, tune_n_estimators
 
 from ..schema import (
@@ -111,7 +112,7 @@ def _tune_ngboost(
     X: np.ndarray,
     y: np.ndarray,
     w: np.ndarray,
-    distribution,
+    distribution: Distribution,
     n_estimators_max: int,
     learning_rate: float,
     max_depth: int,
