@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 
-def get_targets_features(train_data: pd.DataFrame) -> np.ndarray:
+def get_targets_features(train_data: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     features = [
         col
         for col in train_data.columns

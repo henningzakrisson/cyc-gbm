@@ -1,5 +1,6 @@
 import inspect
 import logging
+from typing import TypeVar
 
 import numpy as np
 import pandas as pd
@@ -9,6 +10,8 @@ from cyc_gbm.utils.distributions import Distribution, initiate_distribution
 from cyc_gbm.utils.utils import calculate_progress
 from cyc_gbm.utils.fix_datatype import fix_datatype
 from cyc_gbm.boosting_tree import BoostingTree
+
+HyperParameter = TypeVar("HyperParameter", int, float)
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +63,7 @@ class CyclicalGradientBooster:
         self.trees = None
         self._feature_names = None
 
-    def _setup_hyper_parameter(self, hyper_parameter) -> list:
+    def _setup_hyper_parameter(self, hyper_parameter: HyperParameter | list[HyperParameter] | np.ndarray) -> list[HyperParameter]:
         """
         Initialize parameter to default_value if parameter is not a list or numpy array.
 
@@ -77,7 +80,7 @@ class CyclicalGradientBooster:
             )
         return hyper_parameter_list
 
-    def _initialize_trees(self):
+    def _initialize_trees(self) -> list[list[BoostingTree]]:
         """
         Initialize trees for each parameter dimension.
         """
@@ -138,7 +141,7 @@ class CyclicalGradientBooster:
         # Adjust initial estimate given current tree estimates
         self.z0 += self.initialize_estimate(y=y, w=w, z=z)
 
-    def _log_progress(self, step: int, total_steps: int,last_progress: float = -1) -> None:
+    def _log_progress(self, step: int, total_steps: int, last_progress: float = -1) -> float:
         """
         Log the progress of the simulation.
 
@@ -305,7 +308,7 @@ class CyclicalGradientBooster:
 
     def compute_feature_importances(
         self, j: str | int = "all", normalize: bool = True
-    ) -> np.ndarray | pd.Series:
+    ) -> dict[str | int, float]:
         """
         Computes the feature importances for parameter dimension j
 

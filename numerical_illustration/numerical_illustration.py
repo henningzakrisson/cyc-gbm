@@ -12,6 +12,7 @@ Usage:
 
 import argparse
 import logging
+from typing import Any
 
 from joblib import Parallel, delayed
 import numpy as np
@@ -41,7 +42,7 @@ def _run_single_iteration(
     iteration: int = 1,
     n_bootstraps: int = 1,
     log_prefix: str = "",
-):
+) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any], dict[str, Any], pd.DataFrame]:
     """Run one full simulation iteration: load, preprocess, tune, fit, predict, evaluate."""
     if n_bootstraps > 1:
         log_prefix = f"[bootstrap {iteration + 1}/{n_bootstraps}] "
@@ -84,7 +85,7 @@ def _format_metrics(mean: pd.DataFrame, std: pd.DataFrame) -> pd.DataFrame:
     return formatted
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Run the numerical illustration pipeline.")
     parser.add_argument(
         "--config",

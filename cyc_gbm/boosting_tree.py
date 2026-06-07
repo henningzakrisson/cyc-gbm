@@ -23,7 +23,7 @@ class BoostingTree(DecisionTreeRegressor):
         min_samples_split: int,
         min_samples_leaf: int,
         categorical_features: list[int] | None = None,
-    ):
+    ) -> None:
         """
         Constructs a new BoostingTree instance.
 
@@ -181,7 +181,7 @@ class BoostingTree(DecisionTreeRegressor):
         w: np.ndarray,
         j: int,
         node_value_0: float = 0,
-    ):
+    ) -> float:
         """
         Numerically optimize the node value for the data in specified dimension
 

@@ -116,7 +116,7 @@ def _evaluate_fold(
     model: CyclicalGradientBooster,
     n_estimators_max: list[int],
     log_prefix: str = "",
-):
+) -> tuple[np.ndarray, np.ndarray]:
     X_train, y_train, w_train, X_valid, y_valid, w_valid = fold
 
     model.reset(n_estimators=0)

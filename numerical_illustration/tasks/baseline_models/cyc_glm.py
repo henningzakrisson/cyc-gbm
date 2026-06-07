@@ -14,7 +14,7 @@ class CyclicGeneralizedLinearModel:
         max_iter: int = 1000,
         tol: float = 1e-5,
         eps: list[float] | float = 1e-7,
-    ):
+    ) -> None:
         """
         Initialize the model.
         """
