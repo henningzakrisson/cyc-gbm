@@ -13,13 +13,14 @@ def save_results(
     loss_results: Dict[str, Dict[str, List[float]]],
     metrics_mean: pd.DataFrame,
     metrics_std: pd.DataFrame,
+    mean_rank: pd.DataFrame,
     models: Dict[str, CyclicalGradientBooster],
     output_path: str,
 ) -> None:
     train_data.to_csv(os.path.join(output_path, "train_data.csv"), index=False)
     test_data.to_csv(os.path.join(output_path, "test_data.csv"), index=False)
     _save_tuning_results(loss_results, output_path)
-    _save_metrics(metrics_mean, metrics_std, output_path)
+    _save_metrics(metrics_mean, metrics_std, mean_rank, output_path)
     gbm_models = {k: models[k] for k in [CGBM, GBM] if k in models}
     _save_feature_importances(models=gbm_models, output_path=output_path)
 
@@ -27,6 +28,7 @@ def save_results(
 def _save_metrics(
     metrics_mean: pd.DataFrame,
     metrics_std: pd.DataFrame,
+    mean_rank: pd.DataFrame,
     output_path: str,
 ) -> None:
     """Save aggregated metrics with separate mean and std columns."""
@@ -34,6 +36,8 @@ def _save_metrics(
     for col in metrics_mean.columns:
         combined[f"{col}_mean"] = metrics_mean[col]
         combined[f"{col}_std"] = metrics_std[col]
+    for col in mean_rank.columns:
+        combined[f"{col}_mean_rank"] = mean_rank[col]
     combined.to_csv(os.path.join(output_path, "metrics.csv"), index=True)
 
 def _save_tuning_results(
