@@ -77,6 +77,10 @@ uv pip install "scikit-learn @ git+https://github.com/adam2392/scikit-learn.git@
 > uv pip install scikit-learn==1.8.0 --force-reinstall
 > ```
 
+After installing the PR branch, use `.venv/bin/python` to run scripts — **not**
+`uv run`. `uv run` re-syncs dependencies from `pyproject.toml` and will
+downgrade scikit-learn back to `1.8.0`, undoing the workaround.
+
 This is experimental and depends on an unmerged PR — the API may change.
 
 ## Contact
