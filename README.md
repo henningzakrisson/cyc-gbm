@@ -62,8 +62,16 @@ currently does not support native categorical splits. There is an
 that adds this functionality. **Once that PR is merged and released, this
 workaround will no longer be required.**
 
-Until then, you can install scikit-learn from that PR branch to experiment with
-categorical features:
+### Caveats
+
+- `cyc-gbm` itself does not yet pass `categorical_features` through to the
+  underlying `DecisionTreeRegressor`. Code changes are needed before categorical
+  splits are actually used during fitting.
+- This is experimental and depends on an unmerged PR — the API may change.
+
+### Installation
+
+Install scikit-learn from the PR branch to get categorical support:
 
 ```bash
 uv pip install "scikit-learn @ git+https://github.com/adam2392/scikit-learn.git@nocats-v2" --force-reinstall
@@ -77,16 +85,6 @@ uv pip install "scikit-learn @ git+https://github.com/adam2392/scikit-learn.git@
 > ```bash
 > uv pip install scikit-learn==1.8.0 --force-reinstall
 > ```
-
-### Caveats
-
-The `BoostingTree._adjust_node_values` method traverses the fitted tree
-manually using `X[:, feature] <= threshold`, which is the standard numerical
-split routing. With the categorical PR, categorical nodes use bitset-based
-routing instead. This means that **the node value optimisation step in cyc-gbm
-will not correctly route samples through categorical split nodes**. Adapting
-`_adjust_node_values` to handle categorical splits is required before this can
-be used in practice and is tracked as future work.
 
 ## Contact
 If you have any questions, feel free to contact me [here](mailto:henning.zakrisson@gmail.com).
