@@ -56,5 +56,5 @@ model_hyperparameters:
 
 # Model tuning
 tuning: true
-n_splits: 2
+n_splits: 4
 parallel: false
