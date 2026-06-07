@@ -5,10 +5,10 @@ from scipy.optimize import minimize
 from cyc_gbm.utils.distributions import Distribution
 
 
-class BoostingTree(DecisionTreeRegressor):
+class BoostingTree:
     """
     A Gradient Boosting Machine tree.
-    It is a subclass of sklearn.tree.DecisionTreeRegressor that first computes the current negative gradient of the loss function and then fits a regression tree to the negative gradient.
+    It wraps a sklearn.tree.DecisionTreeRegressor that first computes the current negative gradient of the loss function and then fits a regression tree to the negative gradient.
     Then, the node values of the tree are adjusted to the step size that minimizes the loss.
 
     :param max_depth: The maximum depth of the tree.
@@ -41,9 +41,18 @@ class BoostingTree(DecisionTreeRegressor):
         )
         if categorical_features:
             init_kwargs["categorical_features"] = categorical_features
-        super().__init__(**init_kwargs)
+        self._tree = DecisionTreeRegressor(**init_kwargs)
         self.categorical_features = categorical_features
         self.distribution = distribution
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """
+        Predict response values for the input data using the fitted tree.
+
+        :param X: Input data matrix of shape (n_samples, n_features).
+        :return: Predicted response values of shape (n_samples,).
+        """
+        return self._tree.predict(X)
 
     def fit_gradients(
         self,
@@ -63,7 +72,7 @@ class BoostingTree(DecisionTreeRegressor):
         :param j: The parameter dimension to update.
         """
         g = self.distribution.grad(y=y, z=z, w=w, j=j)
-        self.fit(X, -g)
+        self._tree.fit(X, -g)
         if self.categorical_features:
             X = self._encode_categorical_columns(X)
         self._adjust_node_values(X=X, y=y, z=z, w=w, j=j)
@@ -78,7 +87,7 @@ class BoostingTree(DecisionTreeRegressor):
         X_cat = X[:, self.categorical_features]
         if X_cat.ndim == 1:
             X_cat = X_cat.reshape(-1, 1)
-        X_cat_encoded = self._categorical_encoder.transform(X_cat)
+        X_cat_encoded = self._tree._categorical_encoder.transform(X_cat)
         X[:, self.categorical_features] = X_cat_encoded
         return X
 
@@ -133,30 +142,31 @@ class BoostingTree(DecisionTreeRegressor):
         :param j: Parameter dimension to update
         :param node_index: The index of the node to update
         """
+        tree = self._tree.tree_
         # Optimize node and update impurity
-        node_value_0 = self.tree_.value[node_index][0][0]
+        node_value_0 = tree.value[node_index][0][0]
         node_value = self._optimize_node_value(
             y=y, z=z, w=w, j=j, node_value_0=node_value_0
         )
-        self.tree_.value[node_index] = node_value
+        tree.value[node_index] = node_value
         e = np.eye(self.distribution.n_dim)[:, j : j + 1]  # Indicator vector
-        self.tree_.impurity[node_index] = self.distribution.loss(
+        tree.impurity[node_index] = self.distribution.loss(
             y=y, z=z + e * node_value, w=w
         ).sum()
 
         # Tend to the children
-        feature = self.tree_.feature[node_index]
+        feature = tree.feature[node_index]
         if feature == -2:
             # This is a leaf
             return
         if feature in self.categorical_features:
-            bitset = self.tree_.left_cat_bitset[node_index]
+            bitset = tree.left_cat_bitset[node_index]
             index_left = self._split_categorical(X, feature, bitset)
         else:
-            threshold = self.tree_.threshold[node_index]
+            threshold = tree.threshold[node_index]
             index_left = self._split_numerical(X, feature, threshold)
-        child_left = self.tree_.children_left[node_index]
-        child_right = self.tree_.children_right[node_index]
+        child_left = tree.children_left[node_index]
+        child_right = tree.children_right[node_index]
         self._adjust_node_values(
             X=X[index_left],
             y=y[index_left],
@@ -209,4 +219,4 @@ class BoostingTree(DecisionTreeRegressor):
 
         :return: The feature importances of the tree.
         """
-        return self.tree_.compute_feature_importances(normalize=False)
+        return self._tree.tree_.compute_feature_importances(normalize=False)
