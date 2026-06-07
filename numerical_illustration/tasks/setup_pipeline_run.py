@@ -5,7 +5,7 @@ from typing import Tuple
 import numpy as np
 import yaml
 
-from ..config.config_models import NumericalIllustrationConfig
+from ..schema import NumericalIllustrationConfig
 
 
 def setup_pipeline_run(
@@ -28,7 +28,6 @@ def setup_pipeline_run(
     run_id = _get_run_id()
     output_path = _create_output_path(str(config.output.output_dir), run_id)
 
-    # Dump the validated config to the output directory
     with open(os.path.join(output_path, "config.yaml"), "w") as f:
         yaml.dump(
             config.model_dump(mode="json"),
@@ -43,16 +42,14 @@ def setup_pipeline_run(
 
 
 def _get_run_id() -> str:
-    """
-    Get a unique run ID.
+    """Get a unique run ID.
 
     Assumes that there is no more than one run per second."""
     return time.strftime("%Y%m%d%H%M%S")
 
 
 def _create_output_path(output_dir: str, run_id: str) -> str:
-    """
-    Create a folder for the current run.
+    """Create a folder for the current run.
 
     Args:
         output_dir: output directory

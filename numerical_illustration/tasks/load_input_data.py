@@ -1,36 +1,33 @@
+from typing import Union
+
 import numpy as np
 import pandas as pd
 
 from cyc_gbm.utils.distributions import initiate_distribution
 
-from ..config.config_models import (
-    LocalDataConfig,
-    NumericalIllustrationConfig,
-    SimulationConfig,
-)
+from ..schema import LocalDataConfig, SimulationConfig
 
 
 def load_input_data(
-    config: NumericalIllustrationConfig, rng: np.random.Generator
+    data_config: Union[SimulationConfig, LocalDataConfig],
+    rng: np.random.Generator,
 ) -> pd.DataFrame:
-    """
-    Load or create the data.
+    """Load or create the data.
 
     Args:
-        config: validated pipeline configuration
-        rng: random number generator (used for simulation and train-test split)
+        data_config: data source configuration (simulation or local file)
+        rng: random number generator (used for simulation)
     """
-    if isinstance(config.data, SimulationConfig):
-        return _simulate_data(config.data, rng)
-    elif isinstance(config.data, LocalDataConfig):
-        return _load_data_from_file(config.data)
+    if isinstance(data_config, SimulationConfig):
+        return _simulate_data(data_config, rng)
+    elif isinstance(data_config, LocalDataConfig):
+        return _load_data_from_file(data_config)
     else:
-        raise ValueError(f"Unknown data source type: {type(config.data)}")
+        raise ValueError(f"Unknown data source type: {type(data_config)}")
 
 
 def _simulate_data(data_config: SimulationConfig, rng: np.random.Generator) -> pd.DataFrame:
-    """
-    Simulate data according to the configuration.
+    """Simulate data according to the configuration.
 
     Args:
         data_config: simulation configuration
@@ -55,8 +52,7 @@ def _simulate_data(data_config: SimulationConfig, rng: np.random.Generator) -> p
 
 
 def _compile_function_from_string(function_string: str) -> callable:
-    """
-    Compile a function from a string.
+    """Compile a function from a string.
 
     Args:
         function_string: string representation of the function
@@ -67,8 +63,7 @@ def _compile_function_from_string(function_string: str) -> callable:
 
 
 def _load_data_from_file(data_config: LocalDataConfig) -> pd.DataFrame:
-    """
-    Load the data from a file.
+    """Load the data from a file.
 
     Args:
         data_config: local data configuration

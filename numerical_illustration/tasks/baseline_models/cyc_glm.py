@@ -7,6 +7,9 @@ from cyc_gbm.utils.distributions import Distribution
 
 
 class CyclicGeneralizedLinearModel:
+
+    supports_feature_importance: bool = False
+
     def __init__(
         self,
         distribution: Distribution,

@@ -11,6 +11,8 @@ class InterceptModel:
     Class for intercept models, i.e., models that only predict a constant value for all parameters.
     """
 
+    supports_feature_importance: bool = False
+
     def __init__(self, distribution: Distribution) -> None:
         """
         Initialize the model.

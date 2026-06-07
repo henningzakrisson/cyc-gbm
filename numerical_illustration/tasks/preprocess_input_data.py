@@ -1,38 +1,39 @@
+from typing import Tuple, Union
+
 import numpy as np
 import pandas as pd
 
-from ..config.config_models import NumericalIllustrationConfig
+from ..schema import LocalDataConfig, SimulationConfig
 
 
 def preprocess_input_data(
-    config: NumericalIllustrationConfig, data: pd.DataFrame, rng: np.random.Generator
-) -> pd.DataFrame:
-    """
-    Preprocess the input data.
+    data_config: Union[SimulationConfig, LocalDataConfig],
+    data: pd.DataFrame,
+    rng: np.random.Generator,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Preprocess the input data.
 
     Args:
-        config: validated pipeline configuration
+        data_config: data configuration (used for normalize_features and test_size)
         data: input data
         rng: random number generator
     """
-    # Features is anything that doesn't start with w, y, or theta
     features = [
         col
         for col in data.columns
         if col not in ["w", "y"] and not col.startswith("theta")
     ]
 
-    if config.data.normalize_features:
+    if data_config.normalize_features:
         data[features] = _normalize_data(data[features])
 
-    train_data, test_data = _split_data(data, config.data.test_size, rng)
+    train_data, test_data = _split_data(data, data_config.test_size, rng)
 
     return train_data, test_data
 
 
 def _normalize_data(data: pd.DataFrame) -> pd.DataFrame:
-    """
-    Normalize the data.
+    """Normalize the data.
 
     Args:
         data: input data
@@ -42,9 +43,8 @@ def _normalize_data(data: pd.DataFrame) -> pd.DataFrame:
 
 def _split_data(
     data: pd.DataFrame, test_size: float, rng: np.random.Generator
-) -> pd.DataFrame:
-    """
-    Split the data into training and test data.
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Split the data into training and test data.
 
     Args:
         data: input data

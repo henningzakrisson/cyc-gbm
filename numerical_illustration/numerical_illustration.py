@@ -17,7 +17,7 @@ from joblib import Parallel, delayed
 import numpy as np
 import pandas as pd
 
-from .config.config_models import NumericalIllustrationConfig
+from .schema import NumericalIllustrationConfig
 from .tasks import (
     evaluate_predictions,
     fit_models,
@@ -29,9 +29,8 @@ from .tasks import (
     tune_models,
 )
 
-DEFAULT_CONFIG_DIR = "numerical_illustration/config/demo_config.yaml"
+DEFAULT_CONFIG_PATH = "numerical_illustration/configs/demo_config.yaml"
 
-# Set up a logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -47,15 +46,16 @@ def _run_single_iteration(
     if n_bootstraps > 1:
         log_prefix = f"[bootstrap {iteration + 1}/{n_bootstraps}] "
     logger.info(f"{log_prefix}Starting iteration")
-    raw_input_data = load_input_data(config=config, rng=rng)
+    raw_input_data = load_input_data(data_config=config.data, rng=rng)
     train_data, test_data = preprocess_input_data(
-        config=config, data=raw_input_data, rng=rng
+        data_config=config.data, data=raw_input_data, rng=rng
     )
     tuning_results, n_estimators = tune_models(
         config=config, train_data=train_data, rng=rng, log_prefix=log_prefix
     )
     models = fit_models(
-        config=config,
+        model_configs=config.models,
+        distribution=config.data.distribution_object,
         train_data=train_data,
         rng=rng,
         n_estimators=n_estimators,
@@ -64,7 +64,10 @@ def _run_single_iteration(
     train_data = predict(models=models, data=train_data)
     test_data = predict(models=models, data=test_data)
     metrics = evaluate_predictions(
-        train_data=train_data, test_data=test_data, config=config
+        train_data=train_data,
+        test_data=test_data,
+        distribution=config.data.distribution_object,
+        model_names=[m.model_class for m in config.models],
     )
     return train_data, test_data, tuning_results, models, metrics.astype(float)
 
@@ -84,13 +87,12 @@ def main():
     parser = argparse.ArgumentParser(description="Run the numerical illustration pipeline.")
     parser.add_argument(
         "--config",
-        default=DEFAULT_CONFIG_DIR,
+        default=DEFAULT_CONFIG_PATH,
         help="Path to config YAML (default: %(default)s)",
     )
     args = parser.parse_args()
     logger.info(f"Using config: {args.config}")
 
-    # Setup the numerical illustration
     config, rng, output_path = setup_pipeline_run(config_path=args.config)
     logger.info("Setup complete")
 
@@ -127,7 +129,6 @@ def main():
 
     logger.info("All bootstrap iterations complete")
 
-    # Aggregate metrics across bootstrap iterations
     stacked = np.stack([m.values for m in all_metrics], axis=0)
     ref = all_metrics[0]
     metrics_mean = pd.DataFrame(
@@ -137,7 +138,6 @@ def main():
         np.std(stacked, axis=0), index=ref.index, columns=ref.columns
     )
 
-    # Compute mean rank across bootstrap iterations (excluding "true")
     model_names = [idx for idx in ref.index if idx != "true"]
     mean_rank = pd.DataFrame(
         np.stack(
@@ -147,7 +147,6 @@ def main():
         columns=ref.columns,
     )
 
-    # Save results (last iteration's data + aggregated metrics)
     save_results(
         train_data=train_data,
         test_data=test_data,

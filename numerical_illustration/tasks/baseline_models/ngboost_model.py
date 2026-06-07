@@ -29,6 +29,8 @@ class NGBoostModel:
         z[1] = log(sigma)  (matches NormalDistribution parameterization)
     """
 
+    supports_feature_importance: bool = True
+
     def __init__(
         self,
         distribution: Distribution,
@@ -64,7 +66,6 @@ class NGBoostModel:
             verbose=False,
             random_state=self.random_state,
         )
-        # Pass sample weights if non-trivial
         if isinstance(w, np.ndarray) and not np.all(w == 1):
             self._model.fit(X, y, sample_weight=w)
         else:
@@ -75,3 +76,21 @@ class NGBoostModel:
         mu = dist.loc
         log_sigma = np.log(dist.scale)
         return np.stack([mu, log_sigma])
+
+    def compute_feature_importances(self, j=None):
+        """Compute feature importances from the fitted NGBoost model.
+
+        Args:
+            j: Parameter dimension index (0 or 1), or ``"all"`` for the
+               average across dimensions.  If ``None``, returns the raw
+               ``(n_params, n_features)`` array from NGBRegressor.
+
+        Returns:
+            1-d array of feature importances.
+        """
+        raw = self._model.feature_importances_
+        if j is None:
+            return raw
+        if j == "all":
+            return raw.mean(axis=0)
+        return raw[j]

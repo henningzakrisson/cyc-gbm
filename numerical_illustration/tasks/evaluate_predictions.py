@@ -1,37 +1,35 @@
 from collections import deque
+from typing import List
 
 import numpy as np
 import pandas as pd
 
-from cyc_gbm.utils.distributions import initiate_distribution
-
-from ..config.config_models import NumericalIllustrationConfig
+from cyc_gbm.utils.distributions import Distribution
 
 
 def evaluate_predictions(
     train_data: pd.DataFrame,
     test_data: pd.DataFrame,
-    config: NumericalIllustrationConfig,
+    distribution: Distribution,
+    model_names: List[str],
 ) -> pd.DataFrame:
-    """
-    Evaluate the predictions.
+    """Evaluate the predictions.
 
     Args:
         train_data: training data with prediction columns
         test_data: test data with prediction columns
-        config: validated pipeline configuration
+        distribution: instantiated distribution object
+        model_names: list of model class name strings
     """
-    distribution = initiate_distribution(config.data.distribution)
     n_dim = distribution.n_dim
 
-    model_names = deque(m.model_class for m in config.models)
-    # Check if the true parameters are present
+    names = deque(model_names)
     if "theta_0" in train_data.columns:
-        model_names.appendleft("true")
+        names.appendleft("true")
 
-    metrics = pd.DataFrame(columns=["train", "test"], index=model_names)
+    metrics = pd.DataFrame(columns=["train", "test"], index=names)
     for data_set, data_name in zip([train_data, test_data], metrics.columns):
-        for model_name in model_names:
+        for model_name in names:
             if model_name == "true":
                 theta_cols = ["theta_" + str(i) for i in range(n_dim)]
             else:
