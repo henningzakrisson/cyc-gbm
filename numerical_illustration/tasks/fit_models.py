@@ -22,6 +22,7 @@ def fit_models(
     train_data: pd.DataFrame,
     rng: np.random.Generator,
     n_estimators: Dict[str, List[int]],
+    log_prefix: str = "",
 ) -> Dict[str, Any]:
     """
     Fit the models specified in the config, using hyperparameters from the config.
@@ -66,9 +67,9 @@ def fit_models(
 
     # Fit models
     for model_name in models:
-        logger.info(f"Fitting {model_name}")
+        logger.info(f"{log_prefix}Fitting {model_name}")
         models[model_name].fit(X_train, y_train, w_train)
         if model_name == NGBOOST:
-            logger.info(f"NGBoost fitted with n_estimators={n_estimators[NGBOOST]}")
+            logger.info(f"{log_prefix}NGBoost fitted with n_estimators={n_estimators[NGBOOST]}")
 
     return models

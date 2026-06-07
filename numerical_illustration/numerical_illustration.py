@@ -13,6 +13,7 @@ Usage:
 import argparse
 import logging
 
+from joblib import Parallel, delayed
 import numpy as np
 import pandas as pd
 
@@ -26,7 +27,7 @@ from .tasks import (
     setup_pipeline_run,
     tune_models,
 )
-from .tasks.utils.constants import N_BOOTSTRAPS
+from .tasks.utils.constants import N_BOOTSTRAPS, N_JOBS, PARALLEL
 
 DEFAULT_CONFIG_DIR = "numerical_illustration/config/demo_config.yaml"
 
@@ -36,19 +37,29 @@ logger = logging.getLogger(__name__)
 
 
 def _run_single_iteration(
-    config: dict, rng: np.random.Generator, iteration: int = 1, n_bootstraps: int = 1
+    config: dict,
+    rng: np.random.Generator,
+    iteration: int = 1,
+    n_bootstraps: int = 1,
+    log_prefix: str = "",
 ):
     """Run one full simulation iteration: load, preprocess, tune, fit, predict, evaluate."""
-    logger.info(f"Bootstrap iteration {iteration + 1}/{n_bootstraps}")
+    if n_bootstraps > 1:
+        log_prefix = f"[bootstrap {iteration + 1}/{n_bootstraps}] "
+    logger.info(f"{log_prefix}Starting iteration")
     raw_input_data = load_input_data(config=config, rng=rng)
     train_data, test_data = preprocess_input_data(
         config=config, data=raw_input_data, rng=rng
     )
     tuning_results, n_estimators = tune_models(
-        config=config, train_data=train_data, rng=rng
+        config=config, train_data=train_data, rng=rng, log_prefix=log_prefix
     )
     models = fit_models(
-        config=config, train_data=train_data, rng=rng, n_estimators=n_estimators
+        config=config,
+        train_data=train_data,
+        rng=rng,
+        n_estimators=n_estimators,
+        log_prefix=log_prefix,
     )
     train_data = predict(models=models, data=train_data)
     test_data = predict(models=models, data=test_data)
@@ -86,12 +97,31 @@ def main():
     n_bootstraps = config.get(N_BOOTSTRAPS, 1)
     child_rngs = rng.spawn(n_bootstraps)
 
-    results = [
-        _run_single_iteration(
-            config=config, rng=child_rngs[b], iteration=b, n_bootstraps=n_bootstraps
+    parallel = config.get(PARALLEL, False)
+    if parallel and n_bootstraps > 1:
+        n_jobs = config.get(N_JOBS, -1)
+        logger.info(
+            f"Running {n_bootstraps} bootstrap iterations in parallel (n_jobs={n_jobs})"
         )
-        for b in range(n_bootstraps)
-    ]
+        results = Parallel(n_jobs=n_jobs)(
+            delayed(_run_single_iteration)(
+                config=config,
+                rng=child_rngs[b],
+                iteration=b,
+                n_bootstraps=n_bootstraps,
+            )
+            for b in range(n_bootstraps)
+        )
+    else:
+        results = [
+            _run_single_iteration(
+                config=config,
+                rng=child_rngs[b],
+                iteration=b,
+                n_bootstraps=n_bootstraps,
+            )
+            for b in range(n_bootstraps)
+        ]
     train_data, test_data, tuning_results, models, _ = results[-1]
     all_metrics = [r[4] for r in results]
 

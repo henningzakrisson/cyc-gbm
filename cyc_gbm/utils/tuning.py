@@ -1,5 +1,4 @@
 from typing import Union, List, Dict, Tuple, Optional
-from joblib import Parallel, delayed
 import logging
 
 import numpy as np
@@ -19,8 +18,7 @@ def tune_n_estimators(
     n_splits: int = 4,
     rng: Optional[np.random.Generator] = None,
     random_state: Optional[int] = None,
-    parallel: bool = True,
-    n_jobs: int = -1,
+    log_prefix: str = "",
 ) -> Dict[str, Union[List[int], np.ndarray]]:
     """Finds a suitable n_estimators hyperparameter of a CycGBM model using k-fold cross-validation.
 
@@ -32,8 +30,7 @@ def tune_n_estimators(
     :param n_splits: The number of folds to use for k-fold cross-validation.
     :param rng: The random number generator.
     :param random_state: The random state to use for the k-fold split. Will be ignored if rng is not None.
-    :param parallel: Whether to use parallel processing for the cross-validation.
-    :param n_jobs: The number of jobs to use for parallel processing. Default is -1, which uses all available cores.
+    :param log_prefix: Optional prefix for log messages (e.g. bootstrap iteration identifier).
     :return: A dictionary containing the following keys:
         - "n_estimators": The optimal n_estimators parameter value for each parameter dimension.
         - "loss": The loss results for every boosting step in the cross-validation.
@@ -49,28 +46,16 @@ def tune_n_estimators(
 
     folds = _fold_split(X=X, y=y, w=w, n_splits=n_splits, rng=rng)
 
-    logger.info(f"Performing cross-validation on {n_splits} folds")
-    if parallel:
-        results = Parallel(n_jobs=n_jobs)(
-            delayed(_evaluate_fold)(
-                fold=folds[i],
-                model=model,
-                n_estimators_max=n_estimators_max,
-            )
-            for i in folds
+    logger.info(f"{log_prefix}Performing cross-validation on {n_splits} folds")
+    results = [
+        _evaluate_fold(
+            fold=folds[i],
+            model=model,
+            n_estimators_max=n_estimators_max,
+            log_prefix=log_prefix,
         )
-    else:
-        results = []
-        for i in folds:
-            model.reset(n_estimators=0)
-            logger.info(f"Fold {i+1}/{n_splits}")
-            results.append(
-                _evaluate_fold(
-                    fold=folds[i],
-                    model=model,
-                    n_estimators_max=n_estimators_max,
-                )
-            )
+        for i in folds
+    ]
 
     loss = {
         "train": [result[0] for result in results],
@@ -80,9 +65,10 @@ def tune_n_estimators(
     n_estimators = _find_n_estimators(
         loss=np.sum(loss["valid"], axis=0),
         n_estimators_max=n_estimators_max,
+        log_prefix=log_prefix,
     )
 
-    logger.info(f"Optimal n_estimators: {[int(n) for n in n_estimators]}")
+    logger.info(f"{log_prefix}Optimal n_estimators: {[int(n) for n in n_estimators]}")
 
     return {
         "n_estimators": n_estimators,
@@ -130,10 +116,12 @@ def _evaluate_fold(
     fold: Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray],
     model: CyclicalGradientBooster,
     n_estimators_max: List[int],
+    log_prefix: str = "",
 ):
     X_train, y_train, w_train, X_valid, y_valid, w_valid = fold
 
-    model.fit(X=X_train, y=y_train, w=w_train,verbose=False)
+    model.reset(n_estimators=0)
+    model.fit(X=X_train, y=y_train, w=w_train, verbose=False)
     z_train = model.predict(X=X_train)
     z_valid = model.predict(X=X_valid)
 
@@ -144,7 +132,7 @@ def _evaluate_fold(
 
     total_steps = max(n_estimators_max) * model.n_dim
     progress = calculate_progress(step=0, total_steps=total_steps)
-    logger.info(f"progress: {int(progress * 100)}%")
+    logger.info(f"{log_prefix}progress: {int(progress * 100)}%")
 
     for k in range(1, max(n_estimators_max) + 1):
         for j in range(model.n_dim):
@@ -176,7 +164,7 @@ def _evaluate_fold(
         new_progress = calculate_progress(step=k * model.n_dim, total_steps=total_steps)
         if new_progress > progress:
             progress = new_progress
-            logger.info(f"progress: {int(progress * 100)}%")
+            logger.info(f"{log_prefix}progress: {int(progress * 100)}%")
 
         # Check early stopping
         if _has_tuning_converged(
@@ -184,11 +172,11 @@ def _evaluate_fold(
         ):
             loss_train[k + 1 :, :] = loss_train[k, -1]
             loss_valid[k + 1 :, :] = loss_valid[k, -1]
-            logger.info(f"Early stopping at {k} boosting steps")
+            logger.info(f"{log_prefix}Early stopping at {k} boosting steps")
             break
 
     if k == max(n_estimators_max):
-        logger.info("Early stopping did not occur. Consider increasing n_estimators_max.")
+        logger.info(f"{log_prefix}Early stopping did not occur. Consider increasing n_estimators_max.")
 
         
 
@@ -213,6 +201,7 @@ def _has_tuning_converged(
 def _find_n_estimators(
     loss: np.ndarray,
     n_estimators_max: List[int],
+    log_prefix: str = "",
 ) -> List[int]:
     loss_delta = np.zeros_like(loss)
     loss_delta[1:, 0] = loss[1:, 0] - loss[:-1, -1]
@@ -224,6 +213,6 @@ def _find_n_estimators(
     did_not_converge = np.logical_and(did_not_converge, was_tuned)
     if np.any(did_not_converge):
         logger.info(
-            f"tuning did not converge for dimensions {np.where(did_not_converge)}"
+            f"{log_prefix}tuning did not converge for dimensions {np.where(did_not_converge)}"
         )
     return list(n_estimators)
