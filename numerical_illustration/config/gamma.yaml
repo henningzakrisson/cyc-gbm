@@ -3,6 +3,8 @@ output_dir: data/results
 data_source: simulation
 random_seed: 11
 n_bootstraps: 1
+parallel: true
+n_jobs: -1
 
 # Simulation setup
 n_samples: 100000
@@ -57,5 +59,3 @@ model_hyperparameters:
 # Model tuning
 tuning: true
 n_splits: 4
-parallel: true
-n_jobs: -1
