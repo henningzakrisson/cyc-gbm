@@ -107,6 +107,16 @@ def main():
         np.std(stacked, axis=0), index=ref.index, columns=ref.columns
     )
 
+    # Compute mean rank across bootstrap iterations (excluding "true")
+    model_names = [idx for idx in ref.index if idx != "true"]
+    mean_rank = pd.DataFrame(
+        np.stack(
+            [m.loc[model_names].rank().values for m in all_metrics], axis=0
+        ).mean(axis=0),
+        index=model_names,
+        columns=ref.columns,
+    )
+
     # Save results (last iteration's data + aggregated metrics)
     save_results(
         train_data=train_data,
@@ -114,6 +124,7 @@ def main():
         loss_results=tuning_results,
         metrics_mean=metrics_mean,
         metrics_std=metrics_std,
+        mean_rank=mean_rank,
         models=models,
         output_path=output_path,
     )
@@ -121,6 +132,7 @@ def main():
 
     formatted = _format_metrics(metrics_mean, metrics_std)
     logger.info(f"\n{formatted}")
+    logger.info(f"Mean rank (models only):\n{mean_rank}")
 
 
 if __name__ == "__main__":
