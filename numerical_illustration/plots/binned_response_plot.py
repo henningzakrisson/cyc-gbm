@@ -101,42 +101,25 @@ def _compute_bins(
 
 
 def _bias_correction_factors(
-    z_train: np.ndarray,
+    pred_mean_train: np.ndarray,
+    pred_var_train: np.ndarray,
     y_train: np.ndarray,
-    dist,
 ) -> tuple[float, float]:
     """Compute multiplicative bias correction factors from training data.
 
     Returns ``(c_mu, c_v)`` where:
 
-    * ``c_mu = mean(y_train) / mean(μ̂_train)`` — mean correction
-    * ``c_v  = mean(var_after_mean_adj) / var(y_train)`` — variance correction
+    * ``c_mu = mean(y_train) / mean(μ̂_train)``
+    * ``c_v  = var(y_train) / mean(σ̂²_train)``
 
-    These factors are estimated on the training set and then applied to the
-    test set, so the adjustment is a genuine out-of-sample correction.
+    Corrections are applied directly to the predicted moments (not to z), so
+    they are distribution-agnostic.
     """
-    z_adj = z_train.copy()
-
-    c_mu = y_train.mean() / dist.moment(z_adj, k=1).mean()
-    z_adj[0] = z_adj[0] + math.log(c_mu)
-
-    pred_var_mean = dist.moment(z_adj, k=2).mean()
+    c_mu = y_train.mean() / pred_mean_train.mean()
+    pred_var_mean = pred_var_train.mean()
     obs_var = y_train.var()
-    c_v = pred_var_mean / obs_var if (pred_var_mean > 0 and obs_var > 0) else 1.0
-
+    c_v = obs_var / pred_var_mean if (pred_var_mean > 0 and obs_var > 0) else 1.0
     return c_mu, c_v
-
-
-def _apply_bias_correction(
-    z: np.ndarray,
-    c_mu: float,
-    c_v: float,
-) -> np.ndarray:
-    """Apply pre-computed correction factors to a z array."""
-    z_adj = z.copy()
-    z_adj[0] = z_adj[0] + math.log(c_mu)
-    z_adj[1] = z_adj[1] + math.log(c_v)
-    return z_adj
 
 
 def _model_bin_data(
@@ -150,7 +133,8 @@ def _model_bin_data(
     """Compute _BinData for *model*, optionally with bias adjustment.
 
     When *adjust* is True, *train_data* must be provided — correction factors
-    are estimated from the training set and applied to the test set.
+    are estimated from the training set moments and applied to the test set
+    moments directly, making the approach distribution-agnostic.
     """
     y = test_data["y"].to_numpy()
 
@@ -161,16 +145,19 @@ def _model_bin_data(
     theta_cols = [f"{model}_theta_{j}" for j in range(n_dim)]
     z = test_data[theta_cols].to_numpy().T
 
+    pred_mean = dist.moment(z, k=1)
+    pred_var = dist.moment(z, k=2)
+
     if adjust:
         if train_data is None:
             raise ValueError("train_data is required when adjust=True")
         z_train = train_data[theta_cols].to_numpy().T
         y_train = train_data["y"].to_numpy()
-        c_mu, c_v = _bias_correction_factors(z_train, y_train, dist)
-        z = _apply_bias_correction(z, c_mu, c_v)
-
-    pred_mean = dist.moment(z, k=1)
-    pred_var = dist.moment(z, k=2)
+        pred_mean_train = dist.moment(z_train, k=1)
+        pred_var_train = dist.moment(z_train, k=2)
+        c_mu, c_v = _bias_correction_factors(pred_mean_train, pred_var_train, y_train)
+        pred_mean = pred_mean * c_mu
+        pred_var = pred_var * c_v
 
     order = np.argsort(pred_mean)
     return _compute_bins(y[order], pred_mean[order], pred_var[order], n_bins)
