@@ -60,26 +60,19 @@ def _detect_models(test_data: pd.DataFrame) -> list[str]:
 
 def _compute_bins(
     y: np.ndarray,
-    w: np.ndarray,
     pred_mean: np.ndarray,
     pred_var: np.ndarray,
     n_bins: int,
 ) -> _BinData:
     """Compute per-bin observed average, predicted mean, and ±1 std band.
 
-    Follows the paper's equations (5) and (6):
+    Follows the paper's equations (5) and (6) under w=1:
 
-    * Observed bin average:
-      ``ȳ_j = sum(y_i) / sum(w_i)``  for ``i`` in bin ``j``.
+    * Observed bin average:   ``ȳ_j = mean(y_i)``
+    * Predicted bin mean:     ``μ̂_j = mean(μ̂_i)``
+    * Predicted bin std:      ``σ̂_j = sqrt(mean(σ̂²_i) / n_j)``
 
-    * Predicted bin mean:
-      ``μ̂_j = sum(w_i * μ̂_i) / sum(w_i)``
-
-    * Predicted bin variance:
-      ``σ̂²_j = sum(w_i * σ̂²_i) / sum(w_i)²``
-
-    Observations are pre-sorted by ``pred_mean / w`` before calling this
-    function (standardised-exposure ordering).
+    Observations are pre-sorted by predicted mean before calling this function.
     """
     n = len(y)
     observed = np.empty(n_bins)
@@ -92,12 +85,10 @@ def _compute_bins(
         hi = math.floor((j + 1) * n / n_bins)
         idx = slice(lo, hi)
 
-        w_j = w[idx]
-        sum_w = w_j.sum()
-
-        observed[j] = y[idx].sum() / sum_w
-        p_mean[j] = (w_j * pred_mean[idx]).sum() / sum_w
-        sigma_j = math.sqrt((w_j * pred_var[idx]).sum() / sum_w**2)
+        n_j = hi - lo
+        observed[j] = y[idx].mean()
+        p_mean[j] = pred_mean[idx].mean()
+        sigma_j = math.sqrt(pred_var[idx].mean() / n_j)
         p_upper[j] = p_mean[j] + sigma_j
         p_lower[j] = p_mean[j] - sigma_j
 
@@ -112,29 +103,25 @@ def _compute_bins(
 def _bias_correction_factors(
     z_train: np.ndarray,
     y_train: np.ndarray,
-    w_train: np.ndarray,
     dist,
 ) -> tuple[float, float]:
     """Compute multiplicative bias correction factors from training data.
 
     Returns ``(c_mu, c_v)`` where:
 
-    * ``c_mu = mean(y_train / w_train) / mean(μ̂_train)`` — mean correction
-    * ``c_v  = mean(var_after_mean_adj) / var(y_train / w_train)`` — variance correction
+    * ``c_mu = mean(y_train) / mean(μ̂_train)`` — mean correction
+    * ``c_v  = mean(var_after_mean_adj) / var(y_train)`` — variance correction
 
     These factors are estimated on the training set and then applied to the
     test set, so the adjustment is a genuine out-of-sample correction.
     """
     z_adj = z_train.copy()
 
-    mu_hat = dist.moment(z_adj, k=1)
-    obs_mean = (y_train / w_train).mean()
-    c_mu = obs_mean / mu_hat.mean()
+    c_mu = y_train.mean() / dist.moment(z_adj, k=1).mean()
     z_adj[0] = z_adj[0] + math.log(c_mu)
 
-    var_adj = dist.moment(z_adj, k=2)
-    obs_var = np.var(y_train / w_train)
-    pred_var_mean = var_adj.mean()
+    pred_var_mean = dist.moment(z_adj, k=2).mean()
+    obs_var = y_train.var()
     c_v = pred_var_mean / obs_var if (pred_var_mean > 0 and obs_var > 0) else 1.0
 
     return c_mu, c_v
@@ -166,7 +153,6 @@ def _model_bin_data(
     are estimated from the training set and applied to the test set.
     """
     y = test_data["y"].to_numpy()
-    w = test_data["w"].to_numpy()
 
     n_dim = dist.n_dim if dist.n_dim is not None else sum(
         1 for col in test_data.columns if col.startswith(f"{model}_theta_")
@@ -180,15 +166,14 @@ def _model_bin_data(
             raise ValueError("train_data is required when adjust=True")
         z_train = train_data[theta_cols].to_numpy().T
         y_train = train_data["y"].to_numpy()
-        w_train = train_data["w"].to_numpy()
-        c_mu, c_v = _bias_correction_factors(z_train, y_train, w_train, dist)
+        c_mu, c_v = _bias_correction_factors(z_train, y_train, dist)
         z = _apply_bias_correction(z, c_mu, c_v)
 
     pred_mean = dist.moment(z, k=1)
     pred_var = dist.moment(z, k=2)
 
-    order = np.argsort(pred_mean / w)
-    return _compute_bins(y[order], w[order], pred_mean[order], pred_var[order], n_bins)
+    order = np.argsort(pred_mean)
+    return _compute_bins(y[order], pred_mean[order], pred_var[order], n_bins)
 
 
 def _write_dat(path: Path, values: np.ndarray) -> None:
@@ -262,6 +247,14 @@ def create_binned_response_plot(config: BinnedResponsePlotConfig) -> None:
 
     test_data = pd.read_csv(results_dir / "test_data.csv")
     train_data = pd.read_csv(results_dir / "train_data.csv")
+
+    for name, data in [("test_data", test_data), ("train_data", train_data)]:
+        if not (data["w"] == 1).all():
+            raise NotImplementedError(
+                f"Binned response plot is only implemented for w=1 but {name} "
+                "contains non-unit weights."
+            )
+
     m = len(test_data)
 
     n_bins = config.n_bins if config.n_bins is not None else math.floor(math.sqrt(m))
