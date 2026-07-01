@@ -16,8 +16,11 @@ class BinnedResponsePlotConfig(BaseModel):
             key accepted by ``initiate_distribution``.
         n_bins: Number of equal-sized bins.  Defaults to
             ``floor(sqrt(m))`` where *m* is the test-set size.
-        models: Model names to include in the plot.  Defaults to all models
-            detected from the ``*_theta_0`` columns in ``test_data.csv``.
+        models: Subset of model names to include in the plot, e.g.
+            ``["gbm", "cgbm"]``.  Defaults to all models detected from the
+            ``*_theta_0`` columns in ``test_data.csv``.  Use this to exclude
+            baseline models (``intercept``, ``cglm``) or limit the figure to
+            the models of interest.
         bias_adjustment: Whether to add a second row of panels with globally
             bias-adjusted mean and variance predictions.
         output_dir: Directory where output files are written.  Defaults to
