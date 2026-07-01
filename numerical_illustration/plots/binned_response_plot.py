@@ -70,7 +70,7 @@ def _compute_bins(
 
     * Observed bin average:   ``ȳ_j = mean(y_i)``
     * Predicted bin mean:     ``μ̂_j = mean(μ̂_i)``
-    * Predicted bin std:      ``σ̂_j = sqrt(mean(σ̂²_i) / n_j)``
+    * Predicted bin std:      ``σ̂_j = sqrt(mean(σ̂²_i)``
 
     Observations are pre-sorted by predicted mean before calling this function.
     """
@@ -85,10 +85,9 @@ def _compute_bins(
         hi = math.floor((j + 1) * n / n_bins)
         idx = slice(lo, hi)
 
-        n_j = hi - lo
         observed[j] = y[idx].mean()
         p_mean[j] = pred_mean[idx].mean()
-        sigma_j = math.sqrt(pred_var[idx].mean() / n_j)
+        sigma_j = math.sqrt(pred_var[idx].mean())
         p_upper[j] = p_mean[j] + sigma_j
         p_lower[j] = p_mean[j] - sigma_j
 
