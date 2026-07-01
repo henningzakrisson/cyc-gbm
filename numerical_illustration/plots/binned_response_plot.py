@@ -32,10 +32,6 @@ from cyc_gbm.utils.distributions import initiate_distribution
 from .config import BinnedResponsePlotConfig
 from .tikz_writer import write_tikz
 
-# ---------------------------------------------------------------------------
-# Internal data structures
-# ---------------------------------------------------------------------------
-
 
 class _BinData:
     """Computed bin statistics for one model × adjustment variant."""
@@ -53,11 +49,6 @@ class _BinData:
         self.pred_lower = pred_lower
 
 
-# ---------------------------------------------------------------------------
-# Helper: detect model names from CSV columns
-# ---------------------------------------------------------------------------
-
-
 def _detect_models(test_data: pd.DataFrame) -> list[str]:
     """Return model names from columns named ``<model>_theta_0``."""
     return [
@@ -65,11 +56,6 @@ def _detect_models(test_data: pd.DataFrame) -> list[str]:
         for col in test_data.columns
         if col.endswith("_theta_0") and col != "theta_0"
     ]
-
-
-# ---------------------------------------------------------------------------
-# Helper: compute bin statistics
-# ---------------------------------------------------------------------------
 
 
 def _compute_bins(
@@ -123,11 +109,6 @@ def _compute_bins(
     )
 
 
-# ---------------------------------------------------------------------------
-# Helper: bias-adjust z parameters and recompute moments
-# ---------------------------------------------------------------------------
-
-
 def _bias_adjust(
     z: np.ndarray,
     y: np.ndarray,
@@ -144,24 +125,15 @@ def _bias_adjust(
 
     2. **Variance adjustment**: after the mean adjustment, scale ``exp(z[1])``
        so that the mean predicted variance matches the observed sample variance.
-       For distributions where variance decreases with *z[1]* (e.g. Beta Prime,
-       Gamma) this means ``z[1] += log(c_v)`` where
-       ``c_v = mean(var_after_mean_adj) / sample_var(y/w)``.
-
-       Note: for distributions where higher *z[1]* means higher variance (e.g.
-       Normal), the sign is reversed automatically because the moment formula
-       handles it.
+       ``c_v = mean(var_after_mean_adj) / sample_var(y/w)``  →  ``z[1] += log(c_v)``
     """
     z_adj = z.copy()
 
-    # --- step 1: mean ---
     mu_hat = dist.moment(z_adj, k=1)
     obs_mean = (y / w).mean()
-    pred_mean = mu_hat.mean()
-    c_mu = obs_mean / pred_mean
+    c_mu = obs_mean / mu_hat.mean()
     z_adj[0] = z_adj[0] + math.log(c_mu)
 
-    # --- step 2: variance ---
     var_adj = dist.moment(z_adj, k=2)
     obs_var = np.var(y / w)
     pred_var_mean = var_adj.mean()
@@ -170,11 +142,6 @@ def _bias_adjust(
         z_adj[1] = z_adj[1] + math.log(c_v)
 
     return z_adj
-
-
-# ---------------------------------------------------------------------------
-# Helper: sort + bin for one model
-# ---------------------------------------------------------------------------
 
 
 def _model_bin_data(
@@ -188,14 +155,12 @@ def _model_bin_data(
     y = test_data["y"].to_numpy()
     w = test_data["w"].to_numpy()
 
-    # Infer n_dim from the distribution object (authoritative) or fall back to
-    # counting the model's own theta columns.
     n_dim = dist.n_dim if dist.n_dim is not None else sum(
         1 for col in test_data.columns if col.startswith(f"{model}_theta_")
     )
 
     theta_cols = [f"{model}_theta_{j}" for j in range(n_dim)]
-    z = test_data[theta_cols].to_numpy().T  # shape (n_dim, n_samples)
+    z = test_data[theta_cols].to_numpy().T
 
     if adjust:
         z = _bias_adjust(z, y, w, dist)
@@ -203,19 +168,8 @@ def _model_bin_data(
     pred_mean = dist.moment(z, k=1)
     pred_var = dist.moment(z, k=2)
 
-    # Sort by standardised predicted mean (pred_mean / w)
     order = np.argsort(pred_mean / w)
-    y_s = y[order]
-    w_s = w[order]
-    pm_s = pred_mean[order]
-    pv_s = pred_var[order]
-
-    return _compute_bins(y_s, w_s, pm_s, pv_s, n_bins)
-
-
-# ---------------------------------------------------------------------------
-# Helper: export .dat files
-# ---------------------------------------------------------------------------
+    return _compute_bins(y[order], w[order], pred_mean[order], pred_var[order], n_bins)
 
 
 def _write_dat(path: Path, values: np.ndarray) -> None:
@@ -246,11 +200,6 @@ def _export_dat_files(
     return paths
 
 
-# ---------------------------------------------------------------------------
-# Helper: matplotlib subplot
-# ---------------------------------------------------------------------------
-
-
 def _plot_subplot(
     ax: plt.Axes,
     bin_data: _BinData,
@@ -276,11 +225,6 @@ def _plot_subplot(
     ax.set_xlim(0, n_bins - 1)
 
 
-# ---------------------------------------------------------------------------
-# Public entry point
-# ---------------------------------------------------------------------------
-
-
 def create_binned_response_plot(config: BinnedResponsePlotConfig) -> None:
     """Generate the binned response plot from a completed pipeline run.
 
@@ -297,41 +241,33 @@ def create_binned_response_plot(config: BinnedResponsePlotConfig) -> None:
     output_dir = Path(config.output_dir) if config.output_dir else results_dir
     dat_dir = output_dir / "dat"
 
-    # --- load data ---
     test_data = pd.read_csv(results_dir / "test_data.csv")
     m = len(test_data)
 
-    # --- resolve options ---
     n_bins = config.n_bins if config.n_bins is not None else math.floor(math.sqrt(m))
     models = config.models if config.models is not None else _detect_models(test_data)
     dist = initiate_distribution(config.distribution)
 
-    # --- compute all bin data ---
-    # unadjusted[model] and adjusted[model]
     unadjusted: dict[str, _BinData] = {
-        m_: _model_bin_data(test_data, m_, dist, n_bins, adjust=False)
-        for m_ in models
+        model: _model_bin_data(test_data, model, dist, n_bins, adjust=False)
+        for model in models
     }
     adjusted: dict[str, _BinData] = {}
     if config.bias_adjustment:
         adjusted = {
-            m_: _model_bin_data(test_data, m_, dist, n_bins, adjust=True)
-            for m_ in models
+            model: _model_bin_data(test_data, model, dist, n_bins, adjust=True)
+            for model in models
         }
 
-    # --- export .dat files ---
     dat_paths: dict[str, dict[str, dict[str, Path]]] = {}
     for model in models:
         dat_paths[model] = {}
-        dat_paths[model]["unadjusted"] = _export_dat_files(
-            dat_dir, model, unadjusted[model]
-        )
+        dat_paths[model]["unadjusted"] = _export_dat_files(dat_dir, model, unadjusted[model])
         if config.bias_adjustment:
             dat_paths[model]["adjusted"] = _export_dat_files(
                 dat_dir, model, adjusted[model], suffix="_bias_adjusted"
             )
 
-    # --- global y-axis limits (shared across all panels) ---
     all_values = np.concatenate(
         [
             np.concatenate([bd.observed, bd.pred_mean, bd.pred_upper, bd.pred_lower])
@@ -340,17 +276,13 @@ def create_binned_response_plot(config: BinnedResponsePlotConfig) -> None:
     )
     ymin = float(np.nanmin(all_values))
     ymax = float(np.nanmax(all_values))
-    # Add small margin
     margin = 0.05 * (ymax - ymin)
     ymin -= margin
     ymax += margin
 
-    # --- matplotlib figure ---
     n_rows = 2 if config.bias_adjustment else 1
     n_cols = len(models)
-    fig, axes = plt.subplots(
-        n_rows, n_cols, figsize=config.figsize, squeeze=False
-    )
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=config.figsize, squeeze=False)
 
     dist_label = config.distribution.replace("_", " ").title()
 
@@ -377,7 +309,6 @@ def create_binned_response_plot(config: BinnedResponsePlotConfig) -> None:
     fig.savefig(png_path, dpi=150)
     plt.close(fig)
 
-    # --- tikz ---
     tex_path = output_dir / "binned_response_plot.tex"
     write_tikz(
         path=tex_path,
@@ -391,12 +322,9 @@ def create_binned_response_plot(config: BinnedResponsePlotConfig) -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# CLI entry point
-# ---------------------------------------------------------------------------
-
 if __name__ == "__main__":
     import argparse
+
     import yaml
 
     parser = argparse.ArgumentParser(
@@ -408,4 +336,5 @@ if __name__ == "__main__":
     with open(args.config) as fh:
         raw = yaml.safe_load(fh)
 
-    create_binned_response_plot(BinnedResponsePlotConfig(**raw))
+    plot_config = BinnedResponsePlotConfig(**raw)
+    create_binned_response_plot(plot_config)
