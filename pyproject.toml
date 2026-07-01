@@ -20,6 +20,7 @@ dependencies = [
 
 [project.optional-dependencies]
 numerical-illustration = [
+    "matplotlib>=3.9",
     "ngboost==0.5.10",
     "pydantic==2.13.4",
     "PyYAML==6.0.3",
