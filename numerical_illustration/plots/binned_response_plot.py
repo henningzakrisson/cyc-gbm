@@ -109,38 +109,46 @@ def _compute_bins(
     )
 
 
-def _bias_adjust(
-    z: np.ndarray,
-    y: np.ndarray,
-    w: np.ndarray,
+def _bias_correction_factors(
+    z_train: np.ndarray,
+    y_train: np.ndarray,
+    w_train: np.ndarray,
     dist,
-) -> np.ndarray:
-    """Return a copy of *z* with globally bias-adjusted parameters.
+) -> tuple[float, float]:
+    """Compute multiplicative bias correction factors from training data.
 
-    Two-step procedure:
+    Returns ``(c_mu, c_v)`` where:
 
-    1. **Mean adjustment**: scale ``exp(z[0])`` so that the population mean of
-       predicted means matches the exposure-weighted observed mean.
-       ``c_μ = mean(y/w) / mean(μ̂)``  →  ``z[0] += log(c_μ)``
+    * ``c_mu = mean(y_train / w_train) / mean(μ̂_train)`` — mean correction
+    * ``c_v  = mean(var_after_mean_adj) / var(y_train / w_train)`` — variance correction
 
-    2. **Variance adjustment**: after the mean adjustment, scale ``exp(z[1])``
-       so that the mean predicted variance matches the observed sample variance.
-       ``c_v = mean(var_after_mean_adj) / sample_var(y/w)``  →  ``z[1] += log(c_v)``
+    These factors are estimated on the training set and then applied to the
+    test set, so the adjustment is a genuine out-of-sample correction.
     """
-    z_adj = z.copy()
+    z_adj = z_train.copy()
 
     mu_hat = dist.moment(z_adj, k=1)
-    obs_mean = (y / w).mean()
+    obs_mean = (y_train / w_train).mean()
     c_mu = obs_mean / mu_hat.mean()
     z_adj[0] = z_adj[0] + math.log(c_mu)
 
     var_adj = dist.moment(z_adj, k=2)
-    obs_var = np.var(y / w)
+    obs_var = np.var(y_train / w_train)
     pred_var_mean = var_adj.mean()
-    if pred_var_mean > 0 and obs_var > 0:
-        c_v = pred_var_mean / obs_var
-        z_adj[1] = z_adj[1] + math.log(c_v)
+    c_v = pred_var_mean / obs_var if (pred_var_mean > 0 and obs_var > 0) else 1.0
 
+    return c_mu, c_v
+
+
+def _apply_bias_correction(
+    z: np.ndarray,
+    c_mu: float,
+    c_v: float,
+) -> np.ndarray:
+    """Apply pre-computed correction factors to a z array."""
+    z_adj = z.copy()
+    z_adj[0] = z_adj[0] + math.log(c_mu)
+    z_adj[1] = z_adj[1] + math.log(c_v)
     return z_adj
 
 
@@ -150,8 +158,13 @@ def _model_bin_data(
     dist,
     n_bins: int,
     adjust: bool,
+    train_data: pd.DataFrame | None = None,
 ) -> _BinData:
-    """Compute _BinData for *model*, optionally with bias adjustment."""
+    """Compute _BinData for *model*, optionally with bias adjustment.
+
+    When *adjust* is True, *train_data* must be provided — correction factors
+    are estimated from the training set and applied to the test set.
+    """
     y = test_data["y"].to_numpy()
     w = test_data["w"].to_numpy()
 
@@ -163,7 +176,13 @@ def _model_bin_data(
     z = test_data[theta_cols].to_numpy().T
 
     if adjust:
-        z = _bias_adjust(z, y, w, dist)
+        if train_data is None:
+            raise ValueError("train_data is required when adjust=True")
+        z_train = train_data[theta_cols].to_numpy().T
+        y_train = train_data["y"].to_numpy()
+        w_train = train_data["w"].to_numpy()
+        c_mu, c_v = _bias_correction_factors(z_train, y_train, w_train, dist)
+        z = _apply_bias_correction(z, c_mu, c_v)
 
     pred_mean = dist.moment(z, k=1)
     pred_var = dist.moment(z, k=2)
@@ -242,6 +261,7 @@ def create_binned_response_plot(config: BinnedResponsePlotConfig) -> None:
     dat_dir = output_dir / "dat"
 
     test_data = pd.read_csv(results_dir / "test_data.csv")
+    train_data = pd.read_csv(results_dir / "train_data.csv")
     m = len(test_data)
 
     n_bins = config.n_bins if config.n_bins is not None else math.floor(math.sqrt(m))
@@ -255,7 +275,9 @@ def create_binned_response_plot(config: BinnedResponsePlotConfig) -> None:
     adjusted: dict[str, _BinData] = {}
     if config.bias_adjustment:
         adjusted = {
-            model: _model_bin_data(test_data, model, dist, n_bins, adjust=True)
+            model: _model_bin_data(
+                test_data, model, dist, n_bins, adjust=True, train_data=train_data
+            )
             for model in models
         }
 
