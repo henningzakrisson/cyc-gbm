@@ -56,6 +56,14 @@ def _inline_table(path: Path) -> str:
     return f"table {{%\n{rows}\n}}"
 
 
+def _inline_table_with_error(obs_path: Path, err_path: Path) -> str:
+    """Return an inline 3-column ``table`` block with y-error data."""
+    obs = _read_dat(obs_path)
+    err = _read_dat(err_path)
+    rows = "\n".join(f"{idx} {val} {e}" for (idx, val), (_, e) in zip(obs, err))
+    return f"table [y error index=2] {{%\n{rows}\n}}"
+
+
 def _subplot_body(
     model: str,
     distribution_label: str,
@@ -71,7 +79,9 @@ def _subplot_body(
 
     band = _band_path(series_paths["band_upper"], series_paths["band_lower"])
     mean_table = _inline_table(series_paths["mean"])
-    obs_table = _inline_table(series_paths["observed"])
+    obs_err_table = _inline_table_with_error(
+        series_paths["observed"], series_paths["obs_std"]
+    )
 
     lines = [
         "\\nextgroupplot[",
@@ -88,8 +98,9 @@ def _subplot_body(
         band,
         "",
         f"\\addplot [thick, black]\n{mean_table};",
-        "\\addplot [semithick, black, mark=*, mark size=1, mark options={solid}, only marks]",
-        f"{obs_table};",
+        "\\addplot [semithick, black, mark=*, mark size=1, mark options={solid}, only marks,",
+        "  error bars/.cd, y dir=both, y explicit]",
+        f"{obs_err_table};",
     ]
     return "\n".join(lines)
 
