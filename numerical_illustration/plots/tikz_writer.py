@@ -72,6 +72,7 @@ def _subplot_body(
     ymin: float,
     ymax: float,
     bias_adjusted: bool,
+    error_bars: bool = True,
 ) -> str:
     """Return the tikz commands for a single \\nextgroupplot panel."""
     suffix = ", bias adjusted" if bias_adjusted else ""
@@ -79,9 +80,6 @@ def _subplot_body(
 
     band = _band_path(series_paths["band_upper"], series_paths["band_lower"])
     mean_table = _inline_table(series_paths["mean"])
-    obs_err_table = _inline_table_with_error(
-        series_paths["observed"], series_paths["obs_std"]
-    )
 
     lines = [
         "\\nextgroupplot[",
@@ -98,10 +96,24 @@ def _subplot_body(
         band,
         "",
         f"\\addplot [thick, black]\n{mean_table};",
-        "\\addplot [semithick, black, mark=*, mark size=1, mark options={solid}, only marks,",
-        "  error bars/.cd, y dir=both, y explicit]",
-        f"{obs_err_table};",
     ]
+
+    if error_bars:
+        obs_err_table = _inline_table_with_error(
+            series_paths["observed"], series_paths["obs_std"]
+        )
+        lines += [
+            "\\addplot [semithick, black, mark=*, mark size=1, mark options={solid}, only marks,",
+            "  error bars/.cd, y dir=both, y explicit]",
+            f"{obs_err_table};",
+        ]
+    else:
+        obs_table = _inline_table(series_paths["observed"])
+        lines += [
+            "\\addplot [semithick, black, mark=*, mark size=1, mark options={solid}, only marks]",
+            f"{obs_table};",
+        ]
+
     return "\n".join(lines)
 
 
@@ -114,6 +126,7 @@ def write_tikz(
     ymin: float,
     ymax: float,
     bias_adjustment: bool,
+    error_bars: bool = True,
 ) -> None:
     """Write a pgfplots groupplot ``.tex`` file to *path*.
 
@@ -123,11 +136,13 @@ def write_tikz(
         distribution_label: Human-readable distribution name for subplot titles.
         dat_paths: Nested dict ``dat_paths[model][variant][series]`` where
             *variant* is ``"unadjusted"`` or ``"adjusted"`` and *series* is
-            one of ``"mean"``, ``"observed"``, ``"band_upper"``, ``"band_lower"``.
+            one of ``"mean"``, ``"observed"``, ``"obs_std"``,
+            ``"band_upper"``, ``"band_lower"``.
         n_bins: Number of bins (sets the x-axis range to ``[0, n_bins]``).
         ymin: Shared y-axis minimum across all panels.
         ymax: Shared y-axis maximum across all panels.
         bias_adjustment: Whether a second row of bias-adjusted panels is included.
+        error_bars: Whether to render ±1 observed-std error bars on the dots.
     """
     n_cols = len(models)
     n_rows = 2 if bias_adjustment else 1
@@ -145,6 +160,7 @@ def write_tikz(
                 ymin=ymin,
                 ymax=ymax,
                 bias_adjusted=False,
+                error_bars=error_bars,
             )
         )
 
@@ -160,6 +176,7 @@ def write_tikz(
                     ymin=ymin,
                     ymax=ymax,
                     bias_adjusted=True,
+                    error_bars=error_bars,
                 )
             )
 

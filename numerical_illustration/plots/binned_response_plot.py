@@ -208,6 +208,7 @@ def _plot_subplot(
     title: str,
     ymin: float,
     ymax: float,
+    error_bars: bool = True,
 ) -> None:
     n_bins = len(bin_data.pred_mean)
     x = np.arange(n_bins)
@@ -221,17 +222,20 @@ def _plot_subplot(
         linewidth=0,
     )
     ax.plot(x, bin_data.pred_mean, color="black", linewidth=2)
-    ax.errorbar(
-        x,
-        bin_data.observed,
-        yerr=bin_data.obs_std,
-        fmt="o",
-        color="black",
-        markersize=2,
-        capsize=2,
-        linewidth=0.8,
-        zorder=3,
-    )
+    if error_bars:
+        ax.errorbar(
+            x,
+            bin_data.observed,
+            yerr=bin_data.obs_std,
+            fmt="o",
+            color="black",
+            markersize=2,
+            capsize=2,
+            linewidth=0.8,
+            zorder=3,
+        )
+    else:
+        ax.scatter(x, bin_data.observed, color="black", s=4, zorder=3)
     ax.set_title(title)
     ax.set_ylim(ymin, ymax)
     ax.set_xlim(0, n_bins - 1)
@@ -291,18 +295,27 @@ def create_binned_response_plot(config: BinnedResponsePlotConfig) -> None:
                 dat_dir, model, adjusted[model], suffix="_bias_adjusted"
             )
 
-    all_values = np.concatenate(
-        [
-            np.concatenate([
-                bd.observed + bd.obs_std,
-                bd.observed - bd.obs_std,
-                bd.pred_mean,
-                bd.pred_upper,
-                bd.pred_lower,
-            ])
-            for bd in {**unadjusted, **adjusted}.values()
-        ]
-    )
+    all_bins = {**unadjusted, **adjusted}
+    if config.error_bars:
+        all_values = np.concatenate(
+            [
+                np.concatenate([
+                    bd.observed + bd.obs_std,
+                    bd.observed - bd.obs_std,
+                    bd.pred_mean,
+                    bd.pred_upper,
+                    bd.pred_lower,
+                ])
+                for bd in all_bins.values()
+            ]
+        )
+    else:
+        all_values = np.concatenate(
+            [
+                np.concatenate([bd.observed, bd.pred_mean, bd.pred_upper, bd.pred_lower])
+                for bd in all_bins.values()
+            ]
+        )
     ymin = float(np.nanmin(all_values))
     ymax = float(np.nanmax(all_values))
     margin = 0.05 * (ymax - ymin)
@@ -323,6 +336,7 @@ def create_binned_response_plot(config: BinnedResponsePlotConfig) -> None:
             title=f"{model_label}, {dist_label}",
             ymin=ymin,
             ymax=ymax,
+            error_bars=config.error_bars,
         )
         if config.bias_adjustment:
             _plot_subplot(
@@ -331,6 +345,7 @@ def create_binned_response_plot(config: BinnedResponsePlotConfig) -> None:
                 title=f"{model_label}, {dist_label}, bias adjusted",
                 ymin=ymin,
                 ymax=ymax,
+                error_bars=config.error_bars,
             )
 
     fig.tight_layout()
@@ -348,6 +363,7 @@ def create_binned_response_plot(config: BinnedResponsePlotConfig) -> None:
         ymin=ymin,
         ymax=ymax,
         bias_adjustment=config.bias_adjustment,
+        error_bars=config.error_bars,
     )
 
 
