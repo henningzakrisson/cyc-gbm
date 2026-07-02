@@ -23,6 +23,11 @@ class BinnedResponsePlotConfig(BaseModel):
             the models of interest.
         bias_adjustment: Whether to add a second row of panels with globally
             bias-adjusted mean and variance predictions.
+        error_bars: Whether to show ±1 observed-std error bars on the
+            bin-average dots.  When ``True`` the plot displays vertical
+            error bars whose length equals the sample standard deviation
+            of the actuals within each bin, allowing direct comparison
+            with the predicted ±1σ band.
         output_dir: Directory where output files are written.  Defaults to
             ``results_dir``.
         figsize: Width and height of the matplotlib figure in inches.
@@ -33,5 +38,6 @@ class BinnedResponsePlotConfig(BaseModel):
     n_bins: int | None = None
     models: list[str] | None = None
     bias_adjustment: bool = True
+    error_bars: bool = True
     output_dir: Path | None = None
     figsize: tuple[float, float] = (12.0, 8.0)

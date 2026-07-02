@@ -42,11 +42,13 @@ class _BinData:
         pred_mean: np.ndarray,
         pred_upper: np.ndarray,
         pred_lower: np.ndarray,
+        obs_std: np.ndarray,
     ) -> None:
         self.observed = observed
         self.pred_mean = pred_mean
         self.pred_upper = pred_upper
         self.pred_lower = pred_lower
+        self.obs_std = obs_std
 
 
 def _detect_models(test_data: pd.DataFrame) -> list[str]:
@@ -76,6 +78,7 @@ def _compute_bins(
     """
     n = len(y)
     observed = np.empty(n_bins)
+    obs_std = np.empty(n_bins)
     p_mean = np.empty(n_bins)
     p_upper = np.empty(n_bins)
     p_lower = np.empty(n_bins)
@@ -86,6 +89,7 @@ def _compute_bins(
         idx = slice(lo, hi)
 
         observed[j] = y[idx].mean()
+        obs_std[j] = y[idx].std()
         p_mean[j] = pred_mean[idx].mean()
         sigma_j = math.sqrt(pred_var[idx].mean())
         p_upper[j] = p_mean[j] + sigma_j
@@ -96,6 +100,7 @@ def _compute_bins(
         pred_mean=p_mean,
         pred_upper=p_upper,
         pred_lower=p_lower,
+        obs_std=obs_std,
     )
 
 
@@ -109,15 +114,20 @@ def _bias_correction_factors(
     Returns ``(c_mu, c_v)`` where:
 
     * ``c_mu = mean(y_train) / mean(μ̂_train)``
-    * ``c_v  = var(y_train) / mean(σ̂²_train)``
+    * ``c_v  = (var(y_train) - var(μ̂_train)) / mean(σ̂²_train)``
+
+    The variance correction uses the law of total variance:
+    ``var(y) = E[var(y|x)] + var(E[y|x])`` so the residual (conditional)
+    variance component is ``var(y) - var(μ̂)``, which is what the predicted
+    conditional variance ``σ̂²`` should match.
 
     Corrections are applied directly to the predicted moments (not to z), so
     they are distribution-agnostic.
     """
     c_mu = y_train.mean() / pred_mean_train.mean()
     pred_var_mean = pred_var_train.mean()
-    obs_var = y_train.var()
-    c_v = obs_var / pred_var_mean if (pred_var_mean > 0 and obs_var > 0) else 1.0
+    residual_var = y_train.var() - pred_mean_train.var()
+    c_v = residual_var / pred_var_mean if (pred_var_mean > 0 and residual_var > 0) else 1.0
     return c_mu, c_v
 
 
@@ -180,11 +190,13 @@ def _export_dat_files(
     paths = {
         "mean": output_dir / f"{stem}_mean.dat",
         "observed": output_dir / f"{stem}_observed.dat",
+        "obs_std": output_dir / f"{stem}_obs_std.dat",
         "band_upper": output_dir / f"{stem}_band_upper.dat",
         "band_lower": output_dir / f"{stem}_band_lower.dat",
     }
     _write_dat(paths["mean"], bin_data.pred_mean)
     _write_dat(paths["observed"], bin_data.observed)
+    _write_dat(paths["obs_std"], bin_data.obs_std)
     _write_dat(paths["band_upper"], bin_data.pred_upper)
     _write_dat(paths["band_lower"], bin_data.pred_lower)
     return paths
@@ -196,6 +208,7 @@ def _plot_subplot(
     title: str,
     ymin: float,
     ymax: float,
+    error_bars: bool = True,
 ) -> None:
     n_bins = len(bin_data.pred_mean)
     x = np.arange(n_bins)
@@ -209,7 +222,20 @@ def _plot_subplot(
         linewidth=0,
     )
     ax.plot(x, bin_data.pred_mean, color="black", linewidth=2)
-    ax.scatter(x, bin_data.observed, color="black", s=4, zorder=3)
+    if error_bars:
+        ax.errorbar(
+            x,
+            bin_data.observed,
+            yerr=bin_data.obs_std,
+            fmt="o",
+            color="black",
+            markersize=2,
+            capsize=2,
+            linewidth=0.8,
+            zorder=3,
+        )
+    else:
+        ax.scatter(x, bin_data.observed, color="black", s=4, zorder=3)
     ax.set_title(title)
     ax.set_ylim(ymin, ymax)
     ax.set_xlim(0, n_bins - 1)
@@ -269,12 +295,27 @@ def create_binned_response_plot(config: BinnedResponsePlotConfig) -> None:
                 dat_dir, model, adjusted[model], suffix="_bias_adjusted"
             )
 
-    all_values = np.concatenate(
-        [
-            np.concatenate([bd.observed, bd.pred_mean, bd.pred_upper, bd.pred_lower])
-            for bd in {**unadjusted, **adjusted}.values()
-        ]
-    )
+    all_bins = {**unadjusted, **adjusted}
+    if config.error_bars:
+        all_values = np.concatenate(
+            [
+                np.concatenate([
+                    bd.observed + bd.obs_std,
+                    bd.observed - bd.obs_std,
+                    bd.pred_mean,
+                    bd.pred_upper,
+                    bd.pred_lower,
+                ])
+                for bd in all_bins.values()
+            ]
+        )
+    else:
+        all_values = np.concatenate(
+            [
+                np.concatenate([bd.observed, bd.pred_mean, bd.pred_upper, bd.pred_lower])
+                for bd in all_bins.values()
+            ]
+        )
     ymin = float(np.nanmin(all_values))
     ymax = float(np.nanmax(all_values))
     margin = 0.05 * (ymax - ymin)
@@ -295,6 +336,7 @@ def create_binned_response_plot(config: BinnedResponsePlotConfig) -> None:
             title=f"{model_label}, {dist_label}",
             ymin=ymin,
             ymax=ymax,
+            error_bars=config.error_bars,
         )
         if config.bias_adjustment:
             _plot_subplot(
@@ -303,6 +345,7 @@ def create_binned_response_plot(config: BinnedResponsePlotConfig) -> None:
                 title=f"{model_label}, {dist_label}, bias adjusted",
                 ymin=ymin,
                 ymax=ymax,
+                error_bars=config.error_bars,
             )
 
     fig.tight_layout()
@@ -320,6 +363,7 @@ def create_binned_response_plot(config: BinnedResponsePlotConfig) -> None:
         ymin=ymin,
         ymax=ymax,
         bias_adjustment=config.bias_adjustment,
+        error_bars=config.error_bars,
     )
 
 
