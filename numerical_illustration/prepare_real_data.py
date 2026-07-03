@@ -96,10 +96,8 @@ def _merge_and_fill(
     return (
         freq.drop(columns=["ClaimNb"], errors="ignore")
         .merge(sev_agg, on="IDpol", how="left")
-        .assign(
-            ClaimNb=lambda d: d["ClaimNb"].fillna(0).astype(int),
-            ClaimAmount=lambda d: d["ClaimAmount"].fillna(0.0),
-        )
+        .fillna({"ClaimNb": 0, "ClaimAmount": 0.0})
+        .assign(ClaimNb=lambda d: d["ClaimNb"].astype(int))
     )
 
 
