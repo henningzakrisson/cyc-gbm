@@ -27,7 +27,11 @@ def predict(
         model_name: models[model_name].predict(X_test) for model_name in models
     }
 
-    n_dim = len([col for col in data.columns if col.startswith("theta")])
+    # Infer n_dim from the first model's prediction shape rather than
+    # relying on theta_* columns which only exist for simulated data.
+    first_pred = next(iter(predictions.values()))
+    n_dim = first_pred.shape[0]
+
     for model_name in models:
         for j in range(n_dim):
             data[f"{model_name}_theta_{j}"] = predictions[model_name][j]
