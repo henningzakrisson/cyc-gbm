@@ -110,7 +110,7 @@ def tune_models(
 
 
 def _tune_ngboost(
-    X: "np.ndarray | pd.DataFrame",
+    X: np.ndarray | pd.DataFrame,
     y: np.ndarray,
     w: np.ndarray,
     distribution: Distribution,
@@ -123,7 +123,6 @@ def _tune_ngboost(
 ) -> dict[str, Any]:
     """Tune NGBoost n_estimators via k-fold CV using staged_pred_dist,
     mirroring the same fold split and loss computation as CGBM tuning."""
-    import pandas as pd
     from sklearn.preprocessing import OneHotEncoder
 
     # NGBoost requires numeric input; one-hot encode categoricals.

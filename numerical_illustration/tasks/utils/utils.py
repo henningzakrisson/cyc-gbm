@@ -9,6 +9,8 @@ def get_targets_features(
 
     Returns ``X`` as a :class:`~pandas.DataFrame` so that
     ``pd.CategoricalDtype`` columns are preserved for tree-based models.
+    ``y`` and ``w`` are returned as numpy arrays for compatibility with
+    the distribution and model APIs.
 
     Args:
         data: pipeline DataFrame containing feature columns, ``y``, ``w``,
@@ -24,6 +26,6 @@ def get_targets_features(
         if col not in ["y", "w"] and not col.startswith("theta")
     ]
     X = data[features]
-    y = data["y"].values
-    w = data["w"].values
+    y = data["y"].to_numpy()
+    w = data["w"].to_numpy()
     return X, y, w
