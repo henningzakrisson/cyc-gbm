@@ -1,0 +1,46 @@
+# Real data: French MTPL claim severity (Gamma)
+# Dataset: freMTPL2 from CASdatasets, cleaned per Wüthrich & Merz (2023), Ch. 13.1
+# Response: ClaimAmount (total claim amount per policy, only policies with claims)
+# Weight:   ClaimNb (number of claims per policy)
+
+data:
+  data_source: file
+  file_path: data/freMTPL2_severity.csv
+  distribution: gamma
+  random_seed: 42
+  test_size: 0.2
+  normalize_features: false
+  categorical_features:
+    - VehBrand
+    - VehGas
+    - Area
+    - Region
+
+output:
+  output_dir: data/results/real_gamma
+
+models:
+  - model_class: intercept
+  - model_class: cglm
+    max_iter: 2000
+    tolerance: 1e-5
+    step_size: 0.001
+  - model_class: gbm
+    n_estimators: 600
+    max_depth: 2
+    min_samples_leaf: 20
+    learning_rate: 0.05
+  - model_class: cgbm
+    n_estimators: [500, 500]
+    max_depth: 2
+    min_samples_leaf: 20
+    learning_rate: [0.05, 0.01]
+
+bootstrap:
+  n_bootstraps: 1
+  parallel: true
+  n_jobs: -1
+
+tuning:
+  perform_tuning: true
+  n_folds: 10
