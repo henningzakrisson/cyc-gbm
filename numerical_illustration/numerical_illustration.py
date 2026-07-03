@@ -56,7 +56,7 @@ def _run_single_iteration(
     )
     models = fit_models(
         model_configs=config.models,
-        distribution=config.data.distribution_object,
+        data_config=config.data,
         train_data=train_data,
         rng=rng,
         n_estimators=n_estimators,
@@ -64,11 +64,21 @@ def _run_single_iteration(
     )
     train_data = predict(models=models, data=train_data)
     test_data = predict(models=models, data=test_data)
+    # Build per-model distribution mapping for evaluation
+    from cyc_gbm.utils.distributions import initiate_distribution
+    model_distributions = {
+        mc.name: initiate_distribution(
+            config.data.distribution,
+            parameterization=getattr(mc, "parameterization", None) or config.data.parameterization,
+        )
+        for mc in config.models
+    }
     metrics = evaluate_predictions(
         train_data=train_data,
         test_data=test_data,
-        distribution=config.data.distribution_object,
+        model_distributions=model_distributions,
         model_names=config.model_names,
+        data_config=config.data,
         is_simulation=isinstance(config.data, SimulationConfig),
     )
     return train_data, test_data, tuning_results, models, metrics.astype(float)
@@ -140,7 +150,7 @@ def main() -> None:
         np.std(stacked, axis=0), index=ref.index, columns=ref.columns
     )
 
-    model_names = [idx for idx in ref.index if idx != "true"]
+    model_names = [idx for idx in ref.index if not idx.startswith("true")]
     mean_rank = pd.DataFrame(
         np.stack(
             [m.loc[model_names].rank().values for m in all_metrics], axis=0

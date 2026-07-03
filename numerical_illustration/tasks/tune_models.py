@@ -10,7 +10,7 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.preprocessing import OneHotEncoder
 
 from cyc_gbm import CyclicalGradientBooster
-from cyc_gbm.utils.distributions import Distribution
+from cyc_gbm.utils.distributions import Distribution, initiate_distribution
 from cyc_gbm.utils.tuning import _fold_split, tune_n_estimators
 
 from ..schema import (
@@ -20,9 +20,16 @@ from ..schema import (
     NaturalGradientBoostingMachineConfig,
     NumericalIllustrationConfig,
 )
+from ..schema.data import DataConfig
 from .utils.utils import get_targets_features
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_distribution(model_config, data_config: DataConfig) -> Distribution:
+    """Return the distribution for a model, honouring per-model parametrization overrides."""
+    parameterization = getattr(model_config, "parameterization", None) or data_config.parameterization
+    return initiate_distribution(data_config.distribution, parameterization=parameterization)
 
 
 def tune_models(
@@ -31,19 +38,19 @@ def tune_models(
     rng: np.random.Generator,
     log_prefix: str = "",
 ) -> tuple[dict[str, pd.DataFrame], dict[str, list[int]]]:
-    distribution = config.data.distribution_object
     X_train, y_train, w_train = get_targets_features(train_data)
     loss_results = {}
     n_estimators = {}
 
-    model_configs = config.model_configs_by_class
+    model_configs = config.model_configs_by_name
 
     if config.tuning.perform_tuning:
-        for mc_name in [ModelClass.GBM, ModelClass.CGBM]:
-            if mc_name not in model_configs:
+        for name, mc in model_configs.items():
+            if not isinstance(mc, (CyclicalGradientBoostingMachineConfig, GradientBoostingMachineConfig)):
                 continue
-            mc = model_configs[mc_name]
-            logger.info(f"{log_prefix}Tuning {mc_name}")
+
+            distribution = _resolve_distribution(mc, config.data)
+            logger.info(f"{log_prefix}Tuning {name}")
 
             model = CyclicalGradientBooster(
                 distribution=distribution,
@@ -67,12 +74,14 @@ def tune_models(
                 rng=rng,
                 log_prefix=log_prefix,
             )
-            loss_results[mc_name] = tuning_results["loss"]
-            n_estimators[mc_name] = tuning_results["n_estimators"]
+            loss_results[name] = tuning_results["loss"]
+            n_estimators[name] = tuning_results["n_estimators"]
 
-        if ModelClass.NGBOOST in model_configs:
-            mc = model_configs[ModelClass.NGBOOST]
-            logger.info(f"{log_prefix}Tuning {ModelClass.NGBOOST}")
+        for name, mc in model_configs.items():
+            if not isinstance(mc, NaturalGradientBoostingMachineConfig):
+                continue
+            distribution = _resolve_distribution(mc, config.data)
+            logger.info(f"{log_prefix}Tuning {name}")
             tuning_results = _tune_ngboost(
                 X=X_train,
                 y=y_train,
@@ -85,27 +94,18 @@ def tune_models(
                 rng=rng,
                 log_prefix=log_prefix,
             )
-            loss_results[ModelClass.NGBOOST] = tuning_results["loss"]
-            n_estimators[ModelClass.NGBOOST] = tuning_results["n_estimators"]
+            loss_results[name] = tuning_results["loss"]
+            n_estimators[name] = tuning_results["n_estimators"]
 
     else:
-        if ModelClass.CGBM in model_configs:
-            mc_cgbm = model_configs[ModelClass.CGBM]
-            n_estimators[ModelClass.CGBM] = mc_cgbm.n_estimators
-            if ModelClass.GBM in model_configs:
-                mc_gbm = model_configs[ModelClass.GBM]
-                n_estimators[ModelClass.GBM] = mc_gbm.n_estimators_as_list(
-                    len(mc_cgbm.n_estimators)
-                )
-        elif ModelClass.GBM in model_configs:
-            mc_gbm = model_configs[ModelClass.GBM]
-            n_estimators[ModelClass.GBM] = mc_gbm.n_estimators_as_list(
-                distribution.n_dim
-            )
-
-        if ModelClass.NGBOOST in model_configs:
-            mc_ngb = model_configs[ModelClass.NGBOOST]
-            n_estimators[ModelClass.NGBOOST] = mc_ngb.n_estimators
+        for name, mc in model_configs.items():
+            if isinstance(mc, CyclicalGradientBoostingMachineConfig):
+                n_estimators[name] = mc.n_estimators
+            elif isinstance(mc, GradientBoostingMachineConfig):
+                distribution = _resolve_distribution(mc, config.data)
+                n_estimators[name] = mc.n_estimators_as_list(distribution.n_dim)
+            elif isinstance(mc, NaturalGradientBoostingMachineConfig):
+                n_estimators[name] = mc.n_estimators
 
     return loss_results, n_estimators
 

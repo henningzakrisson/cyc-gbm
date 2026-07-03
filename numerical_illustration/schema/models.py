@@ -6,8 +6,27 @@ from pydantic import BaseModel, Field
 
 from .constants import ModelClass
 
+_PARAM_SUFFIX = {
+    "shape-rate": "sr",
+    "mean-dispersion": "md",
+}
 
-class GradientBoostingMachineConfig(BaseModel):
+
+class _ModelConfigBase(BaseModel):
+    """Shared fields for all model configs."""
+
+    parameterization: str | None = None
+
+    @property
+    def name(self) -> str:
+        """Return a unique model name, suffixed by parametrization when set."""
+        suffix = _PARAM_SUFFIX.get(self.parameterization, self.parameterization)
+        if suffix is not None:
+            return f"{self.model_class}_{suffix}"
+        return str(self.model_class)
+
+
+class GradientBoostingMachineConfig(_ModelConfigBase):
     """Hyperparameters for the (non-cyclical) gradient boosting machine.
 
     Uses ``CyclicalGradientBooster`` under the hood with trees only on the
@@ -19,6 +38,9 @@ class GradientBoostingMachineConfig(BaseModel):
         max_depth: Maximum depth of each decision tree.
         learning_rate: Shrinkage applied to each tree.
         min_samples_leaf: Minimum samples required at a leaf node.
+        parameterization: Optional parametrization override (e.g. "shape-rate",
+            "mean-dispersion"). When ``None`` the data config's parametrization
+            is used.
     """
 
     model_class: Literal[ModelClass.GBM]
@@ -36,7 +58,7 @@ class GradientBoostingMachineConfig(BaseModel):
         return [self.n_estimators] + [0] * (n_dim - 1)
 
 
-class CyclicalGradientBoostingMachineConfig(BaseModel):
+class CyclicalGradientBoostingMachineConfig(_ModelConfigBase):
     """Hyperparameters for the cyclical gradient boosting machine.
 
     Trees are fitted for every parameter dimension of the distribution in
@@ -48,6 +70,7 @@ class CyclicalGradientBoostingMachineConfig(BaseModel):
         max_depth: Maximum depth of each decision tree.
         learning_rate: Shrinkage applied to each tree (scalar or per-dimension).
         min_samples_leaf: Minimum samples required at a leaf node.
+        parameterization: Optional parametrization override.
     """
 
     model_class: Literal[ModelClass.CGBM]
@@ -74,8 +97,12 @@ class NaturalGradientBoostingMachineConfig(BaseModel):
     max_depth: int = 3
     learning_rate: float = 0.05
 
+    @property
+    def name(self) -> str:
+        return str(self.model_class)
 
-class CyclicalGeneralizedLinearModelConfig(BaseModel):
+
+class CyclicalGeneralizedLinearModelConfig(_ModelConfigBase):
     """Hyperparameters for the cyclical generalized linear model.
 
     Attributes:
@@ -83,6 +110,7 @@ class CyclicalGeneralizedLinearModelConfig(BaseModel):
         max_iter: Maximum number of coordinate-descent iterations.
         tolerance: Convergence tolerance on the coefficient norm change.
         step_size: Learning rate for the gradient step (scaled by 1/n internally).
+        parameterization: Optional parametrization override.
     """
 
     model_class: Literal[ModelClass.CGLM]
@@ -91,13 +119,14 @@ class CyclicalGeneralizedLinearModelConfig(BaseModel):
     step_size: float = 0.1
 
 
-class InterceptConfig(BaseModel):
+class InterceptConfig(_ModelConfigBase):
     """Configuration for the intercept-only baseline model.
 
     Fits a constant per distribution parameter via MLE.
 
     Attributes:
         model_class: Discriminator literal, always ``"intercept"``.
+        parameterization: Optional parametrization override.
     """
 
     model_class: Literal[ModelClass.INTERCEPT]
