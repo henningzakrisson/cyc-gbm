@@ -26,8 +26,8 @@ Usage example::
         datasets=[
             DatasetConfig(
                 results_dir="data/results/20260531133858",
-                distribution="normal",
-                label="Simulated Normal",
+                distribution="gamma",
+                label="Simulated Gamma",
             ),
         ],
     )
@@ -47,19 +47,14 @@ from cyc_gbm.utils.distributions import initiate_distribution
 from .concentration_config import (
     DEFAULT_MODEL_COLORS,
     ConcentrationCurvePlotConfig,
-    DatasetConfig,
 )
 from .concentration_tikz_writer import write_concentration_tikz
 
-# Distributions whose support is [0, ∞) or a subset thereof.
-# Concentration curves are only meaningful for non-negative responses.
 _NON_NEGATIVE_DISTRIBUTIONS: set[str] = {
     "gamma",
     "neg_bin",
     "beta_prime",
-    "poisson",
     "inverse_gaussian",
-    "tweedie",
 }
 
 
@@ -73,10 +68,6 @@ def _check_distribution_support(distribution: str) -> None:
             f"values and would lead to meaningless concentration curves."
         )
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def _detect_models(data: pd.DataFrame) -> list[str]:
     """Return model names from columns named ``<model>_theta_0``."""
@@ -93,7 +84,6 @@ def _get_model_color(model: str, overrides: dict[str, str] | None) -> str:
         return overrides[model]
     if model in DEFAULT_MODEL_COLORS:
         return DEFAULT_MODEL_COLORS[model]
-    # Fallback: pick from the default matplotlib colour cycle.
     fallback_cycle = [
         "#d62728", "#9467bd", "#8c564b", "#e377c2",
         "#7f7f7f", "#bcbd22", "#17becf",
@@ -101,10 +91,6 @@ def _get_model_color(model: str, overrides: dict[str, str] | None) -> str:
     idx = hash(model) % len(fallback_cycle)
     return fallback_cycle[idx]
 
-
-# ---------------------------------------------------------------------------
-# Core computation
-# ---------------------------------------------------------------------------
 
 def _compute_concentration_curve(
     response: np.ndarray,
@@ -129,13 +115,10 @@ def _compute_concentration_curve(
     response_sorted = response[order]
     total = response_sorted.sum()
 
-    # Cumulative share of response.
     cumsum = np.concatenate([[0.0], np.cumsum(response_sorted)])
-    # Corresponding population fractions.
     n = len(response_sorted)
     fracs = np.arange(n + 1) / n
 
-    # Interpolate at the requested α-grid.
     alphas = np.linspace(0.0, 1.0, n_points + 1)
     cc = np.interp(alphas, fracs, cumsum / total if total != 0 else cumsum)
 
@@ -188,20 +171,14 @@ def _compute_variance_cc(
     y = test_data["y"].to_numpy()
     w = test_data["w"].to_numpy()
 
-    # Reference mean for centering (configurable model).
     ref_mean, _ = _model_moments(test_data, mean_model, mean_dist)
     squared_residuals = (y - w * ref_mean) ** 2
 
-    # This model's predicted variance for sorting.
     _, pred_var = _model_moments(test_data, model, dist)
     sort_values = w * pred_var
 
     return _compute_concentration_curve(squared_residuals, sort_values, n_points)
 
-
-# ---------------------------------------------------------------------------
-# Dat-file I/O
-# ---------------------------------------------------------------------------
 
 def _write_dat(path: Path, alphas: np.ndarray, values: np.ndarray) -> None:
     """Write ``alpha<space>value`` rows to *path*."""
@@ -209,10 +186,6 @@ def _write_dat(path: Path, alphas: np.ndarray, values: np.ndarray) -> None:
     lines = [f"{a} {v}" for a, v in zip(alphas, values)]
     path.write_text("\n".join(lines) + "\n")
 
-
-# ---------------------------------------------------------------------------
-# Matplotlib rendering
-# ---------------------------------------------------------------------------
 
 def _plot_cc_subplot(
     ax: plt.Axes,
@@ -222,7 +195,6 @@ def _plot_cc_subplot(
     show_legend: bool,
 ) -> None:
     """Render one concentration-curve panel."""
-    # Diagonal (identity line).
     ax.plot([0, 1], [0, 1], color="black", linestyle="--", linewidth=1)
 
     for model, (alphas, cc) in curves.items():
@@ -242,10 +214,6 @@ def _plot_cc_subplot(
         )
 
 
-# ---------------------------------------------------------------------------
-# Public entry point
-# ---------------------------------------------------------------------------
-
 def create_concentration_curve_plot(config: ConcentrationCurvePlotConfig) -> None:
     """Generate concentration curve plots from completed pipeline runs.
 
@@ -261,7 +229,6 @@ def create_concentration_curve_plot(config: ConcentrationCurvePlotConfig) -> Non
     """
     datasets = config.datasets
 
-    # Validate that all distributions have non-negative support.
     for ds in datasets:
         _check_distribution_support(ds.distribution)
 
@@ -272,27 +239,21 @@ def create_concentration_curve_plot(config: ConcentrationCurvePlotConfig) -> Non
     )
     dat_dir = output_dir / "dat"
 
-    # Resolve models from first dataset if not given.
     first_test = pd.read_csv(Path(datasets[0].results_dir) / "test_data.csv")
     models = (
         config.models if config.models is not None else _detect_models(first_test)
     )
 
-    # Resolve colours.
     resolved_colors: dict[str, str] = {
         m: _get_model_color(m, config.model_colors) for m in models
     }
 
-    # ---- Compute curves per dataset ----
-    # Structure: all_curves[dataset_idx]["mean"|"variance"][model] = (alphas, cc)
     all_curves: list[dict[str, dict[str, tuple[np.ndarray, np.ndarray]]]] = []
 
     for ds in datasets:
         test_data = pd.read_csv(Path(ds.results_dir) / "test_data.csv")
         dist = initiate_distribution(ds.distribution)
-
-        # Also need the mean-model's distribution for the residual centering.
-        mean_dist = dist  # same distribution, just different model columns
+        mean_dist = dist
 
         mean_curves: dict[str, tuple[np.ndarray, np.ndarray]] = {}
         var_curves: dict[str, tuple[np.ndarray, np.ndarray]] = {}
@@ -310,8 +271,6 @@ def create_concentration_curve_plot(config: ConcentrationCurvePlotConfig) -> Non
 
         all_curves.append({"mean": mean_curves, "variance": var_curves})
 
-    # ---- Export .dat files ----
-    # dat_paths[ds_idx][cc_type][model] = Path
     dat_paths: list[dict[str, dict[str, Path]]] = []
 
     for ds_idx, ds in enumerate(datasets):
@@ -326,7 +285,6 @@ def create_concentration_curve_plot(config: ConcentrationCurvePlotConfig) -> Non
                 _write_dat(fpath, alphas, cc)
                 ds_dat[cc_type][model] = fpath
 
-        # Also write the diagonal.
         diag_alphas = np.linspace(0.0, 1.0, config.n_points + 1)
         for cc_type in ("mean", "variance"):
             diag_path = dat_dir / f"{label_slug}_{cc_type}_diagonal.dat"
@@ -335,7 +293,6 @@ def create_concentration_curve_plot(config: ConcentrationCurvePlotConfig) -> Non
 
         dat_paths.append(ds_dat)
 
-    # ---- Matplotlib figure ----
     n_rows = len(datasets)
     n_cols = 2
     figw, figh = config.figsize
@@ -362,7 +319,6 @@ def create_concentration_curve_plot(config: ConcentrationCurvePlotConfig) -> Non
     fig.savefig(png_path, dpi=150)
     plt.close(fig)
 
-    # ---- TikZ output ----
     tex_path = output_dir / "concentration_curve_plot.tex"
     write_concentration_tikz(
         path=tex_path,
@@ -372,10 +328,6 @@ def create_concentration_curve_plot(config: ConcentrationCurvePlotConfig) -> Non
         config=config,
     )
 
-
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     import argparse

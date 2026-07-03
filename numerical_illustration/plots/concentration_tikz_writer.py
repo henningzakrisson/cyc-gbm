@@ -24,10 +24,6 @@ from .concentration_config import (
 )
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 def _read_dat(path: Path) -> list[tuple[float, float]]:
     """Read a ``.dat`` file and return ``[(alpha, value), ...]``."""
     pairs: list[tuple[float, float]] = []
@@ -58,17 +54,12 @@ def _resolve_tikz_color_rgb(
         return overrides[model]
     if model in DEFAULT_TIKZ_COLORS:
         return DEFAULT_TIKZ_COLORS[model]
-    # Fallback palette.
     fallback = [
         (214, 39, 40), (148, 103, 189), (140, 86, 75),
         (227, 119, 194), (127, 127, 127), (188, 189, 34), (23, 190, 207),
     ]
     return fallback[hash(model) % len(fallback)]
 
-
-# ---------------------------------------------------------------------------
-# Subplot body
-# ---------------------------------------------------------------------------
 
 def _subplot_body(
     ds: DatasetConfig,
@@ -84,7 +75,6 @@ def _subplot_body(
 
     lines: list[str] = []
 
-    # -- groupplot options --
     opts = [
         "tick align=outside,",
         "tick pos=left,",
@@ -115,8 +105,7 @@ def _subplot_body(
     lines.extend(opts)
     lines.append("]")
 
-    # -- model curves --
-    for m_idx, model in enumerate(models):
+    for model in models:
         color_name = _resolve_tikz_color_name(model)
         table = _inline_table(series_paths[model])
 
@@ -128,7 +117,6 @@ def _subplot_body(
             lines.append(f"\\addplot [semithick, {color_name}]")
             lines.append(f"{table};")
 
-    # -- diagonal --
     diag_table = _inline_table(series_paths["__diagonal__"])
     forget = ", forget plot" if is_first_panel else ""
     lines.append(f"\\addplot [semithick, black, dashed{forget}]")
@@ -136,10 +124,6 @@ def _subplot_body(
 
     return "\n".join(lines)
 
-
-# ---------------------------------------------------------------------------
-# Public entry point
-# ---------------------------------------------------------------------------
 
 def write_concentration_tikz(
     path: Path,
@@ -160,9 +144,7 @@ def write_concentration_tikz(
     n_rows = len(datasets)
     n_cols = 2
 
-    # ---- Colour definitions ----
     color_defs: list[str] = []
-    # Always define the two "structural" colours used for grid/legend frame.
     color_defs.append("\\definecolor{darkgray176}{RGB}{176,176,176}")
     color_defs.append("\\definecolor{lightgray204}{RGB}{204,204,204}")
 
@@ -171,7 +153,6 @@ def write_concentration_tikz(
         r, g, b = _resolve_tikz_color_rgb(model, config.tikz_colors)
         color_defs.append(f"\\definecolor{{{cname}}}{{RGB}}{{{r},{g},{b}}}")
 
-    # ---- Subplots ----
     subplots: list[str] = []
     is_first = True
 

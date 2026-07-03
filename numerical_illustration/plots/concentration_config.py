@@ -1,22 +1,30 @@
 """Configuration models for the concentration curve plot."""
 
-from pathlib import Path
+from __future__ import annotations
 
-from pydantic import BaseModel
+from pathlib import Path
+from typing import Annotated
+
+from pydantic import BaseModel, Field
 
 from numerical_illustration.schema.constants import ModelClass
 
-# Default model colours matching the paper's concentration_curves.tex.
-DEFAULT_MODEL_COLORS: dict[str, str] = {
-    ModelClass.GBM: "#B0B0B0",       # lightgray (RGB 176,176,176)
-    ModelClass.CGBM: "#333333",      # darkslategray (RGB 51,51,51)
-    ModelClass.NGBOOST: "#1f77b4",   # tab:blue
-    ModelClass.CGLM: "#ff7f0e",      # tab:orange
-    ModelClass.INTERCEPT: "#2ca02c", # tab:green
+HexColor = Annotated[str, Field(pattern=r"^#[0-9a-fA-F]{6}$")]
+RGBTriple = tuple[
+    Annotated[int, Field(ge=0, le=255)],
+    Annotated[int, Field(ge=0, le=255)],
+    Annotated[int, Field(ge=0, le=255)],
+]
+
+DEFAULT_MODEL_COLORS: dict[ModelClass, HexColor] = {
+    ModelClass.GBM: "#B0B0B0",
+    ModelClass.CGBM: "#333333",
+    ModelClass.NGBOOST: "#1f77b4",
+    ModelClass.CGLM: "#ff7f0e",
+    ModelClass.INTERCEPT: "#2ca02c",
 }
 
-# Corresponding TikZ colour definitions (name → RGB triple).
-DEFAULT_TIKZ_COLORS: dict[str, tuple[int, int, int]] = {
+DEFAULT_TIKZ_COLORS: dict[ModelClass, RGBTriple] = {
     ModelClass.GBM: (176, 176, 176),
     ModelClass.CGBM: (51, 51, 51),
     ModelClass.NGBOOST: (31, 119, 180),
@@ -55,11 +63,11 @@ class ConcentrationCurvePlotConfig(BaseModel):
             ``test_data.csv``.
         mean_model_for_residuals: Which model's mean predictions to use when
             computing the squared-residual response for the variance
-            concentration curve.  Defaults to ``"gbm"``.
+            concentration curve.  Defaults to ``ModelClass.GBM``.
         n_points: Number of evenly spaced α-points on the [0, 1] grid.
-        model_colors: Matplotlib colour per model name.  Missing entries
+        model_colors: Matplotlib hex colour per model.  Missing entries
             fall back to ``DEFAULT_MODEL_COLORS`` or a built-in palette.
-        tikz_colors: TikZ RGB triple per model name.  Missing entries fall
+        tikz_colors: TikZ RGB triple per model.  Missing entries fall
             back to ``DEFAULT_TIKZ_COLORS``.
         output_dir: Directory where output files are written.  Defaults to
             the first dataset's ``results_dir``.
@@ -67,10 +75,10 @@ class ConcentrationCurvePlotConfig(BaseModel):
     """
 
     datasets: list[DatasetConfig]
-    models: list[str] | None = None
-    mean_model_for_residuals: str = ModelClass.GBM
+    models: list[ModelClass] | None = None
+    mean_model_for_residuals: ModelClass = ModelClass.GBM
     n_points: int = 100
-    model_colors: dict[str, str] | None = None
-    tikz_colors: dict[str, tuple[int, int, int]] | None = None
+    model_colors: dict[ModelClass, HexColor] | None = None
+    tikz_colors: dict[ModelClass, RGBTriple] | None = None
     output_dir: Path | None = None
     figsize: tuple[float, float] = (12.0, 5.0)
