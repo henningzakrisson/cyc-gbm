@@ -34,6 +34,7 @@ class CyclicalGradientBoosterTestCase(unittest.TestCase):
         expected_loss: float,
         n_dim: int,
         use_weights: bool = False,
+        parameterization: str = "mean-dispersion",
     ):
         """
         Test method for the CycGBM` class on a dataset where the target variable
@@ -43,9 +44,10 @@ class CyclicalGradientBoosterTestCase(unittest.TestCase):
         :param expected_loss: The expected loss of the CycGBM model.
         :param n_dim: The number of dimensions to use
         :param use_weights: Whether to use weights in the fit method.
+        :param parameterization: The parameterization to use. Default is "mean-dispersion".
         """
         distribution = initiate_distribution(
-            distribution=distribution_name, n_dim=n_dim
+            distribution=distribution_name, n_dim=n_dim, parameterization=parameterization
         )
         z = self.z[:n_dim]
         w = self.w if use_weights else np.ones(self.X.shape[0])
@@ -89,6 +91,29 @@ class CyclicalGradientBoosterTestCase(unittest.TestCase):
             n_dim=2,
             use_weights=True,
         )
+
+    def test_gamma_shape_rate_distribution(self):
+        self._test_distribution(
+            distribution_name="gamma",
+            expected_loss=1.8979316934619745,
+            n_dim=2,
+            parameterization="shape-rate",
+        )
+
+    def test_gamma_shape_rate_distribution_weighted(self):
+        self._test_distribution(
+            distribution_name="gamma",
+            expected_loss=1.9064661460574803,
+            n_dim=2,
+            use_weights=True,
+            parameterization="shape-rate",
+        )
+
+    def test_invalid_parameterization(self):
+        with self.assertRaises(ValueError):
+            initiate_distribution(
+                distribution="normal", parameterization="shape-rate"
+            )
 
     def test_beta_prime(self):
         self._test_distribution(

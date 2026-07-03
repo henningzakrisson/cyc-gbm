@@ -34,6 +34,7 @@ class CyclicalGradientBooster:
         min_samples_leaf: int | list[int] = 1,
         max_depth: int | list[int] = 3,
         feature_selection: list[list[str | int]] | None = None,
+        parameterization: str = "mean-dispersion",
     ):
         """
         Initialize a CyclicalGradientBooster object.
@@ -45,9 +46,12 @@ class CyclicalGradientBooster:
         :param min_samples_leaf: Minimum number of samples required at a leaf node. Dimension-wise or global for all parameter dimensions.
         :param max_depth: Maximum depths of each decision tree. Dimension-wise or global for all parameter dimensions.
         :param feature_selection: Features to use for each parameter dimension. If None, all feature_selection are used for all parameter dimensions.
+        :param parameterization: The parameterization to use for the distribution. Default is "mean-dispersion". See `initiate_distribution` for supported alternatives.
         """
         if isinstance(distribution, str):
-            self.distribution = initiate_distribution(distribution=distribution)
+            self.distribution = initiate_distribution(
+                distribution=distribution, parameterization=parameterization
+            )
         else:
             self.distribution = distribution
         self.n_dim = self.distribution.n_dim

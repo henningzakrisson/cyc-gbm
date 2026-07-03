@@ -521,6 +521,71 @@ class GammaDistribution(Distribution):
 
 
 @inherit_docstrings
+class GammaShapeRateDistribution(Distribution):
+    def __init__(
+        self,
+    ) -> None:
+        """
+        Initialize a gamma distribution object with shape-rate parameterization.
+
+        Parameterization: z[0] = log(alpha), z[1] = log(beta), where E[Y] = w*alpha/beta, Var(Y) = w*alpha/beta^2
+        """
+        super().__init__(n_dim=2)
+
+    def loss(
+        self, y: np.ndarray, z: np.ndarray, w: np.ndarray | float = 1.0
+    ) -> np.ndarray:
+        return (
+            loggamma(w * np.exp(z[0]))
+            - w * np.exp(z[0]) * z[1]
+            + np.exp(z[1]) * y
+            - (w * np.exp(z[0]) - 1) * np.log(y)
+        )
+
+    def grad(
+        self, y: np.ndarray, z: np.ndarray, j: int, w: np.ndarray | float = 1.0
+    ) -> np.ndarray:
+        if j == 0:
+            return (
+                w
+                * np.exp(z[0])
+                * (polygamma(0, w * np.exp(z[0])) - z[1] - np.log(y))
+            )
+        elif j == 1:
+            return np.exp(z[1]) * y - w * np.exp(z[0])
+
+    def mme(self, y: np.ndarray, w: np.ndarray | float = 1.0) -> np.ndarray:
+        if isinstance(w, float):
+            w = np.array([w] * len(y))
+        mean = y.sum() / w.sum()
+        var = sum((y - y.mean()) ** 2) / w.sum()
+        alpha = mean**2 / var
+        beta = mean / var
+        return np.array([np.log(alpha), np.log(beta)])
+
+    def simulate(
+        self,
+        z: np.ndarray,
+        w: np.ndarray | float = 1.0,
+        random_state: int | None = None,
+        rng: np.random.Generator | None = None,
+    ) -> np.ndarray:
+        if rng is None:
+            rng = np.random.default_rng(seed=random_state)
+        shape = w * np.exp(z[0])
+        scale = np.exp(-z[1])
+        return rng.gamma(shape=shape, scale=scale)
+
+    def moment(
+        self, z: np.ndarray, k: int, w: np.ndarray | float = 1.0
+    ) -> np.ndarray:
+        if k == 1:
+            return w * np.exp(z[0] - z[1])
+        elif k == 2:
+            return w * np.exp(z[0] - 2 * z[1])
+
+
+@inherit_docstrings
 class BetaPrimeDistribution(Distribution):
     def __init__(
         self,
@@ -680,6 +745,7 @@ def initiate_distribution(
     ] | None = None,
     moment: Callable[[np.ndarray, int, np.ndarray | float], np.ndarray] | None = None,
     n_dim: int = 2,
+    parameterization: str = "mean-dispersion",
 ) -> Distribution:
     """
     Returns a probability distribution object based on the distribution name.
@@ -691,9 +757,21 @@ def initiate_distribution(
     :param simulate: A function that simulates data from the distribution. Only used if dist == "custom".
     :param moment: A function that computes the kth moment of the distribution. Only used if dist == "custom".
     :param d: The dimension of the distribution.
+    :param parameterization: The parameterization to use. Default is "mean-dispersion".
+        Alternative parameterizations are only supported for certain distributions
+        (e.g. "shape-rate" for gamma).
     :return: A probability distribution object based on the distribution name.
-    :raises UnknownDistribution: If the input distribution name is not recognized.
+    :raises ValueError: If the input distribution name is not recognized, or if
+        the parameterization is not supported for the given distribution.
     """
+    if parameterization != "mean-dispersion":
+        if distribution != "gamma" or parameterization != "shape-rate":
+            raise ValueError(
+                f'Parameterization "{parameterization}" is not supported for '
+                f'distribution "{distribution}". Only the gamma distribution '
+                f'supports an alternative parameterization ("shape-rate").'
+            )
+        return GammaShapeRateDistribution()
     if distribution == "normal":
         if n_dim == 2:
             return NormalDistribution()
