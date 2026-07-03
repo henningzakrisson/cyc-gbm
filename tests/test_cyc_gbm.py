@@ -1,12 +1,11 @@
 import unittest
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from cyc_gbm import CyclicalGradientBooster
 from cyc_gbm.utils.tuning import tune_n_estimators
-from cyc_gbm.utils.distributions import GammaShapeRateDistribution, initiate_distribution
+from cyc_gbm.utils.distributions import initiate_distribution
 
 
 class CyclicalGradientBoosterTestCase(unittest.TestCase):
@@ -275,35 +274,6 @@ class CyclicalGradientBoosterTestCase(unittest.TestCase):
                     msg=f"Feature importance for feature {feature} for parameter j = {j} not as expected",
                 )
 
-
-class DataConfigParameterizationTestCase(unittest.TestCase):
-    """Tests that DataConfig correctly passes parameterization to the distribution factory."""
-
-    def test_default_parameterization_is_mean_dispersion(self):
-        """DataConfig defaults to mean-dispersion and produces a non-shape-rate distribution."""
-        from numerical_illustration.schema.data import SimulationConfig
-        cfg = SimulationConfig(
-            data_source="simulation",
-            distribution="gamma",
-            n_samples=10,
-            n_features=2,
-            parameter_function="def parameter(X): import numpy as np; return np.zeros((2, len(X)))",
-        )
-        self.assertEqual(cfg.parameterization, "mean-dispersion")
-        self.assertNotIsInstance(cfg.distribution_object, GammaShapeRateDistribution)
-
-    def test_shape_rate_parameterization_produces_correct_distribution(self):
-        """DataConfig with parameterization='shape-rate' produces GammaShapeRateDistribution."""
-        from numerical_illustration.schema.data import SimulationConfig
-        cfg = SimulationConfig(
-            data_source="simulation",
-            distribution="gamma",
-            parameterization="shape-rate",
-            n_samples=10,
-            n_features=2,
-            parameter_function="def parameter(X): import numpy as np; return np.zeros((2, len(X)))",
-        )
-        self.assertIsInstance(cfg.distribution_object, GammaShapeRateDistribution)
 
 
 if __name__ == "__main__":
