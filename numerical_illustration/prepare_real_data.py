@@ -78,12 +78,13 @@ def _aggregate_severities(sev: pd.DataFrame, id_dtype: np.dtype) -> pd.DataFrame
     Returns one row per IDpol with corrected ClaimNb (count of individual
     claim records) and total ClaimAmount.
     """
-    return (
+    sev_agg = (
         sev.groupby("IDpol")
         .agg(ClaimNb=("ClaimAmount", "count"), ClaimAmount=("ClaimAmount", "sum"))
         .reset_index()
-        .assign(IDpol=lambda d: d["IDpol"].astype(id_dtype))
     )
+    sev_agg["IDpol"] = sev_agg["IDpol"].astype(id_dtype)
+    return sev_agg
 
 
 def _merge_and_fill(
@@ -103,19 +104,17 @@ def _merge_and_fill(
 
 def _remove_suspicious_policies(df: pd.DataFrame) -> pd.DataFrame:
     """Drop policies with more than 5 claims (suspected data errors)."""
-    return df.query("ClaimNb <= 5")
+    return df.loc[df["ClaimNb"] <= 5]
 
 
 def _cap_exposure(df: pd.DataFrame) -> pd.DataFrame:
     """Cap policy exposure at 1 year."""
-    return df.assign(Exposure=lambda d: d["Exposure"].clip(upper=1.0))
+    return df.assign(**{"Exposure": df["Exposure"].clip(upper=1.0)})
 
 
 def _relevel_vehbrand(df: pd.DataFrame) -> pd.DataFrame:
     """Collapse VehBrand into 7 broader groups per Wüthrich Ch. 13.1."""
-    return df.assign(
-        VehBrand=lambda d: d["VehBrand"].astype(str).map(VEHBRAND_GROUPS).fillna("other")
-    )
+    return df.assign(**{"VehBrand": df["VehBrand"].astype(str).map(VEHBRAND_GROUPS).fillna("other")})
 
 
 def clean_data(freq: pd.DataFrame, sev: pd.DataFrame) -> pd.DataFrame:
@@ -146,10 +145,10 @@ def _prepare_continuous(df: pd.DataFrame) -> pd.DataFrame:
     """
     return (
         df.astype({"VehAge": float, "DrivAge": float, "BonusMalus": float})
-        .assign(
-            VehPower=lambda d: d["VehPower"].clip(upper=12).astype(int),
-            log_Density=lambda d: np.log(d["Density"].astype(float)),
-        )
+        .assign(**{
+            "VehPower": df["VehPower"].clip(upper=12).astype(int),
+            "log_Density": np.log(df["Density"].astype(float)),
+        })
     )
 
 
@@ -162,7 +161,7 @@ def _prepare_categorical(df: pd.DataFrame) -> pd.DataFrame:
     """
     return (
         df.astype({"VehBrand": str, "VehGas": str, "Region": str})
-        .assign(Area=lambda d: d["Area"].astype(str).map(AREA_MAP).fillna(d["Area"].astype(str)))
+        .assign(**{"Area": df["Area"].astype(str).map(AREA_MAP).fillna(df["Area"].astype(str))})
     )
 
 
@@ -180,7 +179,7 @@ def _select_and_label(
 ) -> pd.DataFrame:
     """Select model features and append target (y) and weight (w) columns."""
     features = CATEGORICAL_FEATURES + CONTINUOUS_FEATURES
-    return df[features].assign(y=df[y_col], w=df[w_col])
+    return df[features].assign(**{"y": df[y_col], "w": df[w_col]})
 
 
 def write_counts_csv(df: pd.DataFrame, path: Path) -> None:
@@ -199,7 +198,7 @@ def write_severity_csv(df: pd.DataFrame, path: Path) -> None:
     Columns: categorical + continuous features, y=ClaimAmount, w=ClaimNb.
     """
     (
-        df.query("ClaimNb > 0")
+        df.loc[df["ClaimNb"] > 0]
         .pipe(_select_and_label, y_col="ClaimAmount", w_col="ClaimNb")
         .to_csv(path, index=False)
     )
