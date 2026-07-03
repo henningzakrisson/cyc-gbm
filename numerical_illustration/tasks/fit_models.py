@@ -87,6 +87,7 @@ def _build_and_fit(
             n_estimators=n_estimators[mc],
             learning_rate=model_config.learning_rate,
             max_depth=model_config.max_depth,
+            min_samples_leaf=model_config.min_samples_leaf,
         )
 
     elif isinstance(model_config, GradientBoostingMachineConfig):
@@ -95,6 +96,7 @@ def _build_and_fit(
             n_estimators=n_estimators[mc],
             learning_rate=model_config.learning_rate,
             max_depth=model_config.max_depth,
+            min_samples_leaf=model_config.min_samples_leaf,
         )
 
     elif isinstance(model_config, NaturalGradientBoostingMachineConfig):
