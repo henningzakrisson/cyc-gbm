@@ -71,4 +71,19 @@ def _load_data_from_file(data_config: DataConfig) -> pd.DataFrame:
     if "w" not in data.columns:
         data["w"] = 1
 
+    if hasattr(data_config, "categorical_features"):
+        data = _cast_categoricals(data, data_config.categorical_features)
+
     return data
+
+
+def _cast_categoricals(
+    data: pd.DataFrame, columns: list[str]
+) -> pd.DataFrame:
+    """Return a copy of *data* with the given columns cast to categorical dtype.
+
+    Columns not present in *data* are silently skipped.
+    """
+    return data.assign(
+        **{col: data[col].astype("category") for col in columns if col in data.columns}
+    )

@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+import pandas as pd
 
 from cyc_gbm import CyclicalGradientBooster
 from cyc_gbm.utils.utils import calculate_progress
@@ -76,39 +77,72 @@ def tune_n_estimators(
 
 
 def _fold_split(
-    X: np.ndarray,
+    X: np.ndarray | pd.DataFrame,
     y: np.ndarray,
     w: float | np.ndarray,
     n_splits: int,
     rng: np.random.Generator,
-) -> dict[
-    int, tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
-]:
+) -> dict[int, tuple]:
     """Split data into k folds.
 
     :param X: The input data matrix of shape (n_samples, n_features).
+        May be a numpy array or a pandas DataFrame.
     :param n_splits: The number of folds to use for k-fold cross-validation.
     :param rng: The random number generator.
     :return A dictionary containing the folds as tuples in the order
         (X_train, y_train, w_train, X_valid, y_valid, w_valid).
     """
-    if isinstance(w, float):
-        w = np.ones(len(y)) * w
+    y = np.asarray(y)
+    w = np.asarray(w) if not isinstance(w, float) else np.ones(len(y)) * w
     idx = rng.permutation(X.shape[0])
     idx_folds = np.array_split(idx, n_splits)
-    folds = {}
-    for i in range(n_splits):
-        idx_test = idx_folds[i]
-        idx_train = np.concatenate(idx_folds[:i] + idx_folds[i + 1 :])
-        folds[i] = (
-            X[idx_train],
-            y[idx_train],
-            w[idx_train],
-            X[idx_test],
-            y[idx_test],
-            w[idx_test],
+    split_fn = _split_dataframe if isinstance(X, pd.DataFrame) else _split_array
+    return {
+        i: split_fn(
+            X=X,
+            y=y,
+            w=w,
+            idx_train=np.concatenate(idx_folds[:i] + idx_folds[i + 1 :]),
+            idx_test=idx_folds[i],
         )
-    return folds
+        for i in range(n_splits)
+    }
+
+
+def _split_dataframe(
+    X: pd.DataFrame,
+    y: np.ndarray,
+    w: np.ndarray,
+    idx_train: np.ndarray,
+    idx_test: np.ndarray,
+) -> tuple:
+    """Create a single fold tuple from a DataFrame."""
+    return (
+        X.iloc[idx_train].reset_index(drop=True),
+        y[idx_train],
+        w[idx_train],
+        X.iloc[idx_test].reset_index(drop=True),
+        y[idx_test],
+        w[idx_test],
+    )
+
+
+def _split_array(
+    X: np.ndarray,
+    y: np.ndarray,
+    w: np.ndarray,
+    idx_train: np.ndarray,
+    idx_test: np.ndarray,
+) -> tuple:
+    """Create a single fold tuple from a numpy array."""
+    return (
+        X[idx_train],
+        y[idx_train],
+        w[idx_train],
+        X[idx_test],
+        y[idx_test],
+        w[idx_test],
+    )
 
 
 def _evaluate_fold(
