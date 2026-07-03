@@ -21,14 +21,11 @@ Requires: openml  (pip install openml)
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 import numpy as np
+import openml
 import pandas as pd
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 OPENML_FREQ_ID = 41214
 OPENML_SEV_ID = 41215
@@ -49,6 +46,8 @@ VEHBRAND_GROUPS = {
     "B14": "B1314",
 }
 
+AREA_MAP = {"A": "1", "B": "2", "C": "3", "D": "4", "E": "5", "F": "6"}
+
 CATEGORICAL_FEATURES = ["VehBrand", "VehGas", "Area", "Region"]
 
 CONTINUOUS_FEATURES = [
@@ -60,143 +59,194 @@ CONTINUOUS_FEATURES = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Download
+# ---------------------------------------------------------------------------
+
+
 def download_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     """Download FreMTPL2freq and FreMTPL2sev from OpenML."""
-    import openml
-
-    logger.info("Downloading FreMTPL2freq (OpenML ID %d)...", OPENML_FREQ_ID)
-    freq_dataset = openml.datasets.get_dataset(
+    freq_df, *_ = openml.datasets.get_dataset(
         OPENML_FREQ_ID, download_data=True, download_qualities=False
-    )
-    freq_df, *_ = freq_dataset.get_data()
+    ).get_data()
 
-    logger.info("Downloading FreMTPL2sev (OpenML ID %d)...", OPENML_SEV_ID)
-    sev_dataset = openml.datasets.get_dataset(
+    sev_df, *_ = openml.datasets.get_dataset(
         OPENML_SEV_ID, download_data=True, download_qualities=False
-    )
-    sev_df, *_ = sev_dataset.get_data()
+    ).get_data()
 
-    logger.info(
-        "Downloaded %d freq rows, %d sev rows", len(freq_df), len(sev_df)
-    )
     return freq_df, sev_df
+
+
+# ---------------------------------------------------------------------------
+# Cleaning sub-steps (each returns a new DataFrame)
+# ---------------------------------------------------------------------------
+
+
+def _aggregate_severities(sev: pd.DataFrame, id_dtype: np.dtype) -> pd.DataFrame:
+    """Aggregate claim severities per policy.
+
+    Returns one row per IDpol with corrected ClaimNb (count of individual
+    claim records) and total ClaimAmount.
+    """
+    return (
+        sev.groupby("IDpol")
+        .agg(ClaimNb=("ClaimAmount", "count"), ClaimAmount=("ClaimAmount", "sum"))
+        .reset_index()
+        .assign(IDpol=lambda d: d["IDpol"].astype(id_dtype))
+    )
+
+
+def _merge_and_fill(
+    freq: pd.DataFrame, sev_agg: pd.DataFrame
+) -> pd.DataFrame:
+    """Left-join frequency table onto aggregated severities.
+
+    Policies without any claim record get ClaimNb=0 and ClaimAmount=0.
+    """
+    return (
+        freq.drop(columns=["ClaimNb"], errors="ignore")
+        .merge(sev_agg, on="IDpol", how="left")
+        .assign(
+            ClaimNb=lambda d: d["ClaimNb"].fillna(0).astype(int),
+            ClaimAmount=lambda d: d["ClaimAmount"].fillna(0.0),
+        )
+    )
+
+
+def _remove_suspicious_policies(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop policies with more than 5 claims (suspected data errors)."""
+    return df.query("ClaimNb <= 5")
+
+
+def _cap_exposure(df: pd.DataFrame) -> pd.DataFrame:
+    """Cap policy exposure at 1 year."""
+    return df.assign(Exposure=lambda d: d["Exposure"].clip(upper=1.0))
+
+
+def _relevel_vehbrand(df: pd.DataFrame) -> pd.DataFrame:
+    """Collapse VehBrand into 7 broader groups per Wüthrich Ch. 13.1."""
+    return df.assign(
+        VehBrand=lambda d: d["VehBrand"].astype(str).map(VEHBRAND_GROUPS).fillna("other")
+    )
+
+
+# ---------------------------------------------------------------------------
+# Cleaning pipeline
+# ---------------------------------------------------------------------------
 
 
 def clean_data(freq: pd.DataFrame, sev: pd.DataFrame) -> pd.DataFrame:
     """Apply the Wüthrich Ch. 13.1 cleaning procedure.
 
-    Steps:
-      1. Aggregate sev per IDpol to get corrected ClaimNb and ClaimAmount.
-      2. Left-join freq onto aggregated sev.
-      3. Fill NA claim info with 0 (policies without claims).
-      4. Drop rows with ClaimNb > 5 (suspected data errors).
-      5. Cap Exposure at 1.0.
-      6. Re-level VehBrand into 7 groups.
+    1. Aggregate severities per policy to obtain corrected claim counts
+       and total claim amounts.
+    2. Left-join onto the frequency table and fill missing claim info.
+    3. Remove policies with >5 claims (suspected data errors).
+    4. Cap exposure at 1 year.
+    5. Re-level VehBrand into 7 groups.
     """
-    # Step 1: aggregate severities
-    sev_agg = (
-        sev.groupby("IDpol")
-        .agg(ClaimNb=("ClaimAmount", "count"), ClaimAmount=("ClaimAmount", "sum"))
-        .reset_index()
+    sev_agg = _aggregate_severities(sev, freq["IDpol"].dtype)
+    return (
+        _merge_and_fill(freq, sev_agg)
+        .pipe(_remove_suspicious_policies)
+        .pipe(_cap_exposure)
+        .pipe(_relevel_vehbrand)
     )
-    sev_agg["IDpol"] = sev_agg["IDpol"].astype(freq["IDpol"].dtype)
 
-    # Step 2: merge — drop original ClaimNb from freq, use corrected version
-    freq = freq.drop(columns=["ClaimNb"], errors="ignore")
-    df = freq.merge(sev_agg, on="IDpol", how="left")
 
-    # Step 3: fill NAs
-    df["ClaimNb"] = df["ClaimNb"].fillna(0).astype(int)
-    df["ClaimAmount"] = df["ClaimAmount"].fillna(0.0)
+# ---------------------------------------------------------------------------
+# Feature engineering sub-steps
+# ---------------------------------------------------------------------------
 
-    n_before = len(df)
-    # Step 4: drop policies with > 5 claims
-    df = df[df["ClaimNb"] <= 5].copy()
-    n_dropped = n_before - len(df)
-    if n_dropped > 0:
-        logger.info("Dropped %d rows with ClaimNb > 5", n_dropped)
 
-    # Step 5: cap Exposure at 1
-    df["Exposure"] = df["Exposure"].clip(upper=1.0)
+def _prepare_continuous(df: pd.DataFrame) -> pd.DataFrame:
+    """Derive continuous model features.
 
-    # Step 6: re-level VehBrand
-    df["VehBrand"] = df["VehBrand"].astype(str).map(VEHBRAND_GROUPS).fillna("other")
-
-    logger.info(
-        "After cleaning: %d rows, %d with claims",
-        len(df),
-        (df["ClaimNb"] > 0).sum(),
+    - Cap VehPower at 12.
+    - Log-transform population density.
+    - Cast remaining continuous columns to float.
+    """
+    return df.assign(
+        VehPower=lambda d: d["VehPower"].clip(upper=12).astype(int),
+        VehAge=lambda d: d["VehAge"].astype(float),
+        DrivAge=lambda d: d["DrivAge"].astype(float),
+        BonusMalus=lambda d: d["BonusMalus"].astype(float),
+        log_Density=lambda d: np.log(d["Density"].astype(float)),
     )
-    return df
+
+
+def _prepare_categorical(df: pd.DataFrame) -> pd.DataFrame:
+    """Derive categorical model features.
+
+    - Map Area letters to ordinal integers.
+    - Ensure all categorical columns are stored as strings
+      (categorical dtype is applied at load time via the YAML config).
+    """
+    return df.assign(
+        Area=lambda d: d["Area"].astype(str).map(AREA_MAP).fillna(d["Area"].astype(str)),
+        VehBrand=lambda d: d["VehBrand"].astype(str),
+        VehGas=lambda d: d["VehGas"].astype(str),
+        Region=lambda d: d["Region"].astype(str),
+    )
 
 
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Prepare model-ready features.
+    """Prepare model-ready features from the cleaned dataset.
 
-    - log-transform Density
-    - Map Area to ordinal integer
-    - Cap VehPower at 12
-    - Categorical columns stored as strings in CSV;
-      categorical dtype is applied at load time via the YAML config.
+    Applies continuous and categorical transformations without mutating
+    the input DataFrame.
     """
-    out = pd.DataFrame()
+    return df.pipe(_prepare_continuous).pipe(_prepare_categorical)
 
-    # Continuous features
-    out["VehPower"] = df["VehPower"].clip(upper=12).astype(int)
-    out["VehAge"] = df["VehAge"].astype(float)
-    out["DrivAge"] = df["DrivAge"].astype(float)
-    out["BonusMalus"] = df["BonusMalus"].astype(float)
-    out["log_Density"] = np.log(df["Density"].astype(float))
 
-    # Categorical features (stored as strings; config marks them categorical)
-    area_map = {"A": "1", "B": "2", "C": "3", "D": "4", "E": "5", "F": "6"}
-    out["Area"] = df["Area"].astype(str).map(area_map).fillna(df["Area"].astype(str))
-    out["VehBrand"] = df["VehBrand"].astype(str)
-    out["VehGas"] = df["VehGas"].astype(str)
-    out["Region"] = df["Region"].astype(str)
+# ---------------------------------------------------------------------------
+# CSV writers
+# ---------------------------------------------------------------------------
 
-    # Targets and weights
-    out["ClaimNb"] = df["ClaimNb"]
-    out["ClaimAmount"] = df["ClaimAmount"]
-    out["Exposure"] = df["Exposure"]
 
-    return out
+def _select_and_label(
+    df: pd.DataFrame, y_col: str, w_col: str
+) -> pd.DataFrame:
+    """Select model features and append target (y) and weight (w) columns."""
+    features = CATEGORICAL_FEATURES + CONTINUOUS_FEATURES
+    return df[features].assign(y=df[y_col], w=df[w_col])
 
 
 def write_counts_csv(df: pd.DataFrame, path: Path) -> None:
-    """Write the claim count dataset (all policies)."""
-    features = CATEGORICAL_FEATURES + CONTINUOUS_FEATURES
-    out = df[features].copy()
-    out["y"] = df["ClaimNb"]
-    out["w"] = df["Exposure"]
-    out.to_csv(path, index=False)
-    logger.info("Wrote %s (%d rows)", path, len(out))
+    """Write the claim-count dataset (all policies).
+
+    Columns: categorical + continuous features, y=ClaimNb, w=Exposure.
+    """
+    _select_and_label(df, y_col="ClaimNb", w_col="Exposure").to_csv(
+        path, index=False
+    )
 
 
 def write_severity_csv(df: pd.DataFrame, path: Path) -> None:
-    """Write the claim severity dataset (policies with claims only)."""
-    has_claims = df["ClaimNb"] > 0
-    sub = df[has_claims].copy()
+    """Write the claim-severity dataset (policies with claims only).
 
-    features = CATEGORICAL_FEATURES + CONTINUOUS_FEATURES
-    out = sub[features].copy()
-    out["y"] = sub["ClaimAmount"]
-    out["w"] = sub["ClaimNb"]
-    out.to_csv(path, index=False)
-    logger.info("Wrote %s (%d rows)", path, len(out))
+    Columns: categorical + continuous features, y=ClaimAmount, w=ClaimNb.
+    """
+    (
+        df.query("ClaimNb > 0")
+        .pipe(_select_and_label, y_col="ClaimAmount", w_col="ClaimNb")
+        .to_csv(path, index=False)
+    )
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 
 
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     freq, sev = download_data()
-    df = clean_data(freq, sev)
-    df = engineer_features(df)
+    df = clean_data(freq, sev).pipe(engineer_features)
 
     write_counts_csv(df, OUTPUT_DIR / "freMTPL2_counts.csv")
     write_severity_csv(df, OUTPUT_DIR / "freMTPL2_severity.csv")
-
-    logger.info("Done!")
 
 
 if __name__ == "__main__":
