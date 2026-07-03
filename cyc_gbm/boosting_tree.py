@@ -160,7 +160,7 @@ class BoostingTree:
             # This is a leaf
             return
         if feature in self.categorical_features:
-            bitset = tree.left_cat_bitset[node_index]
+            bitset = tree._left_cat_bitset[node_index]
             index_left = self._split_categorical(X, feature, bitset)
         else:
             threshold = tree.threshold[node_index]
