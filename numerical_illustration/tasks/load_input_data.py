@@ -71,4 +71,11 @@ def _load_data_from_file(data_config: DataConfig) -> pd.DataFrame:
     if "w" not in data.columns:
         data["w"] = 1
 
+    # Cast configured columns to pd.CategoricalDtype so that
+    # CyclicalGradientBooster can detect them automatically.
+    if hasattr(data_config, "categorical_features"):
+        for col in data_config.categorical_features:
+            if col in data.columns:
+                data[col] = data[col].astype("category")
+
     return data

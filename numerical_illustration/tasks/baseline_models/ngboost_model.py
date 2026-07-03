@@ -1,9 +1,11 @@
 import logging
 
 import numpy as np
+import pandas as pd
 from ngboost import NGBRegressor
 from ngboost.distns import Normal
 from ngboost.scores import MLE
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.tree import DecisionTreeRegressor
 
 from cyc_gbm.utils.distributions import Distribution, NormalDistribution
@@ -49,13 +51,17 @@ class NGBoostModel:
         self.max_depth = max_depth
         self.random_state = random_state
         self._model = None
+        self._encoder: OneHotEncoder | None = None
 
     def fit(
         self,
-        X: np.ndarray,
+        X: np.ndarray | pd.DataFrame,
         y: np.ndarray,
         w: np.ndarray | float = 1,
     ) -> None:
+        if isinstance(X, pd.DataFrame):
+            self._encoder = self._fit_encoder(X)
+            X = self._encode(X)
         self._model = NGBRegressor(
             Dist=Normal,
             Score=MLE,
@@ -70,11 +76,37 @@ class NGBoostModel:
         else:
             self._model.fit(X, y)
 
-    def predict(self, X: np.ndarray) -> np.ndarray:
+    def predict(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
+        if isinstance(X, pd.DataFrame):
+            X = self._encode(X)
         dist = self._model.pred_dist(X)
         mu = dist.loc
         log_sigma = np.log(dist.scale)
         return np.stack([mu, log_sigma])
+
+    @staticmethod
+    def _fit_encoder(X: pd.DataFrame) -> OneHotEncoder | None:
+        """Fit a one-hot encoder for categorical columns in *X*."""
+        cat_cols = [
+            c for c in X.columns
+            if isinstance(X[c].dtype, pd.CategoricalDtype)
+        ]
+        if not cat_cols:
+            return None
+        encoder = OneHotEncoder(sparse_output=False, handle_unknown="ignore")
+        encoder.fit(X[cat_cols])
+        encoder._cat_cols = cat_cols  # type: ignore[attr-defined]
+        return encoder
+
+    def _encode(self, X: pd.DataFrame) -> np.ndarray:
+        """Convert DataFrame to numeric numpy, one-hot encoding categoricals."""
+        if self._encoder is None:
+            return X.to_numpy(dtype=float, na_value=0.0)
+        cat_cols = self._encoder._cat_cols  # type: ignore[attr-defined]
+        num_cols = [c for c in X.columns if c not in cat_cols]
+        encoded = self._encoder.transform(X[cat_cols])
+        numeric = X[num_cols].to_numpy(dtype=float, na_value=0.0)
+        return np.hstack([numeric, encoded])
 
     def compute_feature_importances(self, j: str | int | None = None) -> np.ndarray:
         """Compute feature importances from the fitted NGBoost model.

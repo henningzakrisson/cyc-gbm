@@ -1,5 +1,7 @@
 import numpy as np
+import pandas as pd
 from scipy.optimize import minimize
+from sklearn.preprocessing import OneHotEncoder
 
 from cyc_gbm.utils.distributions import Distribution
 
@@ -25,11 +27,15 @@ class CyclicGeneralizedLinearModel:
         self.eps = eps
         self.beta = None
         self.z0 = None
+        self._encoder: OneHotEncoder | None = None
 
-    def fit(self, X: np.ndarray, y: np.ndarray, w: np.ndarray) -> None:
+    def fit(self, X: np.ndarray | pd.DataFrame, y: np.ndarray, w: np.ndarray) -> None:
         """
         Fit the model.
         """
+        if isinstance(X, pd.DataFrame):
+            self._encoder = self._fit_encoder(X)
+            X = self._encode(X)
         n = len(y)
         z = np.zeros((self.d, n))
         self.z0 = minimize(
@@ -58,11 +64,41 @@ class CyclicGeneralizedLinearModel:
 
         self.beta = beta[i]
 
-    def predict(self, X: np.ndarray) -> np.ndarray:
+    def predict(self, X: np.ndarray | pd.DataFrame) -> np.ndarray:
         """
         Predict the response for the given input data.
         """
+        if isinstance(X, pd.DataFrame):
+            X = self._encode(X)
         z = np.zeros((self.d, X.shape[0]))
         for j in range(self.d):
             z[j] = self.z0[j] + self.beta[j] @ X.T
         return z
+
+    @staticmethod
+    def _fit_encoder(X: pd.DataFrame) -> OneHotEncoder | None:
+        """Fit a one-hot encoder for categorical columns in *X*."""
+        cat_cols = [
+            c for c in X.columns
+            if isinstance(X[c].dtype, pd.CategoricalDtype)
+        ]
+        if not cat_cols:
+            return None
+        encoder = OneHotEncoder(sparse_output=False, handle_unknown="ignore")
+        encoder.fit(X[cat_cols])
+        encoder._cat_cols = cat_cols  # type: ignore[attr-defined]
+        return encoder
+
+    def _encode(self, X: pd.DataFrame) -> np.ndarray:
+        """Convert a DataFrame to a numeric numpy array.
+
+        Categorical columns are one-hot encoded; numeric columns are
+        passed through.
+        """
+        if self._encoder is None:
+            return X.to_numpy(dtype=float, na_value=0.0)
+        cat_cols = self._encoder._cat_cols  # type: ignore[attr-defined]
+        num_cols = [c for c in X.columns if c not in cat_cols]
+        encoded = self._encoder.transform(X[cat_cols])
+        numeric = X[num_cols].to_numpy(dtype=float, na_value=0.0)
+        return np.hstack([numeric, encoded])

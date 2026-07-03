@@ -58,8 +58,12 @@ class LocalDataConfig(DataConfig):
         file_path: Path to the CSV file.
         random_seed: Seed for the random number generator used in
             train/test splitting.
+        categorical_features: Column names to cast to
+            ``pd.CategoricalDtype`` after loading.  These are then
+            automatically picked up by ``CyclicalGradientBooster``.
     """
 
     data_source: Literal[DataSource.FILE]
     file_path: Path
     random_seed: int = 42
+    categorical_features: list[str] = []

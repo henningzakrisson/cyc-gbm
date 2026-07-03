@@ -35,17 +35,25 @@ def _normalize_features(
     test_data: pd.DataFrame,
     features: list[str],
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Normalize features using training-set statistics only.
+    """Normalize numeric features using training-set statistics only.
+
+    Categorical features (``pd.CategoricalDtype``) are skipped.
 
     Args:
         train_data: training data
         test_data: test data
-        features: list of feature column names to normalize
+        features: list of feature column names to consider
     """
-    mean = train_data[features].mean()
-    std = train_data[features].std()
-    train_data[features] = (train_data[features] - mean) / std
-    test_data[features] = (test_data[features] - mean) / std
+    numeric_features = [
+        f for f in features
+        if not isinstance(train_data[f].dtype, pd.CategoricalDtype)
+    ]
+    if not numeric_features:
+        return train_data, test_data
+    mean = train_data[numeric_features].mean()
+    std = train_data[numeric_features].std()
+    train_data[numeric_features] = (train_data[numeric_features] - mean) / std
+    test_data[numeric_features] = (test_data[numeric_features] - mean) / std
     return train_data, test_data
 
 
