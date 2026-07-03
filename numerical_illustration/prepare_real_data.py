@@ -59,11 +59,6 @@ CONTINUOUS_FEATURES = [
 ]
 
 
-# ---------------------------------------------------------------------------
-# Download
-# ---------------------------------------------------------------------------
-
-
 def download_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     """Download FreMTPL2freq and FreMTPL2sev from OpenML."""
     freq_df, *_ = openml.datasets.get_dataset(
@@ -75,11 +70,6 @@ def download_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     ).get_data()
 
     return freq_df, sev_df
-
-
-# ---------------------------------------------------------------------------
-# Cleaning sub-steps (each returns a new DataFrame)
-# ---------------------------------------------------------------------------
 
 
 def _aggregate_severities(sev: pd.DataFrame, id_dtype: np.dtype) -> pd.DataFrame:
@@ -130,11 +120,6 @@ def _relevel_vehbrand(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-# ---------------------------------------------------------------------------
-# Cleaning pipeline
-# ---------------------------------------------------------------------------
-
-
 def clean_data(freq: pd.DataFrame, sev: pd.DataFrame) -> pd.DataFrame:
     """Apply the Wüthrich Ch. 13.1 cleaning procedure.
 
@@ -152,11 +137,6 @@ def clean_data(freq: pd.DataFrame, sev: pd.DataFrame) -> pd.DataFrame:
         .pipe(_cap_exposure)
         .pipe(_relevel_vehbrand)
     )
-
-
-# ---------------------------------------------------------------------------
-# Feature engineering sub-steps
-# ---------------------------------------------------------------------------
 
 
 def _prepare_continuous(df: pd.DataFrame) -> pd.DataFrame:
@@ -199,11 +179,6 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     return df.pipe(_prepare_continuous).pipe(_prepare_categorical)
 
 
-# ---------------------------------------------------------------------------
-# CSV writers
-# ---------------------------------------------------------------------------
-
-
 def _select_and_label(
     df: pd.DataFrame, y_col: str, w_col: str
 ) -> pd.DataFrame:
@@ -232,11 +207,6 @@ def write_severity_csv(df: pd.DataFrame, path: Path) -> None:
         .pipe(_select_and_label, y_col="ClaimAmount", w_col="ClaimNb")
         .to_csv(path, index=False)
     )
-
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
 
 
 def main() -> None:
