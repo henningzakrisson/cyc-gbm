@@ -97,7 +97,7 @@ def _merge_and_fill(
         freq.drop(columns=["ClaimNb"], errors="ignore")
         .merge(sev_agg, on="IDpol", how="left")
         .fillna({"ClaimNb": 0, "ClaimAmount": 0.0})
-        .assign(ClaimNb=lambda d: d["ClaimNb"].astype(int))
+        .astype({"ClaimNb": int})
     )
 
 
@@ -144,12 +144,12 @@ def _prepare_continuous(df: pd.DataFrame) -> pd.DataFrame:
     - Log-transform population density.
     - Cast remaining continuous columns to float.
     """
-    return df.assign(
-        VehPower=lambda d: d["VehPower"].clip(upper=12).astype(int),
-        VehAge=lambda d: d["VehAge"].astype(float),
-        DrivAge=lambda d: d["DrivAge"].astype(float),
-        BonusMalus=lambda d: d["BonusMalus"].astype(float),
-        log_Density=lambda d: np.log(d["Density"].astype(float)),
+    return (
+        df.astype({"VehAge": float, "DrivAge": float, "BonusMalus": float})
+        .assign(
+            VehPower=lambda d: d["VehPower"].clip(upper=12).astype(int),
+            log_Density=lambda d: np.log(d["Density"].astype(float)),
+        )
     )
 
 
@@ -160,11 +160,9 @@ def _prepare_categorical(df: pd.DataFrame) -> pd.DataFrame:
     - Ensure all categorical columns are stored as strings
       (categorical dtype is applied at load time via the YAML config).
     """
-    return df.assign(
-        Area=lambda d: d["Area"].astype(str).map(AREA_MAP).fillna(d["Area"].astype(str)),
-        VehBrand=lambda d: d["VehBrand"].astype(str),
-        VehGas=lambda d: d["VehGas"].astype(str),
-        Region=lambda d: d["Region"].astype(str),
+    return (
+        df.astype({"VehBrand": str, "VehGas": str, "Region": str})
+        .assign(Area=lambda d: d["Area"].astype(str).map(AREA_MAP).fillna(d["Area"].astype(str)))
     )
 
 
