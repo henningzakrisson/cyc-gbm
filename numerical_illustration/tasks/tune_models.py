@@ -7,6 +7,7 @@ from ngboost import NGBRegressor
 from ngboost.distns import Normal
 from ngboost.scores import MLE
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.preprocessing import OneHotEncoder
 
 from cyc_gbm import CyclicalGradientBooster
 from cyc_gbm.utils.distributions import Distribution
@@ -123,7 +124,6 @@ def _tune_ngboost(
 ) -> dict[str, Any]:
     """Tune NGBoost n_estimators via k-fold CV using staged_pred_dist,
     mirroring the same fold split and loss computation as CGBM tuning."""
-    from sklearn.preprocessing import OneHotEncoder
 
     # NGBoost requires numeric input; one-hot encode categoricals.
     if isinstance(X, pd.DataFrame):
