@@ -1,0 +1,51 @@
+data:
+  data_source: simulation
+  distribution: gamma
+  parameterization: shape-rate
+  random_seed: 11
+  n_samples: 100000
+  n_features: 6
+  test_size: 0.2
+  normalize_features: true
+  parameter_function: |
+    def parameter(X):
+        # log(alpha) = a1*x1 + a2*x2^2 + a3*|x3|*sin(a4*x3) + a5*x4*x5 + a6*x5^2*x6
+        # a1=0.4, a2=0.2, a3=0.3, a4=1.5, a5=0.15, a6=0.1
+        z0 = (0.4 * X[:,0]
+              + 0.2 * X[:,1]**2
+              + 0.3 * np.abs(X[:,2]) * np.sin(1.5 * X[:,2])
+              + 0.15 * X[:,3] * X[:,4]
+              + 0.1 * X[:,4]**2 * X[:,5])
+        # log(beta) = b0 + b1*x2 + b2*|x1|
+        # b0=-1.0, b1=0.5, b2=0.4
+        z1 = (-1.0
+              + 0.5 * X[:,1]
+              + 0.4 * np.abs(X[:,0]))
+        return np.stack([z0, z1])
+
+output:
+  output_dir: data/results
+
+models:
+  - model_class: intercept
+  - model_class: cglm
+    max_iter: 2000
+    tolerance: 1e-5
+    step_size: 0.1
+  - model_class: gbm
+    n_estimators: 600
+    max_depth: 4
+    learning_rate: 0.05
+  - model_class: cgbm
+    n_estimators: [500, 500]
+    max_depth: 4
+    learning_rate: [0.05, 0.01]
+
+bootstrap:
+  n_bootstraps: 1
+  parallel: true
+  n_jobs: -1
+
+tuning:
+  perform_tuning: true
+  n_folds: 4
