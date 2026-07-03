@@ -18,12 +18,14 @@ class GradientBoostingMachineConfig(BaseModel):
         n_estimators: Maximum number of boosting iterations.
         max_depth: Maximum depth of each decision tree.
         learning_rate: Shrinkage applied to each tree.
+        min_samples_leaf: Minimum samples required at a leaf node.
     """
 
     model_class: Literal[ModelClass.GBM]
     n_estimators: int = 600
     max_depth: int = 3
     learning_rate: float = 0.05
+    min_samples_leaf: int = 1
 
     def n_estimators_as_list(self, n_dim: int) -> list[int]:
         """Return n_estimators as a per-dimension list for CyclicalGradientBooster.
@@ -45,12 +47,14 @@ class CyclicalGradientBoostingMachineConfig(BaseModel):
         n_estimators: Maximum boosting iterations per parameter dimension.
         max_depth: Maximum depth of each decision tree.
         learning_rate: Shrinkage applied to each tree (scalar or per-dimension).
+        min_samples_leaf: Minimum samples required at a leaf node.
     """
 
     model_class: Literal[ModelClass.CGBM]
     n_estimators: list[int] = Field(default_factory=lambda: [600, 600])
     max_depth: int = 3
     learning_rate: float | list[float] = 0.05
+    min_samples_leaf: int = 1
 
 
 class NaturalGradientBoostingMachineConfig(BaseModel):
