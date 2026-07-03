@@ -21,13 +21,14 @@ class DataConfig(BaseModel):
     """
 
     distribution: str
+    parameterization: str = "mean-dispersion"
     test_size: float = 0.2
     normalize_features: bool = True
 
     @property
     def distribution_object(self) -> Distribution:
         """Instantiate and return the ``Distribution`` object."""
-        return initiate_distribution(self.distribution)
+        return initiate_distribution(self.distribution, parameterization=self.parameterization)
 
 
 class SimulationConfig(DataConfig):
