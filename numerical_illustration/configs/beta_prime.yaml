@@ -37,7 +37,7 @@ models:
   - model_class: cgbm
     n_estimators: [500, 500]
     max_depth: 4
-    learning_rate: [0.1,0.01]
+    learning_rate: [0.1,0.001]
 
 bootstrap:
   n_bootstraps: 1
