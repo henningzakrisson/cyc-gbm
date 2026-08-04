@@ -152,6 +152,12 @@ def _evaluate_fold(
     log_prefix: str = "",
 ) -> tuple[np.ndarray, np.ndarray]:
     X_train, y_train, w_train, X_valid, y_valid, w_valid = fold
+    # Convert DataFrames to numpy so that direct tree.predict() calls below
+    # (which bypass fix_datatype) don't trigger sklearn's "X has feature names
+    # but was fitted without" UserWarning on every boosting step.
+    if isinstance(X_train, pd.DataFrame):
+        X_train = X_train.to_numpy()
+        X_valid = X_valid.to_numpy()
 
     model.reset(n_estimators=0)
     model.fit(X=X_train, y=y_train, w=w_train, verbose=False)
