@@ -24,6 +24,14 @@ output:
 
 models:
   - model_class: intercept
+  - model_class: cglm
+    max_iter: 2000
+    tolerance: 1e-5
+    step_size: 0.1
+  - model_class: gbm
+    n_estimators: 600
+    max_depth: 4
+    learning_rate: 0.05
   - model_class: cgbm
     n_estimators: [500, 500]
     max_depth: 4
