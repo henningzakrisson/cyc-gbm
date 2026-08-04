@@ -41,10 +41,10 @@ models:
     learning_rate: [0.05, 0.01]
 
 bootstrap:
-  n_bootstraps: 1
+  n_bootstraps: 100
   parallel: true
   n_jobs: -1
 
 tuning:
   perform_tuning: true
-  n_folds: 4
+  n_folds: 2
