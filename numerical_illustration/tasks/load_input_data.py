@@ -78,6 +78,9 @@ def _load_data_from_file(data_config: DataConfig) -> pd.DataFrame:
         keep = data_config.features + [c for c in ["y", "w"] if c in data.columns]
         data = data[keep]
 
+    if getattr(data_config, "claim_amount_cap", None) is not None:
+        data = data.assign(y=data["y"].clip(upper=data_config.claim_amount_cap))
+
     return data
 
 

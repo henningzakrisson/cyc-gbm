@@ -71,3 +71,6 @@ class LocalDataConfig(DataConfig):
     features: list[str] | None = None
     """Explicit list of feature columns to use. If None, all columns except
     ``y`` and ``w`` are used."""
+    claim_amount_cap: float | None = None
+    """If set, clip the target variable ``y`` to this upper limit after loading.
+    Useful for removing the influence of extreme outlier claims."""
