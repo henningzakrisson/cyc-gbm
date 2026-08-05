@@ -273,11 +273,9 @@ def _find_n_estimators(
     log_prefix: str = "",
 ) -> list[int]:
     loss_delta = np.zeros_like(loss)
-    loss_delta[0, :] = -np.inf  # Row 0 is the intercept baseline; never a stopping point
+    loss_delta[0, :] = -np.inf
     loss_delta[1:, 0] = loss[1:, 0] - loss[:-1, -1]
     loss_delta[1:, 1:] = loss[1:, 1:] - loss[1:, :-1]
-    # Use >= 0: stop when loss plateaus or rises (not just when it strictly rises).
-    # Exclude row 0 from the did-not-converge check for the same reason.
     n_estimators = np.maximum(0, np.argmax(loss_delta >= 0, axis=0) - 1)
     did_not_converge = (loss_delta[1:] >= 0).sum(axis=0) == 0
     was_tuned = [n_estimator_max>0 for n_estimator_max in n_estimators_max]
