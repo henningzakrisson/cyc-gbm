@@ -54,9 +54,10 @@ def _run_single_iteration(
     tuning_results, n_estimators = tune_models(
         config=config, train_data=train_data, rng=rng, log_prefix=log_prefix
     )
+    distributions = config.distributions_by_model_name
     models = fit_models(
         model_configs=config.models,
-        distribution=config.data.distribution_object,
+        distributions=distributions,
         train_data=train_data,
         rng=rng,
         n_estimators=n_estimators,
@@ -67,9 +68,10 @@ def _run_single_iteration(
     metrics = evaluate_predictions(
         train_data=train_data,
         test_data=test_data,
-        distribution=config.data.distribution_object,
+        distributions=distributions,
         model_names=config.model_names,
         is_simulation=isinstance(config.data, SimulationConfig),
+        eval_distribution=config.data.distribution_object,
     )
     return train_data, test_data, tuning_results, models, metrics.astype(float)
 

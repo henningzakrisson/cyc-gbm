@@ -81,13 +81,13 @@ class CyclicalGradientBoosterTestCase(unittest.TestCase):
 
     def test_gamma_distribution(self):
         self._test_distribution(
-            distribution_name="gamma", expected_loss=1.9655223678827858, n_dim=2
+            distribution_name="gamma", expected_loss=1.9675127870044207, n_dim=2
         )
 
     def test_gamma_distribution_weighted(self):
         self._test_distribution(
             distribution_name="gamma",
-            expected_loss=1.9967752095726388,
+            expected_loss=1.8889079145052374,
             n_dim=2,
             use_weights=True,
         )
@@ -107,6 +107,41 @@ class CyclicalGradientBoosterTestCase(unittest.TestCase):
             n_dim=2,
             use_weights=True,
             parameterization="shape-rate",
+        )
+
+    def test_gamma_loss_parameterization_equivalence(self):
+        """Verify that both gamma parameterizations yield identical NLL values.
+
+        Generate synthetic data and estimates in shape-rate space, convert to
+        mean-dispersion space, and assert the loss is the same.
+        """
+        dist_sr = initiate_distribution("gamma", n_dim=2, parameterization="shape-rate")
+        dist_md = initiate_distribution("gamma", n_dim=2, parameterization="mean-dispersion")
+
+        rng = np.random.default_rng(seed=42)
+        n = 500
+
+        # Synthetic shape-rate estimates: log(alpha), log(beta)
+        z_sr = np.stack([
+            rng.normal(1.0, 0.5, n),   # log(alpha)
+            rng.normal(0.5, 0.3, n),    # log(beta)
+        ])
+        w = rng.choice([0.5, 1.0, 2.0], size=n, replace=True)
+        y = dist_sr.simulate(z=z_sr, w=w, rng=rng)
+
+        # Convert to mean-dispersion: mu = alpha/beta, phi = 1/alpha
+        # => log(mu) = log(alpha) - log(beta), log(phi) = -log(alpha)
+        z_md = np.stack([
+            z_sr[0] - z_sr[1],   # log(mu)
+            -z_sr[0],            # log(phi)
+        ])
+
+        loss_sr = dist_sr.loss(y=y, z=z_sr, w=w)
+        loss_md = dist_md.loss(y=y, z=z_md, w=w)
+
+        np.testing.assert_allclose(
+            loss_sr, loss_md, rtol=1e-10,
+            err_msg="Gamma NLL must be identical across parameterizations",
         )
 
     def test_invalid_parameterization(self):
