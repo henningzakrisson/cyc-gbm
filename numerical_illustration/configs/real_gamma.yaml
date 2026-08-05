@@ -13,10 +13,12 @@ data:
   categorical_features:
     - VehBrand
     - VehGas
+    - Area
     - Region
   features:
     - VehBrand
     - VehGas
+    - Area
     - Region
     - VehPower
     - VehAge
