@@ -1,0 +1,70 @@
+data:
+  data_source: simulation
+  distribution: gamma
+  parameterization: shape-rate
+  random_seed: 11
+  n_samples: 10000
+  n_features: 4
+  test_size: 0.2
+  normalize_features: true
+  parameter_function: |
+    def parameter(X):
+        # log(alpha)
+        z0 = 0.4 * X[:,0] + 0.2 * X[:,1]**2
+        # log(beta)
+        z1 = -1.0 + 0.5 * X[:,1] + 0.4 * np.abs(X[:,0])
+        return np.stack([z0, z1])
+
+output:
+  output_dir: data/results
+
+models:
+  # Shape-rate models
+  - model_class: intercept
+    name: intercept_sr
+  - model_class: cglm
+    name: cglm_sr
+    max_iter: 1000
+    tolerance: 1e-5
+    step_size: 0.1
+  - model_class: gbm
+    name: gbm_sr
+    n_estimators: 200
+    max_depth: 3
+    learning_rate: 0.05
+  - model_class: cgbm
+    name: cgbm_sr
+    n_estimators: [200, 200]
+    max_depth: 3
+    learning_rate: [0.05, 0.01]
+  # Mean-dispersion models
+  - model_class: intercept
+    name: intercept_md
+    parameterization: mean-dispersion
+  - model_class: cglm
+    name: cglm_md
+    parameterization: mean-dispersion
+    max_iter: 1000
+    tolerance: 1e-5
+    step_size: 0.1
+  - model_class: gbm
+    name: gbm_md
+    parameterization: mean-dispersion
+    n_estimators: 200
+    max_depth: 3
+    learning_rate: 0.05
+  - model_class: cgbm
+    name: cgbm_md
+    parameterization: mean-dispersion
+    n_estimators: [200, 200]
+    max_depth: 3
+    learning_rate: [0.05, 0.01]
+
+bootstrap:
+  n_bootstraps: 1
+  parallel: true
+  n_jobs: -1
+
+tuning:
+  perform_tuning: false
+  n_folds: 2
