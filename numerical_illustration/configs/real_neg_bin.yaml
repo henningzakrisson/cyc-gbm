@@ -39,4 +39,4 @@ bootstrap:
 
 tuning:
   perform_tuning: true
-  n_folds: 10
+  n_folds: 2
