@@ -467,6 +467,7 @@ class GammaDistribution(Distribution):
             loggamma(w * np.exp(-z[1]))
             + y * np.exp(-z[0] - z[1])
             + w * np.exp(-z[1]) * (z[0] + z[1] - np.log(y))
+            + np.log(y)
         )
 
     def grad(
