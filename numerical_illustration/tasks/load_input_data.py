@@ -74,6 +74,10 @@ def _load_data_from_file(data_config: DataConfig) -> pd.DataFrame:
     if hasattr(data_config, "categorical_features"):
         data = _cast_categoricals(data, data_config.categorical_features)
 
+    if getattr(data_config, "features", None) is not None:
+        keep = data_config.features + [c for c in ["y", "w"] if c in data.columns]
+        data = data[keep]
+
     return data
 
 

@@ -68,3 +68,6 @@ class LocalDataConfig(DataConfig):
     file_path: Path
     random_seed: int = 42
     categorical_features: list[str] = []
+    features: list[str] | None = None
+    """Explicit list of feature columns to use. If None, all columns except
+    ``y`` and ``w`` are used."""

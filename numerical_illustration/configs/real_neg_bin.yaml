@@ -15,6 +15,15 @@ data:
     - VehGas
     - Area
     - Region
+  features:
+    - VehBrand
+    - VehGas
+    - Area
+    - Region
+    - VehPower
+    - VehAge
+    - DrivAge
+    - BonusMalus
 
 output:
   output_dir: data/results/real_neg_bin
