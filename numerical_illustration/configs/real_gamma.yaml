@@ -40,3 +40,5 @@ bootstrap:
 tuning:
   perform_tuning: true
   n_folds: 2
+  stratify: true
+  stratify_by_weights: true

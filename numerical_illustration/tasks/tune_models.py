@@ -63,6 +63,8 @@ def tune_models(
                 n_estimators_max=n_estimators_max,
                 n_splits=config.tuning.n_folds,
                 rng=rng,
+                stratify=config.tuning.stratify,
+                stratify_by_weights=config.tuning.stratify_by_weights,
                 log_prefix=log_prefix,
             )
             loss_results[name] = tuning_results["loss"]
@@ -83,6 +85,8 @@ def tune_models(
                 max_depth=mc.max_depth,
                 n_folds=config.tuning.n_folds,
                 rng=rng,
+                stratify=config.tuning.stratify,
+                stratify_by_weights=config.tuning.stratify_by_weights,
                 log_prefix=log_prefix,
             )
             loss_results[name] = tuning_results["loss"]
@@ -111,6 +115,8 @@ def _tune_ngboost(
     max_depth: int,
     n_folds: int,
     rng: np.random.Generator,
+    stratify: bool = False,
+    stratify_by_weights: bool = False,
     log_prefix: str = "",
 ) -> dict[str, Any]:
     """Tune NGBoost n_estimators via k-fold CV using staged_pred_dist,
@@ -130,7 +136,7 @@ def _tune_ngboost(
             X = np.hstack([numeric, encoded])
         else:
             X = X.to_numpy(dtype=float, na_value=0.0)
-    folds = _fold_split(X=X, y=y, w=w, n_splits=n_folds, rng=rng)
+    folds = _fold_split(X=X, y=y, w=w, n_splits=n_folds, rng=rng, stratify=stratify, stratify_by_weights=stratify_by_weights)
 
     fold_train_losses = []
     fold_valid_losses = []
