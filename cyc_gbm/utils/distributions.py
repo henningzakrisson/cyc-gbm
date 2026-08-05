@@ -492,11 +492,8 @@ class GammaDistribution(Distribution):
     def mme(self, y: np.ndarray, w: np.ndarray | float = 1.0) -> np.ndarray:
         if isinstance(w, float):
             w = np.array([w] * len(y))
-        # Weighted mean: mu = E[Y/w]
         mean = y.sum() / w.sum()
         z0 = np.log(mean)
-        # Method-of-moments phi from Var(Y) = w * phi * mu^2:
-        #   phi_hat = sum((y - w*mu)^2) / sum(w * mu^2)
         phi = np.sum((y - w * mean) ** 2) / np.sum(w * mean ** 2)
         z1 = np.log(phi)
         return np.array([z0, z1])
