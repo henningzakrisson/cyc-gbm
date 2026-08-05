@@ -1,7 +1,7 @@
 data:
   data_source: simulation
   distribution: gamma
-  parameterization: shape-rate
+  parameterization: mean-dispersion
   random_seed: 11
   n_samples: 100000
   n_features: 6
@@ -9,62 +9,37 @@ data:
   normalize_features: true
   parameter_function: |
     def parameter(X):
-        # log(alpha) = a1*x1 + a2*x2^2 + a3*|x3|*sin(a4*x3) + a5*x4*x5 + a6*x5^2*x6
-        # a1=0.4, a2=0.2, a3=0.3, a4=1.5, a5=0.15, a6=0.1
-        # Quadratic and interaction terms are individually capped to prevent
-        # extreme log-shape values that cause numerical overflow during fitting.
-        z0 = (0.4 * X[:,0]
+        z0 = (0.05 * X[:,0]
+              + 0.03 * X[:,1]
+              + 0.04 * X[:,2])
+        z1 = (0.4 * X[:,0]
               + np.minimum(0.2 * X[:,1]**2, 1.0)
               + 0.3 * np.abs(X[:,2]) * np.sin(1.5 * X[:,2])
               + np.clip(0.15 * X[:,3] * X[:,4], -1.0, 1.0)
               + np.clip(0.1 * X[:,4]**2 * X[:,5], -1.0, 1.0))
-        # log(beta) = b0 + b1*x2 + b2*|x1|
-        # b0=-1.0, b1=0.5, b2=0.4
-        z1 = (-1.0
-              + 0.5 * X[:,1]
-              + 0.4 * np.abs(X[:,0]))
         return np.stack([z0, z1])
 
 output:
   output_dir: data/results
 
 models:
-  # Shape-rate models
   - model_class: intercept
-    name: intercept_sr
-  - model_class: cglm
-    name: cglm_sr
-    max_iter: 2000
-    tolerance: 1e-5
-    step_size: 0.1
-  - model_class: gbm
-    name: gbm_sr
-    n_estimators: 600
-    max_depth: 4
-    learning_rate: 0.05
-  - model_class: cgbm
-    name: cgbm_sr
-    n_estimators: [500, 500]
-    max_depth: 4
-    learning_rate: [0.05, 0.01]
-  # Mean-dispersion models
-  - model_class: intercept
-    name: intercept_md
+    name: intercept
     parameterization: mean-dispersion
   - model_class: cglm
-    name: cglm_md
+    name: cglm
     parameterization: mean-dispersion
     max_iter: 2000
     tolerance: 1e-5
     step_size: 0.1
   - model_class: gbm
-    name: gbm_md
+    name: gbm
     parameterization: mean-dispersion
     n_estimators: 600
     max_depth: 4
     learning_rate: 0.05
   - model_class: cgbm
-    name: cgbm_md
+    name: cgbm
     parameterization: mean-dispersion
     n_estimators: [500, 500]
     max_depth: 4
