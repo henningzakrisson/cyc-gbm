@@ -145,16 +145,13 @@ def _compute_mean_cc(
     dist,
     n_points: int,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Concentration curve based on mean predictions sorting, accumulating y.
+    """Concentration curve based on mean predictions, following the paper definition.
 
-    Both the sort key (predicted per-unit mean) and the accumulated response
-    (per-unit observed y = y / w) are on a per-unit scale so that a constant
-    intercept predictor always yields the diagonal regardless of exposure.
+    Sort by per-unit predicted mean ``μ̂(x)`` and accumulate total ``y``.
     """
-    w = test_data["w"].to_numpy()
-    y_per_unit = test_data["y"].to_numpy() / w
+    y = test_data["y"].to_numpy()
     pred_mean, _ = _model_moments(test_data, model, dist)
-    return _compute_concentration_curve(y_per_unit, pred_mean, n_points)
+    return _compute_concentration_curve(y, pred_mean, n_points)
 
 
 def _compute_variance_cc(
@@ -167,21 +164,23 @@ def _compute_variance_cc(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Concentration curve for variance predictions.
 
-    Both the sort key (predicted per-unit variance) and the accumulated
-    response (per-unit squared residuals) are on a per-unit scale.  This
-    ensures that a constant intercept predictor yields the diagonal: its
-    predicted per-unit variance is the same for every observation, so the
-    sort order is arbitrary and no spurious discriminatory power arises from
-    policies with large exposure weights.
+    Sort key: per-unit predicted variance ``σ̂²(x)`` (no exposure factor ``w``).
+    Using the per-unit sort key ensures that a constant intercept predictor
+    has an identical sort value for every observation, so no spurious
+    discriminatory power arises from policies with large exposure weights.
 
-    Squared residuals are centred on *mean_model*'s per-unit mean predictions.
-    Sorting is by the current *model*'s predicted per-unit variance.
+    Accumulated response: ``(y_i - w_i·μ̂_ref_i)² / w_i``.
+    Since ``E[(y_i - w_i·μ̂_ref_i)²] = w_i·σ²(x_i)`` under the model,
+    dividing by ``w_i`` gives an unbiased per-policy estimator of ``σ²(x_i)``,
+    putting all policies on the same per-unit scale regardless of exposure.
+
+    Squared residuals are centred on *mean_model*'s mean predictions.
     """
+    y = test_data["y"].to_numpy()
     w = test_data["w"].to_numpy()
-    y_per_unit = test_data["y"].to_numpy() / w
 
     ref_mean, _ = _model_moments(test_data, mean_model, mean_dist)
-    squared_residuals = (y_per_unit - ref_mean) ** 2
+    squared_residuals = (y - w * ref_mean) ** 2 / w
 
     _, pred_var = _model_moments(test_data, model, dist)
 
