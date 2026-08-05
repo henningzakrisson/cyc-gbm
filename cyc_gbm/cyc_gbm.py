@@ -243,9 +243,12 @@ class CyclicalGradientBooster:
         """
         if z is None:
             z = np.zeros((self.n_dim, len(y)))
+            x0 = self.distribution.mme(y=y, w=w)
+        else:
+            x0 = np.zeros(self.n_dim)
         return minimize(
             fun=lambda z0: self.distribution.loss(y=y, z=z0[:, None] + z, w=w).sum(),
-            x0=self.distribution.mme(y=y, w=w),
+            x0=x0,
         )["x"]
 
     def add_tree(
