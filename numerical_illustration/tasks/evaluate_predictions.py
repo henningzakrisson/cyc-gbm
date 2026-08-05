@@ -9,21 +9,27 @@ from cyc_gbm.utils.distributions import Distribution
 def evaluate_predictions(
     train_data: pd.DataFrame,
     test_data: pd.DataFrame,
-    distribution: Distribution,
+    distributions: dict[str, Distribution],
     model_names: list[str],
     is_simulation: bool,
+    eval_distribution: Distribution | None = None,
 ) -> pd.DataFrame:
     """Evaluate the predictions.
 
     Args:
         train_data: training data with prediction columns
         test_data: test data with prediction columns
-        distribution: instantiated distribution object
-        model_names: list of model class name strings
+        distributions: mapping from model name to its distribution
+        model_names: list of resolved model name strings
         is_simulation: whether the data was generated via simulation
             (if so, include the true parameter loss in the metrics)
+        eval_distribution: distribution used for the "true" (oracle) loss.
+            Defaults to the data-level distribution (first value in
+            *distributions* is used as fallback).
     """
-    n_dim = distribution.n_dim
+    if eval_distribution is None:
+        eval_distribution = next(iter(distributions.values()))
+    n_dim = eval_distribution.n_dim
 
     names = deque(model_names)
     if is_simulation:
@@ -34,16 +40,18 @@ def evaluate_predictions(
         for model_name in names:
             if model_name == "true":
                 theta_cols = ["theta_" + str(i) for i in range(n_dim)]
+                dist = eval_distribution
             else:
                 theta_cols = [
                     col
                     for col in data_set.columns
                     if col.startswith(model_name + "_theta_")
                 ]
+                dist = distributions[model_name]
 
             y = data_set["y"].values
             w = data_set["w"].values
             z = data_set[theta_cols].values.T
-            metrics.at[model_name, data_name] = distribution.loss(y=y, z=z, w=w).mean()
+            metrics.at[model_name, data_name] = dist.loss(y=y, z=z, w=w).mean()
 
     return metrics

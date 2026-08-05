@@ -13,7 +13,6 @@ from ..schema import (
     CyclicalGradientBoostingMachineConfig,
     GradientBoostingMachineConfig,
     InterceptConfig,
-    ModelClass,
     ModelConfig,
     NaturalGradientBoostingMachineConfig,
 )
@@ -25,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 def fit_models(
     model_configs: Iterable[ModelConfig],
-    distribution: Distribution,
+    distributions: dict[str, Distribution],
     train_data: pd.DataFrame,
     rng: np.random.Generator,
     n_estimators: dict[str, list[int]],
@@ -35,18 +34,19 @@ def fit_models(
 
     Args:
         model_configs: list of model configuration objects
-        distribution: instantiated distribution object
+        distributions: mapping from resolved model name to distribution
         train_data: training data
         rng: random number generator
-        n_estimators: tuned n_estimators per model (keyed by model_class)
+        n_estimators: tuned n_estimators per model (keyed by resolved name)
         log_prefix: prefix for log messages
     """
     X_train, y_train, w_train = get_targets_features(train_data)
+    model_name = lambda mc: mc.name or mc.model_class
 
     return {
-        mc.model_class: _build_and_fit(
+        model_name(mc): _build_and_fit(
             model_config=mc,
-            distribution=distribution,
+            distribution=distributions[model_name(mc)],
             n_estimators=n_estimators,
             X=X_train,
             y=y_train,
@@ -67,8 +67,8 @@ def _build_and_fit(
     log_prefix: str = "",
 ) -> Any:
     """Instantiate a model from its config, fit it, and return it."""
-    mc = model_config.model_class
-    logger.info(f"{log_prefix}Fitting {mc}")
+    name = model_config.name or model_config.model_class
+    logger.info(f"{log_prefix}Fitting {name}")
 
     if isinstance(model_config, InterceptConfig):
         model = InterceptModel(distribution=distribution)
@@ -84,7 +84,7 @@ def _build_and_fit(
     elif isinstance(model_config, CyclicalGradientBoostingMachineConfig):
         model = CyclicalGradientBooster(
             distribution=distribution,
-            n_estimators=n_estimators[mc],
+            n_estimators=n_estimators[name],
             learning_rate=model_config.learning_rate,
             max_depth=model_config.max_depth,
             min_samples_leaf=model_config.min_samples_leaf,
@@ -93,7 +93,7 @@ def _build_and_fit(
     elif isinstance(model_config, GradientBoostingMachineConfig):
         model = CyclicalGradientBooster(
             distribution=distribution,
-            n_estimators=n_estimators[mc],
+            n_estimators=n_estimators[name],
             learning_rate=model_config.learning_rate,
             max_depth=model_config.max_depth,
             min_samples_leaf=model_config.min_samples_leaf,
@@ -102,7 +102,7 @@ def _build_and_fit(
     elif isinstance(model_config, NaturalGradientBoostingMachineConfig):
         model = NGBoostModel(
             distribution=distribution,
-            n_estimators=n_estimators[mc],
+            n_estimators=n_estimators[name],
             learning_rate=model_config.learning_rate,
             max_depth=model_config.max_depth,
         )
