@@ -145,10 +145,16 @@ def _compute_mean_cc(
     dist,
     n_points: int,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Concentration curve based on mean predictions sorting, accumulating y."""
-    y = test_data["y"].to_numpy()
+    """Concentration curve based on mean predictions sorting, accumulating y.
+
+    Both the sort key (predicted per-unit mean) and the accumulated response
+    (per-unit observed y = y / w) are on a per-unit scale so that a constant
+    intercept predictor always yields the diagonal regardless of exposure.
+    """
+    w = test_data["w"].to_numpy()
+    y_per_unit = test_data["y"].to_numpy() / w
     pred_mean, _ = _model_moments(test_data, model, dist)
-    return _compute_concentration_curve(y, pred_mean, n_points)
+    return _compute_concentration_curve(y_per_unit, pred_mean, n_points)
 
 
 def _compute_variance_cc(
@@ -161,23 +167,25 @@ def _compute_variance_cc(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Concentration curve for variance predictions.
 
-    Squared residuals are centred on *mean_model*'s mean predictions.
-    Sorting is by the current *model*'s predicted variance.
+    Both the sort key (predicted per-unit variance) and the accumulated
+    response (per-unit squared residuals) are on a per-unit scale.  This
+    ensures that a constant intercept predictor yields the diagonal: its
+    predicted per-unit variance is the same for every observation, so the
+    sort order is arbitrary and no spurious discriminatory power arises from
+    policies with large exposure weights.
 
-    When exposure weights ``w`` are present, the conditional mean is
-    ``w · μ̂(x)`` and the conditional variance is ``w · σ̂²(x)``.  The
-    squared residual for each observation is ``(y_i − w_i μ̂_ref_i)²``.
+    Squared residuals are centred on *mean_model*'s per-unit mean predictions.
+    Sorting is by the current *model*'s predicted per-unit variance.
     """
-    y = test_data["y"].to_numpy()
     w = test_data["w"].to_numpy()
+    y_per_unit = test_data["y"].to_numpy() / w
 
     ref_mean, _ = _model_moments(test_data, mean_model, mean_dist)
-    squared_residuals = (y - w * ref_mean) ** 2
+    squared_residuals = (y_per_unit - ref_mean) ** 2
 
     _, pred_var = _model_moments(test_data, model, dist)
-    sort_values = w * pred_var
 
-    return _compute_concentration_curve(squared_residuals, sort_values, n_points)
+    return _compute_concentration_curve(squared_residuals, pred_var, n_points)
 
 
 def _write_dat(path: Path, alphas: np.ndarray, values: np.ndarray) -> None:
