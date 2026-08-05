@@ -245,9 +245,6 @@ class CyclicalGradientBooster:
             z = np.zeros((self.n_dim, len(y)))
             x0 = self.distribution.mme(y=y, w=w)
         else:
-            # When correcting an existing estimate, the optimal delta is near zero.
-            # Starting from mme can cause numerical overflow and optimizer failure for
-            # distributions like Gamma, producing a wrong large delta instead of ~0.
             x0 = np.zeros(self.n_dim)
         return minimize(
             fun=lambda z0: self.distribution.loss(y=y, z=z0[:, None] + z, w=w).sum(),
