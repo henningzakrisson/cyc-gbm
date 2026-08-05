@@ -536,28 +536,24 @@ class GammaShapeRateDistribution(Distribution):
     def loss(
         self, y: np.ndarray, z: np.ndarray, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
-        alpha = np.exp(np.minimum(z[0], 500))
-        beta = np.exp(np.minimum(z[1], 500))
         return (
-            loggamma(w * alpha)
-            - w * alpha * z[1]
-            + beta * y
-            - (w * alpha - 1) * np.log(y)
+            loggamma(w * np.exp(z[0]))
+            - w * np.exp(z[0]) * z[1]
+            + np.exp(z[1]) * y
+            - (w * np.exp(z[0]) - 1) * np.log(y)
         )
 
     def grad(
         self, y: np.ndarray, z: np.ndarray, j: int, w: np.ndarray | float = 1.0
     ) -> np.ndarray:
-        alpha = np.exp(np.minimum(z[0], 500))
-        beta = np.exp(np.minimum(z[1], 500))
         if j == 0:
             return (
                 w
-                * alpha
-                * (polygamma(0, w * alpha) - z[1] - np.log(y))
+                * np.exp(z[0])
+                * (polygamma(0, w * np.exp(z[0])) - z[1] - np.log(y))
             )
         elif j == 1:
-            return beta * y - w * alpha
+            return np.exp(z[1]) * y - w * np.exp(z[0])
 
     def mme(self, y: np.ndarray, w: np.ndarray | float = 1.0) -> np.ndarray:
         if isinstance(w, float):
