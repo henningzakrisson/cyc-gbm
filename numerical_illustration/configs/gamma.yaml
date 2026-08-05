@@ -24,22 +24,22 @@ output:
 
 models:
   - model_class: intercept
-    name: intercept_md
+    name: intercept
     parameterization: mean-dispersion
   - model_class: cglm
-    name: cglm_md
+    name: cglm
     parameterization: mean-dispersion
     max_iter: 2000
     tolerance: 1e-5
     step_size: 0.1
   - model_class: gbm
-    name: gbm_md
+    name: gbm
     parameterization: mean-dispersion
     n_estimators: 600
     max_depth: 4
     learning_rate: 0.05
   - model_class: cgbm
-    name: cgbm_md
+    name: cgbm
     parameterization: mean-dispersion
     n_estimators: [500, 500]
     max_depth: 4
