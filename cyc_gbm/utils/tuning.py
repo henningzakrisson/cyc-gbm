@@ -273,10 +273,11 @@ def _find_n_estimators(
     log_prefix: str = "",
 ) -> list[int]:
     loss_delta = np.zeros_like(loss)
+    loss_delta[0, :] = -np.inf
     loss_delta[1:, 0] = loss[1:, 0] - loss[:-1, -1]
     loss_delta[1:, 1:] = loss[1:, 1:] - loss[1:, :-1]
     n_estimators = np.maximum(0, np.argmax(loss_delta >= 0, axis=0) - 1)
-    did_not_converge = (loss_delta >= 0).sum(axis=0) == 0
+    did_not_converge = (loss_delta[1:] >= 0).sum(axis=0) == 0
     was_tuned = [n_estimator_max>0 for n_estimator_max in n_estimators_max]
     n_estimators[did_not_converge] = np.array(n_estimators_max)[did_not_converge]
     did_not_converge = np.logical_and(did_not_converge, was_tuned)

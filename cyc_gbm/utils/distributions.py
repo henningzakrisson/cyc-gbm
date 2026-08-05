@@ -493,10 +493,9 @@ class GammaDistribution(Distribution):
         if isinstance(w, float):
             w = np.array([w] * len(y))
         mean = y.sum() / w.sum()
-        var = sum((y - y.mean()) ** 2) / w.sum()
         z0 = np.log(mean)
-        z1 = 2 * z0 - np.log(var - np.exp(z0))
-
+        phi = np.sum((y - w * mean) ** 2) / np.sum(w * mean ** 2)
+        z1 = np.log(phi)
         return np.array([z0, z1])
 
     def simulate(
