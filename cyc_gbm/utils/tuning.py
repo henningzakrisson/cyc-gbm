@@ -18,6 +18,8 @@ def tune_n_estimators(
     n_splits: int = 4,
     rng: np.random.Generator | None = None,
     random_state: int | None = None,
+    stratify: bool = False,
+    stratify_by_weights: bool = False,
     log_prefix: str = "",
 ) -> dict[str, list[int] | np.ndarray]:
     """Finds a suitable n_estimators hyperparameter of a CycGBM model using k-fold cross-validation.
@@ -30,6 +32,8 @@ def tune_n_estimators(
     :param n_splits: The number of folds to use for k-fold cross-validation.
     :param rng: The random number generator.
     :param random_state: The random state to use for the k-fold split. Will be ignored if rng is not None.
+    :param stratify: Whether to use sort-and-deal stratification when splitting folds.
+    :param stratify_by_weights: If True, stratify on y/w instead of y. Ignored when stratify=False.
     :param log_prefix: Optional prefix for log messages (e.g. bootstrap iteration identifier).
     :return: A dictionary containing the following keys:
         - "n_estimators": The optimal n_estimators parameter value for each parameter dimension.
@@ -44,7 +48,7 @@ def tune_n_estimators(
         else [n_estimators_max] * model.n_dim
     )
 
-    folds = _fold_split(X=X, y=y, w=w, n_splits=n_splits, rng=rng)
+    folds = _fold_split(X=X, y=y, w=w, n_splits=n_splits, rng=rng, stratify=stratify, stratify_by_weights=stratify_by_weights)
 
     logger.info(f"{log_prefix}Performing cross-validation on {n_splits} folds")
     results = [
@@ -82,6 +86,8 @@ def _fold_split(
     w: float | np.ndarray,
     n_splits: int,
     rng: np.random.Generator,
+    stratify: bool = False,
+    stratify_by_weights: bool = False,
 ) -> dict[int, tuple]:
     """Split data into k folds.
 
@@ -89,24 +95,47 @@ def _fold_split(
         May be a numpy array or a pandas DataFrame.
     :param n_splits: The number of folds to use for k-fold cross-validation.
     :param rng: The random number generator.
+    :param stratify: If True, use sort-and-deal stratification so each fold
+        receives an even spread of the response distribution. Suitable for
+        both count and continuous targets.
+    :param stratify_by_weights: If True (and stratify=True), sort by y/w
+        (i.e. frequency/rate) instead of raw y.
     :return A dictionary containing the folds as tuples in the order
         (X_train, y_train, w_train, X_valid, y_valid, w_valid).
     """
     y = np.asarray(y)
     w = np.asarray(w) if not isinstance(w, float) else np.ones(len(y)) * w
-    idx = rng.permutation(X.shape[0])
-    idx_folds = np.array_split(idx, n_splits)
+
     split_fn = _split_dataframe if isinstance(X, pd.DataFrame) else _split_array
-    return {
-        i: split_fn(
-            X=X,
-            y=y,
-            w=w,
-            idx_train=np.concatenate(idx_folds[:i] + idx_folds[i + 1 :]),
-            idx_test=idx_folds[i],
-        )
-        for i in range(n_splits)
-    }
+
+    if stratify:
+        sort_key = y / w if stratify_by_weights else y
+        sorted_idx = np.argsort(sort_key)
+        fold_assignment = np.empty(len(y), dtype=int)
+        fold_assignment[sorted_idx] = np.arange(len(y)) % n_splits
+        return {
+            i: split_fn(
+                X=X,
+                y=y,
+                w=w,
+                idx_train=np.where(fold_assignment != i)[0],
+                idx_test=np.where(fold_assignment == i)[0],
+            )
+            for i in range(n_splits)
+        }
+    else:
+        idx = rng.permutation(X.shape[0])
+        idx_folds = np.array_split(idx, n_splits)
+        return {
+            i: split_fn(
+                X=X,
+                y=y,
+                w=w,
+                idx_train=np.concatenate(idx_folds[:i] + idx_folds[i + 1 :]),
+                idx_test=idx_folds[i],
+            )
+            for i in range(n_splits)
+        }
 
 
 def _split_dataframe(

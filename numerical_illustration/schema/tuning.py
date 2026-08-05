@@ -13,7 +13,11 @@ class TuningConfig(BaseModel):
     Attributes:
         perform_tuning: Whether to run CV-based tuning of ``n_estimators``.
         n_folds: Number of CV folds.
+        stratify: Whether to use sort-and-deal stratification when splitting folds.
+        stratify_by_weights: If True, stratify on y/w instead of y.
     """
 
     perform_tuning: bool = False
     n_folds: int = 4
+    stratify: bool = False
+    stratify_by_weights: bool = False
