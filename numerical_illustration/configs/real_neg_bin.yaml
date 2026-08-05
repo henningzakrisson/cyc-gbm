@@ -10,6 +10,7 @@ data:
   random_seed: 42
   test_size: 0.2
   normalize_features: false
+  claim_amount_cap: 500000
   categorical_features:
     - VehBrand
     - VehGas
