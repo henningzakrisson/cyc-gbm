@@ -6,6 +6,9 @@ from pydantic import BaseModel, field_validator
 class BootstrapConfig(BaseModel):
     """Configuration for repeated bootstrap evaluation runs.
 
+    Each iteration uses its own random generator. Simulated data is drawn
+    anew, and local file data gets a new random train/test split.
+
     Attributes:
         n_bootstraps: Number of bootstrap iterations to run.
         parallel: Whether to run bootstrap iterations in parallel via joblib.
