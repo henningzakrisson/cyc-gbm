@@ -10,6 +10,7 @@ data:
   random_seed: 42
   test_size: 0.2
   normalize_features: false
+  large_claim_quantile: 0.95
   categorical_features:
     - VehBrand
     - VehGas
@@ -31,12 +32,12 @@ output:
 models:
   - model_class: intercept
   - model_class: gbm
-    n_estimators: 1000
+    n_estimators: 2000
     max_depth: 2
     min_samples_leaf: 20
     learning_rate: 0.01
   - model_class: cgbm
-    n_estimators: [1000, 1000]
+    n_estimators: [2000, 2000]
     max_depth: 2
     min_samples_leaf: 20
     learning_rate: [0.01, 0.002]

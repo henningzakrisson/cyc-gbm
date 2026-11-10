@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from cyc_gbm.utils.distributions import Distribution, initiate_distribution
 
@@ -74,3 +74,6 @@ class LocalDataConfig(DataConfig):
     claim_amount_cap: float | None = None
     """If set, clip the target variable ``y`` to this upper limit after loading.
     Useful for removing the influence of extreme outlier claims."""
+    large_claim_quantile: float | None = Field(default=None, gt=0, le=1)
+    """If set, drop observations whose ``y`` exceeds this quantile of ``y`` in
+    the training data, from both the training and the test data."""
