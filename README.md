@@ -90,5 +90,28 @@ scikit-learn back to `1.8.0`, undoing the workaround.
 This is experimental and depends on a development branch of scikit-learn. The
 released API may differ from the PR branch.
 
+## Reproducing the real data example
+
+The real data example uses the French MTPL data (`freMTPL2`) and needs the
+scikit-learn fork from the section above. From the repository root:
+
+```bash
+uv sync --python 3.12 --extra numerical-illustration
+uv pip install "scikit-learn @ git+https://github.com/adam2392/scikit-learn.git@32ec6ba7b19ef771729eb4da390133e73941aaaa" --reinstall-package scikit-learn
+
+# downloads freMTPL2 from OpenML (needs internet access) and writes
+# data/freMTPL2_counts.csv and data/freMTPL2_severity.csv
+uv run --no-sync python -m numerical_illustration.prepare_real_data
+
+uv run --no-sync python -m numerical_illustration --config numerical_illustration/configs/real_neg_bin.yaml
+uv run --no-sync python -m numerical_illustration --config numerical_illustration/configs/real_gamma.yaml
+```
+
+Results are written to `data/results/<config name>/<run id>/`. Run the commands
+from the repository root, since the config paths are relative to it.
+
+To repeat a run on new random train/test splits, set `bootstrap.n_bootstraps`
+in the config. The repetitions run in parallel (`n_jobs: -1` uses all cores).
+
 ## Contact
 If you have any questions, feel free to contact me [here](mailto:henning.zakrisson@gmail.com).

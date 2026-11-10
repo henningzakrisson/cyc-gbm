@@ -111,13 +111,18 @@ def _compute_concentration_curve(
         ranging from 0 to 1 and ``cc`` is the corresponding concentration
         curve values.
     """
-    order = np.argsort(sort_values)
+    order = np.argsort(sort_values, kind="stable")
+    sort_values_sorted = sort_values[order]
     response_sorted = response[order]
     total = response_sorted.sum()
-
-    cumsum = np.concatenate([[0.0], np.cumsum(response_sorted)])
     n = len(response_sorted)
-    fracs = np.arange(n + 1) / n
+
+    # Observations with tied sort values share their response evenly: the
+    # cumulative sum is only evaluated at the end of each block of ties and
+    # interpolated linearly within it, so a constant predictor gives the diagonal.
+    block_ends = np.flatnonzero(np.diff(sort_values_sorted, append=np.inf))
+    cumsum = np.concatenate([[0.0], np.cumsum(response_sorted)[block_ends]])
+    fracs = np.concatenate([[0.0], (block_ends + 1) / n])
 
     alphas = np.linspace(0.0, 1.0, n_points + 1)
     cc = np.interp(alphas, fracs, cumsum / total if total != 0 else cumsum)
