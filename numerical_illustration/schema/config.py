@@ -67,15 +67,6 @@ class NumericalIllustrationConfig(BaseModel):
         }
 
     @model_validator(mode="after")
-    def no_bootstrap_with_local_data(self) -> Self:
-        if self.bootstrap.n_bootstraps > 1 and isinstance(self.data, LocalDataConfig):
-            raise ValueError(
-                "Bootstrap (n_bootstraps > 1) is not supported with local file "
-                "data source. Use simulation or set n_bootstraps to 1."
-            )
-        return self
-
-    @model_validator(mode="after")
     def unique_model_names(self) -> Self:
         names = self.model_names
         if len(names) != len(set(names)):
