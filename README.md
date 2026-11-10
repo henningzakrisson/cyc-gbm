@@ -57,16 +57,22 @@ print(f'negative log likelihood: {loss}')
 ## Experimental: Categorical feature support
 
 The base learner in `cyc-gbm` is scikit-learn's `DecisionTreeRegressor`, which
-currently does not support native categorical splits. There is an
-[open PR (scikit-learn #33354)](https://github.com/scikit-learn/scikit-learn/pull/33354)
-that adds this functionality. **Once that PR is merged and released, this
-workaround will no longer be required.**
+does not support native categorical splits in any released scikit-learn
+version up to 1.9.1.
+[scikit-learn #33354](https://github.com/scikit-learn/scikit-learn/pull/33354)
+adds this functionality. It was merged in July 2026 but has not been released
+yet. **Once it is released, this workaround will no longer be required.**
 
-To experiment with categorical features, install scikit-learn from the PR branch:
+To use categorical features, install scikit-learn from the PR branch, pinned
+to a fixed commit so that runs are reproducible:
 
 ```bash
-uv pip install "scikit-learn @ git+https://github.com/adam2392/scikit-learn.git@nocats-v2" --force-reinstall
+uv pip install "scikit-learn @ git+https://github.com/adam2392/scikit-learn.git@32ec6ba7b19ef771729eb4da390133e73941aaaa" --reinstall-package scikit-learn
 ```
+
+`--reinstall-package scikit-learn` replaces only scikit-learn. Avoid
+`--force-reinstall`, which also reinstalls numpy, scipy and the other
+dependencies, possibly at versions other than those pinned in `pyproject.toml`.
 
 > **Note:** This builds scikit-learn from source (C/Cython compilation) and
 > requires a C compiler. On macOS this is included in the Xcode Command Line
@@ -74,14 +80,15 @@ uv pip install "scikit-learn @ git+https://github.com/adam2392/scikit-learn.git@
 > package manager. The build takes roughly 5–15 minutes. To revert to the stable
 > release, run:
 > ```bash
-> uv pip install scikit-learn==1.8.0 --force-reinstall
+> uv pip install scikit-learn==1.8.0 --reinstall-package scikit-learn
 > ```
 
 After installing the PR branch, use `uv run --no-sync` instead of `uv run`.
 Plain `uv run` re-syncs dependencies from `pyproject.toml` and will downgrade
 scikit-learn back to `1.8.0`, undoing the workaround.
 
-This is experimental and depends on an unmerged PR — the API may change.
+This is experimental and depends on a development branch of scikit-learn. The
+released API may differ from the PR branch.
 
 ## Contact
 If you have any questions, feel free to contact me [here](mailto:henning.zakrisson@gmail.com).
