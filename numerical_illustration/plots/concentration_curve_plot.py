@@ -162,17 +162,15 @@ def _compute_variance_cc(
     mean_dist,
     n_points: int,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Concentration curve for variance predictions.
+    """Concentration curve for variance predictions, following the paper definition.
 
     Sort key: per-unit predicted variance ``σ̂²(x)`` (no exposure factor ``w``).
     Using the per-unit sort key ensures that a constant intercept predictor
     has an identical sort value for every observation, so no spurious
     discriminatory power arises from policies with large exposure weights.
 
-    Accumulated response: ``(y_i - w_i·μ̂_ref_i)² / w_i``.
-    Since ``E[(y_i - w_i·μ̂_ref_i)²] = w_i·σ²(x_i)`` under the model,
-    dividing by ``w_i`` gives an unbiased per-policy estimator of ``σ²(x_i)``,
-    putting all policies on the same per-unit scale regardless of exposure.
+    Accumulated response: total squared residuals ``(y_i - w_i·μ̂_ref_i)²``,
+    as defined in the paper.
 
     Squared residuals are centred on *mean_model*'s mean predictions.
     """
@@ -180,7 +178,7 @@ def _compute_variance_cc(
     w = test_data["w"].to_numpy()
 
     ref_mean, _ = _model_moments(test_data, mean_model, mean_dist)
-    squared_residuals = (y - w * ref_mean) ** 2 / w
+    squared_residuals = (y - w * ref_mean) ** 2
 
     _, pred_var = _model_moments(test_data, model, dist)
 
