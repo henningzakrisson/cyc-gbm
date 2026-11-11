@@ -48,6 +48,7 @@ def tune_models(
                 learning_rate=mc.learning_rate,
                 max_depth=mc.max_depth,
                 min_samples_leaf=mc.min_samples_leaf,
+                refit_intercept=mc.refit_intercept,
             )
 
             if isinstance(mc, CyclicalGradientBoostingMachineConfig):

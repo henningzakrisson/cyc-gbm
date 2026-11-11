@@ -165,6 +165,32 @@ class CyclicalGradientBoosterTestCase(unittest.TestCase):
             distribution_name="neg_bin", expected_loss=-12944.799372247004, n_dim=2
         )
 
+    def test_refit_intercept(self):
+        """Tests that `refit_intercept=False` keeps the constant MLE from before boosting as z0."""
+        distribution = initiate_distribution(distribution="beta_prime")
+        w = np.ones(self.X.shape[0])
+        y = distribution.simulate(z=self.z[:2], w=w, rng=self.rng)
+
+        def fit(refit_intercept: bool) -> CyclicalGradientBooster:
+            gbm = CyclicalGradientBooster(
+                distribution=distribution,
+                n_estimators=[self.n_estimators, 0],
+                refit_intercept=refit_intercept,
+            )
+            gbm.fit(X=self.X, y=y, w=w, verbose=False)
+            return gbm
+
+        gbm_refit = fit(refit_intercept=True)
+        gbm_no_refit = fit(refit_intercept=False)
+        constant_mle = gbm_no_refit.initialize_estimate(y=y, w=w)
+
+        np.testing.assert_allclose(gbm_no_refit.z0, constant_mle)
+        self.assertFalse(np.allclose(gbm_refit.z0, constant_mle))
+        self.assertLess(
+            distribution.loss(y=y, z=gbm_refit.predict(self.X), w=w).sum(),
+            distribution.loss(y=y, z=gbm_no_refit.predict(self.X), w=w).sum(),
+        )
+
     def test_multi_normal(self):
         self._test_distribution(
             distribution_name="normal", expected_loss=1.3351243486545377, n_dim=3
