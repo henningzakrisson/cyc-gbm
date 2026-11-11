@@ -35,6 +35,7 @@ models:
     n_estimators: 600
     max_depth: 4
     learning_rate: 0.05
+    refit_intercept: false
   - model_class: ngboost
     n_estimators: 1200
     max_depth: 4
@@ -43,6 +44,7 @@ models:
     n_estimators: [500, 500]
     max_depth: 4
     learning_rate: [0.05, 0.01]
+    refit_intercept: false
 
 bootstrap:
   n_bootstraps: 100
