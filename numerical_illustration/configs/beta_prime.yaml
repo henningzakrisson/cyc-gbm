@@ -31,12 +31,12 @@ models:
     tolerance: 1e-5
     step_size: 0.1
   - model_class: gbm
-    n_estimators: 600
+    n_estimators: 200
     max_depth: 4
     learning_rate: 0.05
     refit_intercept: false
   - model_class: cgbm
-    n_estimators: [500, 500]
+    n_estimators: [200, 200]
     max_depth: 4
     learning_rate: [0.1,0.1]
     refit_intercept: false
