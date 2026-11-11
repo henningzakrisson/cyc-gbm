@@ -35,6 +35,7 @@ class CyclicalGradientBooster:
         max_depth: int | list[int] = 3,
         feature_selection: list[list[str | int]] | None = None,
         parameterization: str = "mean-dispersion",
+        refit_intercept: bool = True,
     ):
         """
         Initialize a CyclicalGradientBooster object.
@@ -47,6 +48,7 @@ class CyclicalGradientBooster:
         :param max_depth: Maximum depths of each decision tree. Dimension-wise or global for all parameter dimensions.
         :param feature_selection: Features to use for each parameter dimension. If None, all feature_selection are used for all parameter dimensions.
         :param parameterization: The parameterization to use for the distribution. Default is "mean-dispersion". See `initiate_distribution` for supported alternatives.
+        :param refit_intercept: Whether to refit the constant terms z0 by MLE given the tree estimates after boosting. Default is True.
         """
         if isinstance(distribution, str):
             self.distribution = initiate_distribution(
@@ -62,6 +64,7 @@ class CyclicalGradientBooster:
         self.min_samples_leaf = self._setup_hyper_parameter(min_samples_leaf)
         self.max_depth = self._setup_hyper_parameter(max_depth)
         self.feature_selection = feature_selection
+        self.refit_intercept = refit_intercept
 
         self.z0 = 0
         self.trees = None
@@ -143,7 +146,8 @@ class CyclicalGradientBooster:
                         progress = self._log_progress(step=k, total_steps=max(self.n_estimators),last_progress=progress)
 
         # Adjust initial estimate given current tree estimates
-        self.z0 += self.initialize_estimate(y=y, w=w, z=z)
+        if self.refit_intercept:
+            self.z0 += self.initialize_estimate(y=y, w=w, z=z)
 
     def _log_progress(self, step: int, total_steps: int, last_progress: float = -1) -> float:
         """

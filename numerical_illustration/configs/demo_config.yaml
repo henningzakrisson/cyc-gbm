@@ -25,10 +25,12 @@ models:
     n_estimators: 442
     max_depth: 3
     learning_rate: 0.01
+    refit_intercept: false
   - model_class: cgbm
     n_estimators: [487, 439]
     max_depth: 3
     learning_rate: 0.01
+    refit_intercept: false
 
 bootstrap:
   n_bootstraps: 1

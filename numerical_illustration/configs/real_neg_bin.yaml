@@ -35,11 +35,13 @@ models:
     max_depth: 3
     min_samples_leaf: 20
     learning_rate: 0.2
+    refit_intercept: false
   - model_class: cgbm
     n_estimators: [300, 300]
     max_depth: 3
     min_samples_leaf: 20
     learning_rate: [0.2, 0.04]
+    refit_intercept: false
 
 bootstrap:
   n_bootstraps: 100
